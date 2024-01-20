@@ -82,6 +82,22 @@
 /* MIMXRT1170DVMA TODO
  */
 #  define IMXRT_GPIO_NPORTS            13           /* Thirteen total ports */
+
+#elif defined(CONFIG_ARCH_CHIP_MIMXRT533SFAWC) || \
+      defined(CONFIG_ARCH_CHIP_MIMXRT533SFFOC) || \
+      defined(CONFIG_ARCH_CHIP_MIMXRT555SFAWC) || \
+      defined(CONFIG_ARCH_CHIP_MIMXRT555SFFOC) || \
+      defined(CONFIG_ARCH_CHIP_MIMXRT595SFAWC) || \
+      defined(CONFIG_ARCH_CHIP_MIMXRT595SFFOC)
+/* MIMXRT533SFAWC - 3MB RAM, w/o GPU 2D, w/o USB, 200MHz
+ * MIMXRT533SFFOC - 3MB RAM, w/o GPU 2D, w/ USB, 200MHz, FOWLP249
+ * MIMXRT555SFAWC - 5MB RAM, w/ GPU 2D, w/o USB, 200MHz
+ * MIMXRT555SFFOC - 5MB RAM, w/ GPU 2D, w/ USB, 200MHz, FOWLP249
+ * MIMXRT595SFAWC - 5MB RAM, DSP Cadence Fusion F1, w/ GPU 2D, w/o USB, 200MHz
+ * MIMXRT595SFFOC - 5MB RAM, DSP Cadence Fusion F1, w/ GPU 2D, w/ USB, 200MHz, FOWLP249
+ */
+#  define IMXRT_GPIO_NPORTS            6           /* Six total ports */
+
 #else
 #  error "Unknown i.MX RT chip type"
 #endif

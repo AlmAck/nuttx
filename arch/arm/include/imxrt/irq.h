@@ -40,6 +40,8 @@
 #  include <arch/imxrt/imxrt106x_irq.h>
 #elif defined(CONFIG_ARCH_FAMILY_IMXRT117x)
 #  include <arch/imxrt/imxrt117x_irq.h>
+#elif defined(CONFIG_ARCH_FAMILY_IMXRT5xx)
+#  include <arch/imxrt/imxrt5xx_irq.h>
 #else
 #  error Unrecognized i.MX RT architecture
 #endif
