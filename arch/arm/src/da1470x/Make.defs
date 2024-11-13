@@ -1,0 +1,59 @@
+##############################################################################
+# arch/arm/src/da1470x/Make.defs
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.  The
+# ASF licenses this file to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance with the
+# License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+##############################################################################
+
+# The start-up, "head", file.  Only common vectors are support so there
+# isn't one.
+
+HEAD_ASRC =
+
+# Common ARM and Cortex-M4 files (copied from da1470x/Make.defs)
+
+include armv8-m/Make.defs
+
+# Required da1470x files
+
+CHIP_ASRCS  =
+CHIP_CSRCS  = da1470x_allocateheap.c da1470x_exti_gpio.c da1470x_gpio.c
+CHIP_CSRCS += da1470x_irq.c da1470x_lowputc.c da1470x_rcc.c da1470x_i2c.c
+CHIP_CSRCS += da1470x_serial.c da1470x_start.c da1470x_waste.c da1470x_uid.c
+CHIP_CSRCS += da1470x_spi.c da1470x_lse.c da1470x_lsi.c da1470xxx_rcc.c
+CHIP_CSRCS += da1470x_pwr.c da1470x_tim.c da1470x_flash.c da1470x_timerisr.c
+
+ifneq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
+CHIP_CSRCS += da1470x_idle.c
+endif
+
+ifeq ($(CONFIG_TIMER),y)
+CHIP_CSRCS += da1470x_tim_lowerhalf.c
+endif
+
+ifeq ($(CONFIG_BUILD_PROTECTED),y)
+CHIP_CSRCS += da1470x_userspace.c da1470x_mpuinit.c
+endif
+
+ifeq ($(CONFIG_DEBUG_FEATURES),y)
+CHIP_CSRCS += da1470x_dumpgpio.c
+endif
+
+# Required chip type specific files
+
+ifeq ($(CONFIG_USBDEV),y)
+CHIP_CSRCS += da1470x_otgdev.c
+endif
