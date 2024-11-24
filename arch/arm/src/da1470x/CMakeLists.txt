@@ -21,8 +21,8 @@
 set(SRCS
     da1470x_start.c
     da1470x_clockconfig.c
-    nrf53_irq.c
-    nrf53_allocateheap.c
+    da1470x_irq.c
+    da1470x_allocateheap.c
     da1470x_lowputc.c
     da1470x_gpio.c)
 

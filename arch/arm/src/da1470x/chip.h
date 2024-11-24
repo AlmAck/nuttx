@@ -33,7 +33,6 @@
 
 #include <arch/irq.h>
 #include <arch/da1470x/chip.h>
-#include "hardware/da1470x_pinmap.h"
 #include "hardware/da1470x_memorymap.h"
 
 /****************************************************************************
