@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/da1470x/da1470x_serial.h
+ * arch/arm/src/da1470x/da1470x_systick.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,35 +18,46 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_DA1470X_DA1470X_SERIAL_H
-#define __ARCH_ARM_SRC_DA1470X_DA1470X_SERIAL_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include "da1470x_config.h"
+#include <stdint.h>
+#include <time.h>
+#include <debug.h>
+
+#include <nuttx/arch.h>
+#include <arch/board/board.h>
+
+#include <nuttx/timers/arch_timer.h>
+#include "systick.h"
 
 /****************************************************************************
- * Public Function Prototypes
+ * Pre-processor Definitions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: da1470x_earlyserialinit
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Function:  up_timer_initialize
  *
  * Description:
- *   Performs the low level UART initialization early in debug so that the
- *   serial console will be available during bootup.  This must be called
- *   before da1470x_serialinit.  NOTE:  This function depends on GPIO pin
- *   configuration performed in xmc_lowsetup() and main clock initialization
- *   performed in xmc_clock_configure().
+ *   This function is called during start-up to initialize
+ *   the timer interrupt.
  *
  ****************************************************************************/
 
-#ifdef USE_EARLYSERIALINIT
-void da1470x_earlyserialinit(void);
-#endif
+void up_timer_initialize(void)
+{
+  /* Use SysTick to drive system timer  */
 
-#endif /* __ARCH_ARM_SRC_DA1470X_DA1470X_SERIAL_H */
+  up_timer_set_lowerhalf(systick_initialize(true, BOARD_SYSTICK_CLOCK, -1));
+}

@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/nrf53/nrf53_lowputc.h
+ * arch/arm/src/da1470x/da1470x_lowputc.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_NRF53_NRF53_LOWPUTC_H
-#define __ARCH_ARM_SRC_NRF53_NRF53_LOWPUTC_H
+#ifndef __ARCH_ARM_SRC_DA1470X_DA1470X_LOWPUTC_H
+#define __ARCH_ARM_SRC_DA1470X_DA1470X_LOWPUTC_H
 
 /****************************************************************************
  * Included Files
@@ -30,8 +30,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "nrf53_gpio.h"
-#include "nrf53_config.h"
+#include "da1470x_gpio.h"
+#include "da1470x_config.h"
 
 /****************************************************************************
  * Public Types
@@ -52,8 +52,8 @@ struct uart_config_s
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
   bool     oflow;         /* Output flow control supported. */
 #endif
-  nrf53_pinset_t txpin;   /* TX pin */
-  nrf53_pinset_t rxpin;   /* RX pin */
+  da1470x_pinset_t txpin;   /* TX pin */
+  da1470x_pinset_t rxpin;   /* RX pin */
 };
 #endif
 
@@ -62,7 +62,7 @@ struct uart_config_s
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nrf53_lowsetup
+ * Name: da1470x_lowsetup
  *
  * Description:
  *   Called at the very beginning of _start. Performs low level
@@ -72,10 +72,10 @@ struct uart_config_s
  *
  ****************************************************************************/
 
-void nrf53_lowsetup(void);
+void da1470x_lowsetup(void);
 
 /****************************************************************************
- * Name: nrf53_usart_configure
+ * Name: da1470x_usart_configure
  *
  * Description:
  *   Configure a UART for non-interrupt driven operation
@@ -83,26 +83,26 @@ void nrf53_lowsetup(void);
  ****************************************************************************/
 
 #ifdef HAVE_UART_DEVICE
-void nrf53_usart_configure(uintptr_t base,
+void da1470x_usart_configure(uintptr_t base,
                            const struct uart_config_s *config);
 #endif
 
 /****************************************************************************
- * Name: nrf53_usart_disable
+ * Name: da1470x_usart_disable
  *
  * Description:
  *   Disable a UART.  it will be necessary to again call
- *   nrf53_usart_configure() in order to use this UART channel again.
+ *   da1470x_usart_configure() in order to use this UART channel again.
  *
  ****************************************************************************/
 
 #ifdef HAVE_UART_DEVICE
-void nrf53_usart_disable(uintptr_t base,
+void da1470x_usart_disable(uintptr_t base,
                          const struct uart_config_s *config);
 #endif
 
 /****************************************************************************
- * Name: nrf53_usart_setformat
+ * Name: da1470x_usart_setformat
  *
  * Description:
  *   Set the USART line format and speed.
@@ -110,8 +110,8 @@ void nrf53_usart_disable(uintptr_t base,
  ****************************************************************************/
 
 #ifdef HAVE_UART_DEVICE
-void nrf53_usart_setformat(uintptr_t base,
+void da1470x_usart_setformat(uintptr_t base,
                            const struct uart_config_s *config);
 #endif
 
-#endif /* __ARCH_ARM_SRC_NRF53_NRF53_LOWPUTC_H */
+#endif /* __ARCH_ARM_SRC_DA1470X_DA1470X_LOWPUTC_H */

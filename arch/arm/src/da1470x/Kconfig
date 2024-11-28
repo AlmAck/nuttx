@@ -3,130 +3,107 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
-if ARCH_CHIP_DA1470X
-comment "DA1470X Configuration Options"
-
-choice
-	prompt "DA1470X Chip Selection"
-	default ARCH_CHIP_DA1470X
-	depends on ARCH_CHIP_DA1470X
-
-config ARCH_CHIP_da1470x
-	bool "DA1470X"
-	select da1470x_DA1470X
-	select da1470x_FLASH_CONFIG_I
-	select da1470x_IO_CONFIG_A
-	---help---
-		da1470x Cortex M33F, 2048 Kb FLASH, 1536 Kb SRAM
-
-endchoice # da1470x Chip Selection
-
-
-#
-# For a description of the syntax of this configuration file,
-# see the file kconfig-language.txt in the NuttX tools repository.
-#
-
 comment "DA1470X Configuration Options"
 
 # DA1470 Families
 
 choice
 	prompt "DA1470X Chip Selection"
-	default ARCH_CHIP_DA1470
+	default ARCH_CHIP_DA14706
+	depends on ARCH_CHIP_DA1470X
 
-config ARCH_CHIP_DA1470
-	bool "DA1470"
+config ARCH_CHIP_DA14706
+	bool "DA14706"
 	select DA1470_CPUAPP_MEM_FLASH_1024
-	select DA1470_CPUAPP_MEM_RAM_320
-	select DA1470_CPUSNC_MEM_FLASH_256
-	select DA1470_CPUSNC_MEM_RAM_64
+	select DA1470_CPUAPP_MEM_RAM_512
+	#select DA1470_CPUSNC_MEM_FLASH_256
+	#select DA1470_CPUSNC_MEM_RAM_64
 
-endchoice # NRF53 Chip Selection
+endchoice # DA1470 Chip Selection
 
 config DA1470_APPCORE
 	bool
 	default n
-	select ARM_HAVE_DSP
-	select ARCH_HAVE_FPU
-	select DA1470_HAVE_UART
+	#select ARM_HAVE_DSP
+	#select ARCH_HAVE_FPU
+	#select DA1470_HAVE_UART
 
 config DA1470_SNCCORE
 	bool
 	default n
 
 choice
-	prompt "da1470 Core Selection"
+	prompt "DA1470 Core Selection"
 	default ARCH_CHIP_DA1470_CPUAPP
-	depends on ARCH_CHIP_DA1470
+	depends on ARCH_CHIP_DA14706
 
 config ARCH_CHIP_DA1470_CPUAPP
-	bool "da1470 App core"
+	bool "DA1470 App core"
 	select DA1470_APPCORE
 
 config ARCH_CHIP_DA1470_CPUSNC
-	bool "da1470 Sensor Node Controller"
+	bool "DA1470 Sensor Node Controller"
 	select DA1470_SNCCORE
 
 endchoice # Core Selection
 
-# # RAM size for the app core
+# RAM size for the app core
 
-# config NRF53_CPUAPP_MEM_RAM_512
+config DA1470_CPUAPP_MEM_RAM_512
+	bool
+	default n
+
+config DA1470_CPUAPP_MEM_RAM_SIZE
+	hex
+	default 0x080000 if DA1470_CPUAPP_MEM_RAM_512
+
+# # RAM size for the snc core
+
+# config DA1470_CPUSNC_MEM_RAM_64
 # 	bool
 # 	default n
 
-# config NRF53_CPUAPP_MEM_RAM_SIZE
+# config DA1470_CPUSNC_MEM_RAM_SIZE
 # 	hex
-# 	default 0x080000 if NRF53_CPUAPP_MEM_RAM_512
+# 	default 0x008000 if DA1470_CPUSNC_MEM_RAM_64
 
-# # RAM size for the net core
+# FLASH size for the app core
 
-# config NRF53_CPUNET_MEM_RAM_64
-# 	bool
-# 	default n
+config DA1470_CPUAPP_MEM_FLASH_1024
+	bool
+	default n
 
-# config NRF53_CPUNET_MEM_RAM_SIZE
-# 	hex
-# 	default 0x008000 if NRF53_CPUNET_MEM_RAM_64
-
-# # FLASH size for the app core
-
-# config NRF53_CPUAPP_MEM_FLASH_1024
-# 	bool
-# 	default n
-
-# config NRF53_CPUAPP_MEM_FLASH_SIZE
-# 	hex
-# 	default 0x100000 if NRF53_CPUAPP_MEM_FLASH_1024
+config DA1470_CPUAPP_MEM_FLASH_SIZE
+	hex
+	default 0x100000 if DA1470_CPUAPP_MEM_FLASH_1024
 
 # # FLASH size for the net core
 
-# config NRF53_CPUNET_MEM_FLASH_256
+# config DA1470_CPUSNC_MEM_FLASH_256
 # 	bool
 # 	default n
 
-# config NRF53_CPUNET_MEM_FLASH_SIZE
+# config DA1470_CPUSNC_MEM_FLASH_SIZE
 # 	hex
-# 	default 0x040000 if NRF53_CPUNET_MEM_FLASH_256
+# 	default 0x040000 if DA1470_CPUSNC_MEM_FLASH_256
 
 # if NRF53_APPCORE
 
-# config NRF53_NET_BOOT
+# config DA1470_SNC_BOOT
 # 	bool "nRF53 Net core configuration"
 # 	default y
 
-# if NRF53_NET_BOOT
+# if DA1470_SNC_BOOT
 
-# config NRF53_NET_POWER_ON_BOOT
+# config DA1470_SNC_POWER_ON_BOOT
 # 	bool "nRF53 Power Net core on App core boot"
 # 	default y
 
-# config NRF53_NET_GPIO_ALLOW_ALL
+# config DA1470_SNC_GPIO_ALLOW_ALL
 # 	bool "nRF53 allow all GPIO for Net core"
 # 	default y
 
-# endif # NRF53_NET_BOOT
+# endif # DA1470_SNC_BOOT
 
 # endif # NRF53_APPCORE
 
@@ -151,9 +128,9 @@ config DA1470_UART
 	bool
 	default n
 
-menu "da1470 Peripheral Selection"
+menu "DA1470 Peripheral Selection"
 
-config DA1470_UART
+config DA1470_UART0
 	bool "UART0"
 	default n
 	select UART_SERIALDRIVER

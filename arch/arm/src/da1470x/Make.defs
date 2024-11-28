@@ -30,30 +30,33 @@ include armv8-m/Make.defs
 # Required da1470x files
 
 CHIP_ASRCS  =
-CHIP_CSRCS  = da1470x_allocateheap.c da1470x_exti_gpio.c da1470x_gpio.c
-CHIP_CSRCS += da1470x_irq.c da1470x_lowputc.c da1470x_rcc.c da1470x_i2c.c
-CHIP_CSRCS += da1470x_serial.c da1470x_start.c da1470x_waste.c da1470x_uid.c
-CHIP_CSRCS += da1470x_spi.c da1470x_lse.c da1470x_lsi.c da1470xxx_rcc.c
-CHIP_CSRCS += da1470x_pwr.c da1470x_tim.c da1470x_flash.c da1470x_timerisr.c
+CHIP_CSRCS  = da1470x_allocateheap.c da1470x_clk.c da1470x_clockconfig.c
+CHIP_CSRCS += da1470x_gpio.c da1470x_irq.c da1470x_lowputc.c
+CHIP_CSRCS += da1470x_start.c da1470x_systick.c
 
-ifneq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
-CHIP_CSRCS += da1470x_idle.c
+
+ifeq ($(CONFIG_DA1470X_UART),y)
+CHIP_CSRCS += da1470x_serial.c
 endif
 
-ifeq ($(CONFIG_TIMER),y)
-CHIP_CSRCS += da1470x_tim_lowerhalf.c
-endif
-
-ifeq ($(CONFIG_BUILD_PROTECTED),y)
-CHIP_CSRCS += da1470x_userspace.c da1470x_mpuinit.c
-endif
-
-ifeq ($(CONFIG_DEBUG_FEATURES),y)
-CHIP_CSRCS += da1470x_dumpgpio.c
-endif
-
-# Required chip type specific files
-
-ifeq ($(CONFIG_USBDEV),y)
-CHIP_CSRCS += da1470x_otgdev.c
-endif
+#ifneq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
+#CHIP_CSRCS += da1470x_idle.c
+#endif
+#
+#ifeq ($(CONFIG_TIMER),y)
+#CHIP_CSRCS += da1470x_tim_lowerhalf.c
+#endif
+#
+#ifeq ($(CONFIG_BUILD_PROTECTED),y)
+#CHIP_CSRCS += da1470x_userspace.c da1470x_mpuinit.c
+#endif
+#
+#ifeq ($(CONFIG_DEBUG_FEATURES),y)
+#CHIP_CSRCS += da1470x_dumpgpio.c
+#endif
+#
+## Required chip type specific files
+#
+#ifeq ($(CONFIG_USBDEV),y)
+#CHIP_CSRCS += da1470x_otgdev.c
+#endif

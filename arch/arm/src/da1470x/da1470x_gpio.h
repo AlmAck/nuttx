@@ -41,14 +41,14 @@
 
 
 
-/* Pin configuration */
-#define GPIO_INPUT                 (0)    /* 0000 0000 */
-#define GPIO_PULLUP                (1 << 8)    /* 0001 0000 0000 */
-#define GPIO_PULLDOWN              (2 << 8)    /* 0010 0000 0000 */
-#define GPIO_OUTPUT                (3 << 8)    /* 0011 0000 0000 */
-#define GPIO_OUTPUT_PUSHPULL       GPIO_OUTPUT /* Explicit push-pull is the same as basic output */
-#define GPIO_OUTPUT_OPENDRAIN      (7 << 8)    /* 0111 0000 0000 */
-#define GPIO_INVALID               (0xFFF)  /* 1111 1111 1111 */
+// /* Pin configuration */
+// #define GPIO_INPUT                 (0)    /* 0000 0000 */
+// #define GPIO_PULLUP                (1 << 8)    /* 0001 0000 0000 */
+// #define GPIO_PULLDOWN              (2 << 8)    /* 0010 0000 0000 */
+// #define GPIO_OUTPUT                (3 << 8)    /* 0011 0000 0000 */
+// #define GPIO_OUTPUT_PUSHPULL       GPIO_OUTPUT /* Explicit push-pull is the same as basic output */
+// #define GPIO_OUTPUT_OPENDRAIN      (7 << 8)    /* 0111 0000 0000 */
+// #define GPIO_INVALID               (0xFFF)  /* 1111 1111 1111 */
 
 /* Macro to define GPIO pin configuration */
 #define GPIO_PIN_CONFIG(mode, port, pin) (((mode) & 0xFFF) | ((port) << 12) | ((pin) << 16))
@@ -199,7 +199,7 @@
 
 
 
-/* Bit-encoded input to nrf53_gpio_config() *********************************/
+/* Bit-encoded input to da1470x_gpio_config() *********************************/
 
 /* 32-Bit Encoding: .... .... .... .GGF  FSSD DDDM MVPN NNNN
  *
@@ -361,10 +361,10 @@
 
 typedef uint32_t da1470x_pinset_t;
 
-enum nrf53_gpio_detectmode_e
+enum da1470x_gpio_detectmode_e
 {
-  NRF53_GPIO_DETECTMODE_DETECT,
-  NRF53_GPIO_DETECTMODE_LDETECT,
+  da1470x_GPIO_DETECTMODE_DETECT,
+  da1470x_GPIO_DETECTMODE_LDETECT,
 };
 
 /****************************************************************************
@@ -386,24 +386,24 @@ extern "C"
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nrf53_gpio_config
+ * Name: da1470x_gpio_config
  *
  * Description:
  *   Configure a GPIO pin based on bit-encoded description of the pin.
  *
  ****************************************************************************/
 
-int nrf53_gpio_config(nrf53_pinset_t cfgset);
+int da1470x_gpio_config(da1470x_pinset_t cfgset);
 
 /****************************************************************************
- * Name: nrf53_gpio_unconfig
+ * Name: da1470x_gpio_unconfig
  *
  * Description:
  *   Unconfigure a GPIO pin based on bit-encoded description of the pin.
  *
  ****************************************************************************/
 
-int nrf53_gpio_unconfig(nrf53_pinset_t cfgset);
+int da1470x_gpio_unconfig(da1470x_pinset_t cfgset);
 
 /****************************************************************************
  * Name: rnf52_gpio_write
@@ -413,17 +413,17 @@ int nrf53_gpio_unconfig(nrf53_pinset_t cfgset);
  *
  ****************************************************************************/
 
-void nrf53_gpio_write(nrf53_pinset_t pinset, bool value);
+void da1470x_gpio_write(da1470x_pinset_t pinset, bool value);
 
 /****************************************************************************
- * Name: nrf53_gpio_read
+ * Name: da1470x_gpio_read
  *
  * Description:
  *   Read one or zero from the selected GPIO pin
  *
  ****************************************************************************/
 
-bool nrf53_gpio_read(nrf53_pinset_t pinset);
+bool da1470x_gpio_read(da1470x_pinset_t pinset);
 
 /****************************************************************************
  * Function:  nf52_gpio_dump
@@ -435,14 +435,14 @@ bool nrf53_gpio_read(nrf53_pinset_t pinset);
  ****************************************************************************/
 
 #ifdef CONFIG_DEBUG_GPIO_INFO
-int nrf53_gpio_dump(nrf53_pinset_t pinset, const char *msg);
+int da1470x_gpio_dump(da1470x_pinset_t pinset, const char *msg);
 #else
-#  define nrf53_gpio_dump(p,m)
+#  define da1470x_gpio_dump(p,m)
 #endif
 
-#ifdef CONFIG_NRF53_APPCORE
+#ifdef CONFIG_da1470x_APPCORE
 /****************************************************************************
- * Name: nrf53_gpio_cpunet_allow
+ * Name: da1470x_gpio_cpunet_allow
  *
  * Description:
  *  Allow GPIO to be used by the net core.
@@ -450,10 +450,10 @@ int nrf53_gpio_dump(nrf53_pinset_t pinset, const char *msg);
  *
  ****************************************************************************/
 
-void nrf53_gpio_cpunet_allow(uint32_t gpio);
+void da1470x_gpio_cpunet_allow(uint32_t gpio);
 
 /****************************************************************************
- * Name: nrf53_gpio_cpunet_allow_all
+ * Name: da1470x_gpio_cpunet_allow_all
  *
  * Description:
  *  Allow all GPIO to be used by the net core.
@@ -461,7 +461,7 @@ void nrf53_gpio_cpunet_allow(uint32_t gpio);
  *
  ****************************************************************************/
 
-void nrf53_gpio_cpunet_allow_all(void);
+void da1470x_gpio_cpunet_allow_all(void);
 #endif
 
 #ifdef __cplusplus

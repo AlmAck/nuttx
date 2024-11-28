@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/stm32u5/stm32_rcc.h
+ * arch/arm/src/da1470x/da1470x_clockconfig.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -30,11 +30,6 @@
 #include "arm_internal.h"
 #include "chip.h"
 
-// #if defined(CONFIG_STM32U5_STM32U585XX) || defined(CONFIG_STM32U5_STM32U5A5XX)
-// #  include "hardware/stm32u5xx_rcc.h"
-// #else
-// #  error "Unsupported STM32U5 chip"
-// #endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -105,7 +100,7 @@ void da1470_board_clockconfig(void);
  ****************************************************************************/
 
 #ifndef CONFIG_ARCH_BOARD_DA1470_CUSTOM_CLOCKCONFIG
-void da1470_stdclockconfig(void);
+static void da1470_stdclockconfig(void);
 #endif
 
 /****************************************************************************
@@ -137,7 +132,7 @@ void da1470_stdclockconfig(void);
 void da1470_clockenable(void);
 #endif
 
-void da1470_amba_enableperipherals(void);
+static inline void da1470_amba_enableperipherals(void);
 
 #undef EXTERN
 #if defined(__cplusplus)

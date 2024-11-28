@@ -34,41 +34,12 @@
 #include "arm_internal.h"
 #include "nvic.h"
 
-#include "da1470x.h"
+#include "da1470x_lowputc.h"
+#include "da1470x_start.h"
 #include "da1470x_gpio.h"
-#include "da1470x_userspace.h"
+#include "da1470x_serial.h"
 #include "da1470x_clockconfig.h"
 #include "da1470x_start.h"
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/* Memory Map ***************************************************************/
-
-/* 0x0800:0000 - Beginning of the internal FLASH.   Address of vectors.
- *               Mapped as boot memory address 0x0000:0000 at reset.
- * 0x080f:ffff - End of flash region (assuming the max of 2MiB of FLASH).
- * 0x1000:0000 - Start of internal SYSRAM
- * 0x1005:ffff - End of internal SYSRAM
- */
-
-#define SYSRAM_START  DA1470X_SYSRAM_BASE
-#define SYSRAM_END    (SYSRAM_START + DA1470X_SYSRAM_SIZE)
-
-#define HEAP_BASE  ((uintptr_t)_ebss + CONFIG_IDLETHREAD_STACKSIZE)
-
-/* g_idle_topstack: _sbss is the start of the BSS region as defined by the
- * linker script. _ebss lies at the end of the BSS region. The idle task
- * stack starts at the end of BSS and is of size CONFIG_IDLETHREAD_STACKSIZE.
- * The IDLE thread is the thread that the system boots on and, eventually,
- * becomes the IDLE, do nothing task that runs only when there is nothing
- * else to run.  The heap continues from there until the end of memory.
- * g_idle_topstack is a read-only variable the provides this computed
- * address.
- */
-
-const uintptr_t g_idle_topstack = HEAP_BASE;
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -130,7 +101,7 @@ void __start(void)
 
   da1470_clockconfig();
   da1470x_lowsetup();
-  da1470x_gpioinit();
+  //da1470x_gpioinit();
   showprogress('A');
 
   /* Clear .bss.  We'll do this inline (vs. calling memset) just to be

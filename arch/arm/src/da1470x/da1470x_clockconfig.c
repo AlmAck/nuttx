@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/stm32u5/stm32_rcc.c
+ * arch/arm/src/da1470x/da1470x_clockconfig.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -33,7 +33,10 @@
 
 #include "arm_internal.h"
 #include "chip.h"
-#include "da1470_clk.h"
+//#include "da1470x_clk.h"
+#include "da1470x_clockconfig.h"
+#include "hardware/da1470x_clock.h"
+
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -65,26 +68,17 @@
 /****************************************************************************
  * Name
  *
- * Description
- *   Called to establish the clock settings based on the values in board.h.
- *   This function (by default) will reset most everything, enable the PLL,
- *   and enable peripheral clocking for all peripherals enabled in the NuttX
- *   configuration file.
- *
- *   If CONFIG_ARCH_BOARD_STM32U5_CUSTOM_CLOCKCONFIG is defined, then
- *   clocking will be enabled by an externally provided, board-specific
- *   function called stm32_board_clockconfig().
- *
- * Input Parameters
- *   None
- *
- * Returned Value
- *   None
+ * Description:
+ *   Called to initialize the NRF53xxx.  This does whatever setup is needed
+ *   to put the MCU in a usable state.  This includes the initialization of
+ *   clocking using the settings in board.h.  This function also performs
+ *   other low-level chip as necessary.
  *
  ****************************************************************************/
 
-void da1470_clockconfig(void) {
 
+void da1470_clockconfig(void)
+{
 #if 0
 
 #endif
@@ -109,14 +103,15 @@ void da1470_clockconfig(void) {
   da1470_amba_enableperipherals();
 }
 
-static void da1470_stdclockconfig(void) {
+static void da1470_stdclockconfig(void)
+{
   // TODO extend with board.h definitions
 uint32_t regval;
 
 #ifdef CONFIG_DA1470_HFCLK
   /* Initialize HFCLK crystal oscillator */
   // XTAL
-  putreg32(0x1, DA1470_CRG_TOP_CLK_SWITCH2XTAL)
+  putreg32(0x1, DA1470_CRG_TOP_CLK_SWITCH2XTAL);
 
       while (!(getreg32(DA1470_CRG_TOP_CLK_CTRL) & RUNNING_AT_XTAL32M_MASK)) {
     /* wait for external oscillator to start */

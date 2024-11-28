@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_DA1470X_GPIO_H
-#define __ARCH_ARM_SRC_DA1470X_GPIO_H
+#ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_GPIO_H
+#define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_GPIO_H
 
 /****************************************************************************
  * Included Files
@@ -32,7 +32,6 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-
 
 #define DA1470_GPIO_NPORTS           3
 
@@ -174,4 +173,4 @@
 // #  define GPIO_CNF_MCUSEL_PERIP         (3 << GPIO_CNF_MCUSEL_SHIFT)
 // #  define GPIO_CNF_MCUSEL_TND           (4 << GPIO_CNF_MCUSEL_SHIFT)
 
-// #endif /* __ARCH_ARM_SRC_DA1470X_GPIO_H */
+#endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_GPIO_H */

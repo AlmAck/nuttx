@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/nrf53/hardware/nrf53_memorymap.h
+ * arch/arm/src/da1470x/hardware/da1470x_memorymap.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_DA1470_HARDWARE_DA1470_MEMORYMAP_H
-#define __ARCH_ARM_SRC_DA1470_HARDWARE_DA1470_MEMORYMAP_H
+#ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470_MEMORYMAP_H
+#define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470_MEMORYMAP_H
 
 /****************************************************************************
  * Included Files
@@ -29,10 +29,10 @@
 
 #if defined(CONFIG_ARCH_CHIP_DA1470_CPUAPP)
 #  include "hardware/da1470x_memorymap_cpuapp.h"
-#elif defined(CONFIG_ARCH_CHIP_DA1470_CPUNET)
-#  include "hardware/nrf53_memorymap_cpunet.h"
+#elif defined(CONFIG_ARCH_CHIP_DA1470_CPUSNC)
+#  include "hardware/nrf53_memorymap_cpusnc.h"
 #else
 #  error "Unsupported DA1470 CPU"
 #endif
 
-#endif /* __ARCH_ARM_SRC_DA1470_HARDWARE_DA1470_MEMORYMAP_H */
+#endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470_MEMORYMAP_H */
