@@ -56,15 +56,15 @@ static inline uint32_t da1470x_gpio_regget(int port, uint32_t offset)
 
   if (port == 0)
     {
-      base = DA1470_GPIO_P0_BASE;
+      base = DA1470_GPIO_P0_DATA;
     }
   else if (port == 1)
     {
-      base = NRF53_GPIO_P1_BASE;
+      base = DA1470_GPIO_P1_DATA;
     }
   else if (port == 2)
     {
-      base = NRF53_GPIO_P2_BASE;
+      base = DA1470_GPIO_P2_DATA;
     }
 
   return (base + offset);

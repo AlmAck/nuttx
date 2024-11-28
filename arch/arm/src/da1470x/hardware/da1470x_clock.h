@@ -22,8 +22,8 @@
 #define __ARCH_ARM_SRC_DA1470X_CLOCK_H
 
 /* CRG_TOP - CRG_TOP registers */
-#include "da1470_crg_top.h"
-#include "da1470_crg_xtal.h"
+#include "da1470x_crg_top.h"
+#include "da1470x_crg_xtal.h"
 
 
 /* Register definitions */

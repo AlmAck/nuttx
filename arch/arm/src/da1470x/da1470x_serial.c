@@ -47,7 +47,7 @@
 #include "arm_internal.h"
 #include "chip.h"
 #include "da1470x_config.h"
-#include "hardware/da1470x_uarte.h"
+#include "hardware/da1470x_uart.h"
 #include "da1470x_clockconfig.h"
 #include "da1470x_lowputc.h"
 #include "da1470x_serial.h"
@@ -59,11 +59,11 @@
 /* How many UARTs are supported */
 
 #ifdef HAVE_UART2
-#  define da1470x_NUART 3
+#  define DA1470X_NUART 3
 #elif HAVE_UART1
-#  define da1470x_NUART 2
+#  define DA1470X_NUART 2
 #else
-#  define da1470x_NUART 1
+#  define DA1470X_NUART 1
 #endif
 
 /* Some sanity checks *******************************************************/

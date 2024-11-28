@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/nrf53/nrf53_irq.c
+ * arch/arm/src/da1470x/da1470x_irq.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -37,10 +37,7 @@
 #include "nvic.h"
 #include "ram_vectors.h"
 #include "arm_internal.h"
-#include "nrf53_irq.h"
-#ifdef CONFIG_NRF53_GPIOTE
-#  include "nrf53_gpiote.h"
-#endif
+#include "da1470x_irq.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -64,7 +61,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nrf53_dumpnvic
+ * Name: da1470x_dumpnvic
  *
  * Description:
  *   Dump some interesting NVIC registers
@@ -72,7 +69,7 @@
  ****************************************************************************/
 
 #if defined(CONFIG_DEBUG_IRQ_INFO)
-static void nrf53_dumpnvic(const char *msg, int irq)
+static void da1470x_dumpnvic(const char *msg, int irq)
 {
   irqstate_t flags;
 
@@ -119,11 +116,11 @@ static void nrf53_dumpnvic(const char *msg, int irq)
   leave_critical_section(flags);
 }
 #else
-#  define nrf53_dumpnvic(msg, irq)
+#  define da1470x_dumpnvic(msg, irq)
 #endif
 
 /****************************************************************************
- * Name: nrf53_nmi, nrf53_pendsv, nrf53_pendsv, nrf53_reserved
+ * Name: da1470x_nmi, da1470x_pendsv, da1470x_pendsv, da1470x_reserved
  *
  * Description:
  *   Handlers for various exceptions.  None are handled and all are fatal
@@ -133,7 +130,7 @@ static void nrf53_dumpnvic(const char *msg, int irq)
  ****************************************************************************/
 
 #ifdef CONFIG_DEBUG_FEATURES
-static int nrf53_nmi(int irq, void *context, void *arg)
+static int da1470x_nmi(int irq, void *context, void *arg)
 {
   up_irq_save();
   _err("PANIC!!! NMI received\n");
@@ -141,7 +138,7 @@ static int nrf53_nmi(int irq, void *context, void *arg)
   return 0;
 }
 
-static int nrf53_pendsv(int irq, void *context, void *arg)
+static int da1470x_pendsv(int irq, void *context, void *arg)
 {
   up_irq_save();
   _err("PANIC!!! PendSV received\n");
@@ -149,7 +146,7 @@ static int nrf53_pendsv(int irq, void *context, void *arg)
   return 0;
 }
 
-static int nrf53_reserved(int irq, void *context, void *arg)
+static int da1470x_reserved(int irq, void *context, void *arg)
 {
   up_irq_save();
   _err("PANIC!!! Reserved interrupt\n");
@@ -159,7 +156,7 @@ static int nrf53_reserved(int irq, void *context, void *arg)
 #endif
 
 /****************************************************************************
- * Name: nrf53_prioritize_syscall
+ * Name: da1470x_prioritize_syscall
  *
  * Description:
  *   Set the priority of an exception.  This function may be needed
@@ -168,7 +165,7 @@ static int nrf53_reserved(int irq, void *context, void *arg)
  ****************************************************************************/
 
 #ifdef CONFIG_ARMV8M_USEBASEPRI
-static inline void nrf53_prioritize_syscall(int priority)
+static inline void da1470x_prioritize_syscall(int priority)
 {
   uint32_t regval;
 
@@ -182,7 +179,7 @@ static inline void nrf53_prioritize_syscall(int priority)
 #endif
 
 /****************************************************************************
- * Name: nrf53_irqinfo
+ * Name: da1470x_irqinfo
  *
  * Description:
  *   Given an IRQ number, provide the register and bit setting to enable or
@@ -190,18 +187,18 @@ static inline void nrf53_prioritize_syscall(int priority)
  *
  ****************************************************************************/
 
-static int nrf53_irqinfo(int irq, uintptr_t *regaddr, uint32_t *bit,
+static int da1470x_irqinfo(int irq, uintptr_t *regaddr, uint32_t *bit,
                          uintptr_t offset)
 {
   int n;
 
-  DEBUGASSERT(irq >= NRF53_IRQ_NMI && irq < NR_IRQS);
+  DEBUGASSERT(irq >= DA1470X_IRQ_NMI && irq < NR_IRQS);
 
   /* Check for external interrupt */
 
-  if (irq >= NRF53_IRQ_EXTINT)
+  if (irq >= DA1470X_IRQ_EXTINT)
     {
-      n        = irq - NRF53_IRQ_EXTINT;
+      n        = irq - DA1470X_IRQ_EXTINT;
       *regaddr = NVIC_IRQ_ENABLE(n) + offset;
       *bit     = (uint32_t)1 << (n & 0x1f);
     }
@@ -211,19 +208,19 @@ static int nrf53_irqinfo(int irq, uintptr_t *regaddr, uint32_t *bit,
   else
     {
       *regaddr = NVIC_SYSHCON;
-      if (irq == NRF53_IRQ_MEMFAULT)
+      if (irq == DA1470X_IRQ_MEMFAULT)
         {
           *bit = NVIC_SYSHCON_MEMFAULTENA;
         }
-      else if (irq == NRF53_IRQ_BUSFAULT)
+      else if (irq == DA1470X_IRQ_BUSFAULT)
         {
           *bit = NVIC_SYSHCON_BUSFAULTENA;
         }
-      else if (irq == NRF53_IRQ_USAGEFAULT)
+      else if (irq == DA1470X_IRQ_USAGEFAULT)
         {
           *bit = NVIC_SYSHCON_USGFAULTENA;
         }
-      else if (irq == NRF53_IRQ_SYSTICK)
+      else if (irq == DA1470X_IRQ_SYSTICK)
         {
           *regaddr = NVIC_SYSTICK_CTRL;
           *bit = NVIC_SYSTICK_CTRL_ENABLE;
@@ -261,7 +258,7 @@ void up_irqinitialize(void)
 
   /* Disable all interrupts */
 
-  for (i = 0; i < NRF53_IRQ_NEXTINT; i += 32)
+  for (i = 0; i < DA1470X_IRQ_NEXTINT; i += 32)
     {
       putreg32(0xffffffff, NVIC_IRQ_CLEAR(i));
     }
@@ -315,19 +312,19 @@ void up_irqinitialize(void)
    * under certain conditions.
    */
 
-  irq_attach(NRF53_IRQ_SVCALL, arm_svcall, NULL);
-  irq_attach(NRF53_IRQ_HARDFAULT, arm_hardfault, NULL);
+  irq_attach(DA1470X_IRQ_SVCALL, arm_svcall, NULL);
+  irq_attach(DA1470X_IRQ_HARDFAULT, arm_hardfault, NULL);
 
   /* Set the priority of the SVCall interrupt */
 
 #ifdef CONFIG_ARCH_IRQPRIO
 #  if 0
-  up_prioritize_irq(NRF53_IRQ_PENDSV, NVIC_SYSH_PRIORITY_MIN);
+  up_prioritize_irq(DA1470X_IRQ_PENDSV, NVIC_SYSH_PRIORITY_MIN);
 #  endif
 #endif
 
 #ifdef CONFIG_ARMV8M_USEBASEPRI
-  nrf53_prioritize_syscall(NVIC_SYSH_SVCALL_PRIORITY);
+  da1470x_prioritize_syscall(NVIC_SYSH_SVCALL_PRIORITY);
 #endif
 
 #ifdef CONFIG_ARM_MPU
@@ -335,26 +332,26 @@ void up_irqinitialize(void)
    * Fault handler.
    */
 
-  irq_attach(NRF53_IRQ_MEMFAULT, arm_memfault, NULL);
-  up_enable_irq(NRF53_IRQ_MEMFAULT);
+  irq_attach(DA1470X_IRQ_MEMFAULT, arm_memfault, NULL);
+  up_enable_irq(DA1470X_IRQ_MEMFAULT);
 #endif
 
   /* Attach all other processor exceptions (except reset and sys tick) */
 
 #ifdef CONFIG_DEBUG_FEATURES
-  irq_attach(NRF53_IRQ_NMI, nrf53_nmi, NULL);
+  irq_attach(DA1470X_IRQ_NMI, da1470x_nmi, NULL);
 #ifndef CONFIG_ARM_MPU
-  irq_attach(NRF53_IRQ_MEMFAULT, arm_memfault, NULL);
+  irq_attach(DA1470X_IRQ_MEMFAULT, arm_memfault, NULL);
 #endif
-  irq_attach(NRF53_IRQ_BUSFAULT, arm_busfault, NULL);
-  irq_attach(NRF53_IRQ_USAGEFAULT, arm_usagefault, NULL);
-  irq_attach(NRF53_IRQ_PENDSV, nrf53_pendsv, NULL);
+  irq_attach(DA1470X_IRQ_BUSFAULT, arm_busfault, NULL);
+  irq_attach(DA1470X_IRQ_USAGEFAULT, arm_usagefault, NULL);
+  irq_attach(DA1470X_IRQ_PENDSV, da1470x_pendsv, NULL);
   arm_enable_dbgmonitor();
-  irq_attach(NRF53_IRQ_DBGMONITOR, arm_dbgmonitor, NULL);
-  irq_attach(NRF53_IRQ_RESERVED, nrf53_reserved, NULL);
+  irq_attach(DA1470X_IRQ_DBGMONITOR, arm_dbgmonitor, NULL);
+  irq_attach(DA1470X_IRQ_RESERVED, da1470x_reserved, NULL);
 #endif
 
-  nrf53_dumpnvic("initial", NRF53_IRQ_NIRQS);
+  da1470x_dumpnvic("initial", DA1470X_IRQ_NIRQS);
 
 #if defined(CONFIG_DEBUG_FEATURES) && !defined(CONFIG_ARMV8M_USEBASEPRI)
   /* If a debugger is connected, try to prevent it from catching hardfaults.
@@ -367,10 +364,10 @@ void up_irqinitialize(void)
   putreg32(regval, NVIC_DEMCR);
 #endif
 
-#ifdef CONFIG_NRF53_GPIOTE
+#ifdef CONFIG_da1470x_GPIOTE
   /* Initialize GPIOTE */
 
-  nrf53_gpiote_init();
+  da1470x_gpiote_init();
 #endif
 
 #ifndef CONFIG_SUPPRESS_INTERRUPTS
@@ -394,7 +391,7 @@ void up_disable_irq(int irq)
   uint32_t regval;
   uint32_t bit;
 
-  if (nrf53_irqinfo(irq, &regaddr, &bit, NVIC_CLRENA_OFFSET) == 0)
+  if (da1470x_irqinfo(irq, &regaddr, &bit, NVIC_CLRENA_OFFSET) == 0)
     {
       /* Modify the appropriate bit in the register to disable the interrupt.
        * For normal interrupts, we need to set the bit in the associated
@@ -402,7 +399,7 @@ void up_disable_irq(int irq)
        * clear the bit in the System Handler Control and State Register.
        */
 
-      if (irq >= NRF53_IRQ_EXTINT)
+      if (irq >= DA1470X_IRQ_EXTINT)
         {
           putreg32(bit, regaddr);
         }
@@ -414,7 +411,7 @@ void up_disable_irq(int irq)
         }
     }
 
-  nrf53_dumpnvic("disable", irq);
+  da1470x_dumpnvic("disable", irq);
 }
 
 /****************************************************************************
@@ -431,7 +428,7 @@ void up_enable_irq(int irq)
   uint32_t regval;
   uint32_t bit;
 
-  if (nrf53_irqinfo(irq, &regaddr, &bit, NVIC_ENA_OFFSET) == 0)
+  if (da1470x_irqinfo(irq, &regaddr, &bit, NVIC_ENA_OFFSET) == 0)
     {
       /* Modify the appropriate bit in the register to enable the interrupt.
        * For normal interrupts, we need to set the bit in the associated
@@ -439,7 +436,7 @@ void up_enable_irq(int irq)
        * set the bit in the System Handler Control and State Register.
        */
 
-      if (irq >= NRF53_IRQ_EXTINT)
+      if (irq >= DA1470X_IRQ_EXTINT)
         {
           putreg32(bit, regaddr);
         }
@@ -451,7 +448,7 @@ void up_enable_irq(int irq)
         }
     }
 
-  nrf53_dumpnvic("enable", irq);
+  da1470x_dumpnvic("enable", irq);
 }
 
 /****************************************************************************
@@ -464,7 +461,8 @@ void up_enable_irq(int irq)
 
 void arm_ack_irq(int irq)
 {
-  nrf53_clrpend(irq);
+  // TODO clear pending?
+  //da1470x_clrpend(irq);
 }
 
 /****************************************************************************
@@ -485,10 +483,10 @@ int up_prioritize_irq(int irq, int priority)
   uint32_t regval;
   int shift;
 
-  DEBUGASSERT(irq >= NRF53_IRQ_MEMFAULT && irq < NR_IRQS &&
+  DEBUGASSERT(irq >= DA1470X_IRQ_MEMFAULT && irq < NR_IRQS &&
               (unsigned)priority <= NVIC_SYSH_PRIORITY_MIN);
 
-  if (irq < NRF53_IRQ_EXTINT)
+  if (irq < DA1470X_IRQ_EXTINT)
     {
       /* NVIC_SYSH_PRIORITY() maps {0..15} to one of three priority
        * registers (0-3 are invalid)
@@ -501,7 +499,7 @@ int up_prioritize_irq(int irq, int priority)
     {
       /* NVIC_IRQ_PRIORITY() maps {0..} to one of many priority registers */
 
-      irq    -= NRF53_IRQ_EXTINT;
+      irq    -= DA1470X_IRQ_EXTINT;
       regaddr = NVIC_IRQ_PRIORITY(irq);
     }
 
@@ -511,7 +509,7 @@ int up_prioritize_irq(int irq, int priority)
   regval     |= (priority << shift);
   putreg32(regval, regaddr);
 
-  nrf53_dumpnvic("prioritize", irq);
+  da1470x_dumpnvic("prioritize", irq);
   return OK;
 }
 #endif

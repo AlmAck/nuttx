@@ -29,7 +29,7 @@
 
 #include "arm_internal.h"
 #include "hardware/da1470x_memorymap.h"
-#include "hardware/da1470x_uarte.h"
+#include "hardware/da1470x_uart.h"
 
 #include "da1470x_config.h"
 #include "da1470x_clockconfig.h"
