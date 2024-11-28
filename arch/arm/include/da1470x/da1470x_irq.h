@@ -25,9 +25,9 @@
  * Included Files
  ****************************************************************************/
 
-#if defined(CONFIG_ARCH_CHIP_DA1470X_CPUAPP)
+#if defined(CONFIG_ARCH_CHIP_DA1470_CPUAPP)
 #  include <arch/da1470x/da1470x_irq_cpuapp.h>
-#elif defined(CONFIG_ARCH_CHIP_NRF5340_CPUNET)
+#elif defined(CONFIG_ARCH_CHIP_DA1470_CPUNET)
 #  include <arch/da1470x/da1470x_irq_cpunet.h>
 #else
 #  error "Unsupported DA1470X CPU"
