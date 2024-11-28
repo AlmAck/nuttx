@@ -22,8 +22,8 @@
  * only indirectly through nuttx/irq.h
  */
 
-#ifndef __ARCH_ARM_INCLUDE_DA1470X_IRQ_H
-#define __ARCH_ARM_INCLUDE_DA1470X_IRQ_H
+#ifndef __ARCH_ARM_INCLUDE_DA1470X_DA1470X_IRQ_H
+#define __ARCH_ARM_INCLUDE_DA1470X_DA1470X_IRQ_H
 
 /****************************************************************************
  * Included Files
@@ -98,4 +98,4 @@ extern "C"
 #endif
 #endif
 
-#endif /* __ARCH_ARM_INCLUDE_DA1470X_IRQ_H */
+#endif /* __ARCH_ARM_INCLUDE_DA1470X_DA1470X_IRQ_H */
