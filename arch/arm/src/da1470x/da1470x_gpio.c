@@ -104,7 +104,7 @@ static inline void da1470x_gpio_output(da1470x_pinset_t cfgset,
 }
 
 /****************************************************************************
- * Name: nrf53_gpio_mode
+ * Name: da1470x_gpio_mode
  *
  * Description:
  *   Configure a GPIO mode based on bit-encoded description of the pin.
