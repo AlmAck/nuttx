@@ -75,7 +75,7 @@ struct uart_config_s
 void da1470x_lowsetup(void);
 
 /****************************************************************************
- * Name: da1470x_usart_configure
+ * Name: da1470x_uart_configure
  *
  * Description:
  *   Configure a UART for non-interrupt driven operation
@@ -83,12 +83,12 @@ void da1470x_lowsetup(void);
  ****************************************************************************/
 
 #ifdef HAVE_UART_DEVICE
-void da1470x_usart_configure(uintptr_t base,
+void da1470x_uart_configure(uintptr_t base,
                            const struct uart_config_s *config);
 #endif
 
 /****************************************************************************
- * Name: da1470x_usart_disable
+ * Name: da1470x_uart_disable
  *
  * Description:
  *   Disable a UART.  it will be necessary to again call
@@ -97,12 +97,12 @@ void da1470x_usart_configure(uintptr_t base,
  ****************************************************************************/
 
 #ifdef HAVE_UART_DEVICE
-void da1470x_usart_disable(uintptr_t base,
+void da1470x_uart_disable(uintptr_t base,
                          const struct uart_config_s *config);
 #endif
 
 /****************************************************************************
- * Name: da1470x_usart_setformat
+ * Name: da1470x_uart_setformat
  *
  * Description:
  *   Set the USART line format and speed.
@@ -110,7 +110,7 @@ void da1470x_usart_disable(uintptr_t base,
  ****************************************************************************/
 
 #ifdef HAVE_UART_DEVICE
-void da1470x_usart_setformat(uintptr_t base,
+void da1470x_uart_setformat(uintptr_t base,
                            const struct uart_config_s *config);
 #endif
 

@@ -44,7 +44,7 @@
 
 #ifdef HAVE_UART_CONSOLE
 
-#ifdef CONFIG_UART_SERIAL_CONSOLE
+#ifdef CONFIG_UART0_SERIAL_CONSOLE
 #  define CONSOLE_BASE     DA1470X_UART_BASE
 // #  define CONSOLE_BAUD     CONFIG_UART0_BAUD
 // #  define CONSOLE_BITS     CONFIG_UART0_BITS
@@ -177,12 +177,6 @@ static void da1470x_setbaud(uintptr_t base, const struct uart_config_s *config)
           break;
         }
 
-      case 76000:
-        {
-          br = UART_BAUDRATE_76000;
-          break;
-        }
-
       case 115200:
         {
           br = UART_BAUDRATE_115200;
@@ -192,12 +186,6 @@ static void da1470x_setbaud(uintptr_t base, const struct uart_config_s *config)
       case 230400:
         {
           br = UART_BAUDRATE_230400;
-          break;
-        }
-
-      case 250000:
-        {
-          br = UART_BAUDRATE_250000;
           break;
         }
 
@@ -226,7 +214,6 @@ static void da1470x_setbaud(uintptr_t base, const struct uart_config_s *config)
         }
     }
 
-
   /* Set Divisor Latch Access Bit in LCR register to access DLL & DLH registers */
 
   cr  = getreg32(base + DA1470_UART_LCR_OFFSET);
@@ -236,19 +223,19 @@ static void da1470x_setbaud(uintptr_t base, const struct uart_config_s *config)
   /* Set fraction byte of baud rate */
 
   cr  = getreg32(base + DA1470_UART_DLF_OFFSET);
-  cr  = 0xFF & divisor;
+  cr  = 0xff & divisor;
   putreg32(cr, base + DA1470_UART_DLF_OFFSET);
 
   /* Set low byte of baud rate */
 
   cr  = getreg32(base + DA1470_UART_RBR_THR_DLL_OFFSET);
-  cr  = 0xFF & (divisor >> 8);
+  cr  = 0xff & (divisor >> 8);
   putreg32(cr, base + DA1470_UART_RBR_THR_DLL_OFFSET);
 
   /* Set high byte of baud rare */
 
   cr  = getreg32(base + DA1470_UART_IER_DLH_OFFSET);
-  cr  = 0xFF & (divisor >> 16);
+  cr  = 0xff & (divisor >> 16);
   putreg32(cr, base + DA1470_UART_IER_DLH_OFFSET);
 
   /* Reset Divisor Latch Access Bit in LCR register */
@@ -256,7 +243,6 @@ static void da1470x_setbaud(uintptr_t base, const struct uart_config_s *config)
   cr  = getreg32(base + DA1470_UART_LCR_OFFSET);
   cr &= UART_LCR_UART_DLAB;
   putreg32(cr, base + DA1470_UART_LCR_OFFSET);
-
 }
 
 /****************************************************************************
@@ -352,7 +338,7 @@ void da1470x_lowsetup(void)
 }
 
 /****************************************************************************
- * Name: da1470x_usart_configure
+ * Name: da1470x_uart_configure
  *
  * Description:
  *   Configure a UART for non-interrupt driven operation
@@ -389,6 +375,7 @@ void da1470x_uart_configure(uintptr_t base,
   uint32_t regval = 0;
 
   /* Enable the DA1470x UART */
+
   da1470x_uart_enable();
 
   /* Set UART format */
@@ -424,7 +411,7 @@ void da1470x_uart_configure(uintptr_t base,
 }
 
 /****************************************************************************
- * Name: da1470x_usart_enable
+ * Name: da1470x_uart_enable
  *
  * Description:
  *   Enable a UART.  it will be necessary to again call
@@ -436,7 +423,7 @@ void da1470x_uart_enable()
 {
   /* Enable the UART clock */
 
-  #ifdef CONFIG_UART_SERIAL_CONSOLE
+  #ifdef CONFIG_UART0_SERIAL_CONSOLE
     clk  = getreg32(DA1470_CRG_TOP_CLK_SNC_CTRL);
     clk |= CRG_SNC_CLK_SNC_UART_ENABLE;
     putreg32(clk, DA1470_CRG_TOP_CLK_SNC_CTRL);
@@ -450,14 +437,13 @@ void da1470x_uart_enable()
     putreg32(clk, DA1470_CRG_TOP_CLK_SNC_CTRL);
   #endif
 
-
   /* Enable interrupts */
 
   /* Enable the UART */
 }
 
 /****************************************************************************
- * Name: da1470x_usart_disable
+ * Name: da1470x_uart_disable
  *
  * Description:
  *   Disable a UART.
@@ -466,10 +452,9 @@ void da1470x_uart_enable()
 
 void da1470x_uart_disable()
 {
-
   /* Disable the UART clock */
 
-  #ifdef CONFIG_UART_SERIAL_CONSOLE
+  #ifdef CONFIG_UART0_SERIAL_CONSOLE
     clk  = getreg32(DA1470_CRG_TOP_CLK_SNC_CTRL);
     clk &= ~CRG_SNC_CLK_SNC_UART_ENABLE;
     putreg32(clk, DA1470_CRG_TOP_CLK_SNC_CTRL);
@@ -489,8 +474,9 @@ void da1470x_uart_disable()
 
   /* Unconfigure GPIO */
 
-  da1470x_gpio_unconfig(config->rxpin);
-  da1470x_gpio_unconfig(config->txpin);
+  //TODO
+  // da1470x_gpio_unconfig(config->rxpin);
+  // da1470x_gpio_unconfig(config->txpin);
 }
 
 /****************************************************************************
