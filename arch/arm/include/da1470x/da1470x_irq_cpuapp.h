@@ -58,9 +58,9 @@
 #define DA1470X_IRQ_ADC              (DA1470X_IRQ_EXTINT+42) /* General-purpose ADC interrupt */
 #define DA1470X_IRQ_ADC2             (DA1470X_IRQ_EXTINT+43) /* Application ADC interrupt */
 #define DA1470X_IRQ_DMA              (DA1470X_IRQ_EXTINT+44) /* DMA interrupt */
-#define DA1470X_IRQ_UART             (DA1470X_IRQ_EXTINT+45) /* UART interrupt */
-#define DA1470X_IRQ_UART2            (DA1470X_IRQ_EXTINT+46) /* UART2 interrupt */
-#define DA1470X_IRQ_UART3            (DA1470X_IRQ_EXTINT+47) /* UART3 interrupt */
+#define DA1470X_IRQ_UART0            (DA1470X_IRQ_EXTINT+45) /* UART0 interrupt */
+#define DA1470X_IRQ_UART1            (DA1470X_IRQ_EXTINT+46) /* UART1 interrupt */
+#define DA1470X_IRQ_UART2            (DA1470X_IRQ_EXTINT+47) /* UART2 interrupt */
 #define DA1470X_IRQ_SPI              (DA1470X_IRQ_EXTINT+48) /* SPI interrupt */
 #define DA1470X_IRQ_SPI2             (DA1470X_IRQ_EXTINT+49) /* SPI2 interrupt */
 #define DA1470X_IRQ_SPI3             (DA1470X_IRQ_EXTINT+50) /* SPI3 interrupt */
