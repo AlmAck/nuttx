@@ -134,7 +134,7 @@ menu "DA1470 Peripheral Selection"
 config DA1470_UART0
 	bool "UART0"
 	default n
-	select UART_SERIALDRIVER
+	select UART0_SERIALDRIVER
 	select DA1470_UART
 
 config DA1470_UART1

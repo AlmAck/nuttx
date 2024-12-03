@@ -131,7 +131,7 @@
 #define DA1470X_TIMER4_BASE                 0x50010300UL
 #define DA1470X_TIMER5_BASE                 0x50010400UL
 #define DA1470X_TIMER6_BASE                 0x50010500UL
-#define DA1470X_UART_BASE                   0x50020000UL
+#define DA1470X_UART0_BASE                   0x50020000UL
 #define DA1470X_UART2_BASE                  0x50020100UL
 #define DA1470X_UART3_BASE                  0x50020200UL
 #define DA1470X_USB_BASE                    0x51000000UL
