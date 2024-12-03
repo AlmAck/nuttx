@@ -70,46 +70,4 @@
 #define CRG_SNC_UART_CLK_SEL                  (1U << 1) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
 #define CRG_SNC_UART_ENABLE                   (1U << 0) /* Enables the clock */
 
-/* RESET_CLK_SNC Register */
-
-#define CRG_SNC_I3C_CLK_SEL                   (1U << 17) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_I3C_ENABLE                    (1U << 16) /* Enables the clock */
-#define CRG_SNC_I2C3_CLK_SEL                  (1U << 15) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_I2C3_ENABLE                   (1U << 14) /* Enables the clock */
-#define CRG_SNC_I2C2_CLK_SEL                  (1U << 13) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_I2C2_ENABLE                   (1U << 12) /* Enables the clock */
-#define CRG_SNC_I2C_CLK_SEL                   (1U << 11) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_I2C_ENABLE                    (1U << 10) /* Enables the clock */
-#define CRG_SNC_SPI2_CLK_SEL                  (1U << 9) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_SPI2_ENABLE                   (1U << 8) /* Enables the clock */
-#define CRG_SNC_SPI_CLK_SEL                   (1U << 7) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_SPI_ENABLE                    (1U << 6) /* Enables the clock */
-#define CRG_SNC_UART3_CLK_SEL                 (1U << 5) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_UART3_ENABLE                  (1U << 4) /* Enables the clock */
-#define CRG_SNC_UART2_CLK_SEL                 (1U << 3) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_UART2_ENABLE                  (1U << 2) /* Enables the clock */
-#define CRG_SNC_UART_CLK_SEL                  (1U << 1) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_UART_ENABLE                   (1U << 0) /* Enables the clock */
-
-/* SET_CLK_SNC Register */
-
-#define CRG_SNC_I3C_CLK_SEL                   (1U << 17) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_I3C_ENABLE                    (1U << 16) /* Enables the clock */
-#define CRG_SNC_I2C3_CLK_SEL                  (1U << 15) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_I2C3_ENABLE                   (1U << 14) /* Enables the clock */
-#define CRG_SNC_I2C2_CLK_SEL                  (1U << 13) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_I2C2_ENABLE                   (1U << 12) /* Enables the clock */
-#define CRG_SNC_I2C_CLK_SEL                   (1U << 11) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_I2C_ENABLE                    (1U << 10) /* Enables the clock */
-#define CRG_SNC_SPI2_CLK_SEL                  (1U << 9) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_SPI2_ENABLE                   (1U << 8) /* Enables the clock */
-#define CRG_SNC_SPI_CLK_SEL                   (1U << 7) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_SPI_ENABLE                    (1U << 6) /* Enables the clock */
-#define CRG_SNC_UART3_CLK_SEL                 (1U << 5) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_UART3_ENABLE                  (1U << 4) /* Enables the clock */
-#define CRG_SNC_UART2_CLK_SEL                 (1U << 3) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_UART2_ENABLE                  (1U << 2) /* Enables the clock */
-#define CRG_SNC_UART_CLK_SEL                  (1U << 1) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_UART_ENABLE                   (1U << 0) /* Enables the clock */
-
 #endif /* __DA1470_CRG_SNC_H */
