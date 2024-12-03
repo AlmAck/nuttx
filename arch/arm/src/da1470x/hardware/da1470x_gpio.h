@@ -107,6 +107,10 @@
 #define DA1470_GPIO_P2_SET_DATA         (DA1470_GPIO_BASE + DA1470_GPIO_P2_SET_DATA_OFFSET)
 #define DA1470_GPIO_P2_WEAK_CTRL        (DA1470_GPIO_BASE + DA1470_GPIO_P2_WEAK_CTRL_OFFSET)
 
+/* GPIO alternate function register */
+
+#define GPIO_FUNCTION_SHIFT(n)          (0)
+#define GPIO_FUNCTION_MASK(n)           (0x1F << GPIO_FUNCTION_SHIFT(n))
 
 // /* Register bit definitions *************************************************/
 

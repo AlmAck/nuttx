@@ -75,138 +75,13 @@
 #define GPIO_PORT_2         (2)  /* GPIO Port 2 */
 #define GPIO_PORT_MAX       (3)  /* Maximum port number for error checking */
 
-/* Macro to define GPIO port setting */
-#define GPIO_PORT_CONFIG(port) ((port) << 4)
-
-
-/* GPIO Function Configuration */
-#define GPIO_FUNC_GPIO                0
-#define GPIO_FUNC_UART_RX             1
-#define GPIO_FUNC_UART_TX             2
-#define GPIO_FUNC_UART2_RX            3
-#define GPIO_FUNC_UART2_TX            4
-#define GPIO_FUNC_UART2_CTSN          5
-#define GPIO_FUNC_UART2_RTSN          6
-#define GPIO_FUNC_UART3_RX            7
-#define GPIO_FUNC_UART3_TX            8
-#define GPIO_FUNC_UART3_CTSN          9
-#define GPIO_FUNC_ISO_RST             9  /* Shared with UART3_CTSN */
-#define GPIO_FUNC_UART3_RTSN          10
-#define GPIO_FUNC_ISO_CARDINSERT      10 /* Shared with UART3_RTSN */
-#define GPIO_FUNC_ISO_CLK             11
-#define GPIO_FUNC_ISO_DATA            12
-#define GPIO_FUNC_SPI_DI              13
-#define GPIO_FUNC_SPI_DO              14
-#define GPIO_FUNC_SPI_CLK             15
-#define GPIO_FUNC_SPI_EN              16
-#define GPIO_FUNC_SPI_EN2             17
-#define GPIO_FUNC_SPI2_DI             18
-#define GPIO_FUNC_SPI2_DO             19
-#define GPIO_FUNC_SPI2_CLK            20
-#define GPIO_FUNC_SPI2_EN             21
-#define GPIO_FUNC_SPI2_EN2            22
-#define GPIO_FUNC_SPI3_EN             23
-#define GPIO_FUNC_SPI3_EN2            24
-#define GPIO_FUNC_I2C_SCL             25
-#define GPIO_FUNC_I2C_SDA             26
-#define GPIO_FUNC_I2C2_SCL            27
-#define GPIO_FUNC_I2C2_SDA            28
-#define GPIO_FUNC_I2C3_SCL            29
-#define GPIO_FUNC_I2C3_SDA            30
-#define GPIO_FUNC_I3C_SCL             31
-#define GPIO_FUNC_I3C_SDA             32
-#define GPIO_FUNC_USB_SOF             33
-#define GPIO_FUNC_ADC                 34
-#define GPIO_FUNC_USB                 35
-#define GPIO_FUNC_PCM_DI              36
-#define GPIO_FUNC_PCM_DO              37
-#define GPIO_FUNC_PCM_FSC             38
-#define GPIO_FUNC_PCM_CLK             39
-#define GPIO_FUNC_PDM_DATA            40
-#define GPIO_FUNC_PDM_CLK             41
-#define GPIO_FUNC_COEX_EXT_ACT        42
-#define GPIO_FUNC_COEX_SMART_ACT      43
-#define GPIO_FUNC_COEX_SMART_PRI      44
-#define GPIO_FUNC_PORT0_DCF           45
-#define GPIO_FUNC_PORT1_DCF           46
-#define GPIO_FUNC_PORT2_DCF           47
-#define GPIO_FUNC_PORT3_DCF           48
-#define GPIO_FUNC_PORT4_DCF           49
-#define GPIO_FUNC_CLOCK               50
-#define GPIO_FUNC_TIM_PWM             51
-#define GPIO_FUNC_TIM2_PWM            52
-#define GPIO_FUNC_TIM3_PWM            53
-#define GPIO_FUNC_TIM4_PWM            54
-#define GPIO_FUNC_TIM5_PWM            55
-#define GPIO_FUNC_TIM6_PWM            56
-#define GPIO_FUNC_TIM_1SHOT           57
-#define GPIO_FUNC_TIM2_1SHOT          58
-#define GPIO_FUNC_TIM3_1SHOT          59
-#define GPIO_FUNC_TIM4_1SHOT          60
-#define GPIO_FUNC_TIM5_1SHOT          61
-#define GPIO_FUNC_TIM6_1SHOT          62
-#define GPIO_FUNC_CMAC_DIAG           63
-
-/* Macro to define GPIO function setting */
-#define GPIO_FUNC_CONFIG(func) ((func) << 8)
-
-/* Usage Example */
-#define GPIO_PIN_FUNC_UART_RX      GPIO_FUNC_CONFIG(GPIO_FUNC_UART_RX)
-#define GPIO_PIN_FUNC_SPI_CLK      GPIO_FUNC_CONFIG(GPIO_FUNC_SPI_CLK)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* Bit-encoded input to da1470x_gpio_config() *********************************/
 
-/* 32-Bit Encoding: .... .... .... .GGF  FSSD DDDM MVPN NNNN
+/* 32-Bit Encoding: .... .... .... .GGD  DFFF FFFM MVPN NNNN
  *
  *   MCU selection:         GG
- *   Pin Function:          FF
- *   Pin Sense:             SS
- *   Pin Drive:             DDDD
+ *   Pin Direction:         DD
+ *   Pin Function:          FFFFFF
  *   Pin Mode bits:         MM
  *   Initial value:         V (output pins)
  *   Port number:           P (0-1)
@@ -225,10 +100,10 @@
 #  define GPIO_MCUSEL_PERIP     (0x02 << GPIO_MCUSEL_SHIFT)  /* 00002 Periphneral */
 #  define GPIO_MCUSEL_TND       (0x03 << GPIO_MCUSEL_SHIFT)  /* 00003 Trace and Debug System */
 
-/* Pin Function bits:
+/* Pin Direction bits:
  * Only meaningful when the GPIO function is GPIO_PIN
  *
- * .... .... .... ...F  F... .... .... ....
+ * .... .... .... ...D  D... .... .... ....
  */
 
 #define GPIO_FUNC_SHIFT         (15)    /* Bits 15-16: GPIO mode */
@@ -236,37 +111,81 @@
 #  define GPIO_INPUT            (0x00 << GPIO_FUNC_SHIFT)  /* 00000 GPIO input pin */
 #  define GPIO_OUTPUT           (0x01 << GPIO_FUNC_SHIFT)  /* 00001 GPIO output pin */
 
-// /* Pin Sense bits:
+
+// /* Pin Function bits:
 //  *
-//  * .... .... .... ....  .SS. .... .... ....
+//  * .... .... .... ....  .FFF FFF. .... ....
 //  */
 
-// #define GPIO_SENSE_SHIFT        (13)     /* Bits 13-14: Pin Sense mode */
-// #define GPIO_SENSE_MASK         (0x3 << GPIO_SENSE_SHIFT)
-// #  define GPIO_SENSE_NONE       (0 << GPIO_SENSE_SHIFT)
-// #  define GPIO_SENSE_HIGH       (2 << GPIO_SENSE_SHIFT)
-// #  define GPIO_SENSE_LOW        (3 << GPIO_SENSE_SHIFT)
-
-// /* Pin Drive bits:
-//  *
-//  * .... .... .... ....  ...D DDD. .... ....
-//  */
-
-// #define GPIO_DRIVE_SHIFT        (9)      /* Bits 9-12: Pin pull-up mode */
-// #define GPIO_DRIVE_MASK         (0xf << GPIO_DRIVE_SHIFT)
-// #  define GPIO_DRIVE_S0S1       (0 << GPIO_DRIVE_SHIFT)  /* Standard '0', standard '1' */
-// #  define GPIO_DRIVE_H0S1       (1 << GPIO_DRIVE_SHIFT)  /* High drive '0', standard '1' */
-// #  define GPIO_DRIVE_S0H1       (2 << GPIO_DRIVE_SHIFT)
-// #  define GPIO_DRIVE_H0H1       (3 << GPIO_DRIVE_SHIFT)
-// #  define GPIO_DRIVE_D0S1       (4 << GPIO_DRIVE_SHIFT)
-// #  define GPIO_DRIVE_D0H1       (5 << GPIO_DRIVE_SHIFT)
-// #  define GPIO_DRIVE_S0D1       (6 << GPIO_DRIVE_SHIFT)
-// #  define GPIO_DRIVE_H0D1       (7 << GPIO_DRIVE_SHIFT)
-// #  define GPIO_DRIVE_EOS1       (8 << GPIO_DRIVE_SHIFT)
-// #  define GPIO_DRIVE_SOE1       (9 << GPIO_DRIVE_SHIFT)
-// #  define GPIO_DRIVE_EOE1       (10 << GPIO_DRIVE_SHIFT)
-// #  define GPIO_DRIVE_DOE1       (11 << GPIO_DRIVE_SHIFT)
-// #  define GPIO_DRIVE_EOD1       (12 << GPIO_DRIVE_SHIFT)
+/* Shift and Mask Definitions */
+#define GPIO_FUNC_SHIFT                 (9)                      /* Bits 9-14: GPIO function selection */
+#define GPIO_FUNC_MASK                  (0x3F << GPIO_FUNC_SHIFT) /* Mask for GPIO function bits */
+#  define GPIO_FUNC_GPIO                (0  << GPIO_FUNC_SHIFT)  /* General Purpose Input/Output */
+#  define GPIO_FUNC_UART_RX             (1  << GPIO_FUNC_SHIFT)  /* UART Receive */
+#  define GPIO_FUNC_UART_TX             (2  << GPIO_FUNC_SHIFT)  /* UART Transmit */
+#  define GPIO_FUNC_UART2_RX            (3  << GPIO_FUNC_SHIFT)  /* UART2 Receive */
+#  define GPIO_FUNC_UART2_TX            (4  << GPIO_FUNC_SHIFT)  /* UART2 Transmit */
+#  define GPIO_FUNC_UART2_CTSN          (5  << GPIO_FUNC_SHIFT)  /* UART2 Clear To Send (CTSN) */
+#  define GPIO_FUNC_UART2_RTSN          (6  << GPIO_FUNC_SHIFT)  /* UART2 Request To Send (RTSN) */
+#  define GPIO_FUNC_UART3_RX            (7  << GPIO_FUNC_SHIFT)  /* UART3 Receive */
+#  define GPIO_FUNC_UART3_TX            (8  << GPIO_FUNC_SHIFT)  /* UART3 Transmit */
+#  define GPIO_FUNC_UART3_CTSN          (9  << GPIO_FUNC_SHIFT)  /* UART3 Clear To Send (CTSN) */
+#  define GPIO_FUNC_ISO_RST             (9  << GPIO_FUNC_SHIFT)  /* ISO Reset (Shared with UART3_CTSN) */
+#  define GPIO_FUNC_UART3_RTSN          (10 << GPIO_FUNC_SHIFT)  /* UART3 Request To Send (RTSN) */
+#  define GPIO_FUNC_ISO_CARDINSERT      (10 << GPIO_FUNC_SHIFT)  /* ISO Card Insert (Shared with UART3_RTSN) */
+#  define GPIO_FUNC_ISO_CLK             (11 << GPIO_FUNC_SHIFT)  /* ISO Clock */
+#  define GPIO_FUNC_ISO_DATA            (12 << GPIO_FUNC_SHIFT)  /* ISO Data */
+#  define GPIO_FUNC_SPI_DI              (13 << GPIO_FUNC_SHIFT)  /* SPI Data In */
+#  define GPIO_FUNC_SPI_DO              (14 << GPIO_FUNC_SHIFT)  /* SPI Data Out */
+#  define GPIO_FUNC_SPI_CLK             (15 << GPIO_FUNC_SHIFT)  /* SPI Clock */
+#  define GPIO_FUNC_SPI_EN              (16 << GPIO_FUNC_SHIFT)  /* SPI Enable */
+#  define GPIO_FUNC_SPI_EN2             (17 << GPIO_FUNC_SHIFT)  /* SPI Enable 2 */
+#  define GPIO_FUNC_SPI2_DI             (18 << GPIO_FUNC_SHIFT)  /* SPI2 Data In */
+#  define GPIO_FUNC_SPI2_DO             (19 << GPIO_FUNC_SHIFT)  /* SPI2 Data Out */
+#  define GPIO_FUNC_SPI2_CLK            (20 << GPIO_FUNC_SHIFT)  /* SPI2 Clock */
+#  define GPIO_FUNC_SPI2_EN             (21 << GPIO_FUNC_SHIFT)  /* SPI2 Enable */
+#  define GPIO_FUNC_SPI2_EN2            (22 << GPIO_FUNC_SHIFT)  /* SPI2 Enable 2 */
+#  define GPIO_FUNC_SPI3_EN             (23 << GPIO_FUNC_SHIFT)  /* SPI3 Enable */
+#  define GPIO_FUNC_SPI3_EN2            (24 << GPIO_FUNC_SHIFT)  /* SPI3 Enable 2 */
+#  define GPIO_FUNC_I2C_SCL             (25 << GPIO_FUNC_SHIFT)  /* I2C Clock Line */
+#  define GPIO_FUNC_I2C_SDA             (26 << GPIO_FUNC_SHIFT)  /* I2C Data Line */
+#  define GPIO_FUNC_I2C2_SCL            (27 << GPIO_FUNC_SHIFT)  /* I2C2 Clock Line */
+#  define GPIO_FUNC_I2C2_SDA            (28 << GPIO_FUNC_SHIFT)  /* I2C2 Data Line */
+#  define GPIO_FUNC_I2C3_SCL            (29 << GPIO_FUNC_SHIFT)  /* I2C3 Clock Line */
+#  define GPIO_FUNC_I2C3_SDA            (30 << GPIO_FUNC_SHIFT)  /* I2C3 Data Line */
+#  define GPIO_FUNC_I3C_SCL             (31 << GPIO_FUNC_SHIFT)  /* I3C Clock Line */
+#  define GPIO_FUNC_I3C_SDA             (32 << GPIO_FUNC_SHIFT)  /* I3C Data Line */
+#  define GPIO_FUNC_USB_SOF             (33 << GPIO_FUNC_SHIFT)  /* USB Start of Frame */
+#  define GPIO_FUNC_ADC                 (34 << GPIO_FUNC_SHIFT)  /* Analog-to-Digital Converter */
+#  define GPIO_FUNC_USB                 (35 << GPIO_FUNC_SHIFT)  /* USB Function */
+#  define GPIO_FUNC_PCM_DI              (36 << GPIO_FUNC_SHIFT)  /* PCM Data In */
+#  define GPIO_FUNC_PCM_DO              (37 << GPIO_FUNC_SHIFT)  /* PCM Data Out */
+#  define GPIO_FUNC_PCM_FSC             (38 << GPIO_FUNC_SHIFT)  /* PCM Frame Sync Clock */
+#  define GPIO_FUNC_PCM_CLK             (39 << GPIO_FUNC_SHIFT)  /* PCM Clock */
+#  define GPIO_FUNC_PDM_DATA            (40 << GPIO_FUNC_SHIFT)  /* PDM Data */
+#  define GPIO_FUNC_PDM_CLK             (41 << GPIO_FUNC_SHIFT)  /* PDM Clock */
+#  define GPIO_FUNC_COEX_EXT_ACT        (42 << GPIO_FUNC_SHIFT)  /* Coexistence External Activity */
+#  define GPIO_FUNC_COEX_SMART_ACT      (43 << GPIO_FUNC_SHIFT)  /* Coexistence Smart Activity */
+#  define GPIO_FUNC_COEX_SMART_PRI      (44 << GPIO_FUNC_SHIFT)  /* Coexistence Smart Priority */
+#  define GPIO_FUNC_PORT0_DCF           (45 << GPIO_FUNC_SHIFT)  /* Port0 DCF */
+#  define GPIO_FUNC_PORT1_DCF           (46 << GPIO_FUNC_SHIFT)  /* Port1 DCF */
+#  define GPIO_FUNC_PORT2_DCF           (47 << GPIO_FUNC_SHIFT)  /* Port2 DCF */
+#  define GPIO_FUNC_PORT3_DCF           (48 << GPIO_FUNC_SHIFT)  /* Port3 DCF */
+#  define GPIO_FUNC_PORT4_DCF           (49 << GPIO_FUNC_SHIFT)  /* Port4 DCF */
+#  define GPIO_FUNC_CLOCK               (50 << GPIO_FUNC_SHIFT)  /* Clock Function */
+#  define GPIO_FUNC_TIM_PWM             (51 << GPIO_FUNC_SHIFT)  /* Timer PWM */
+#  define GPIO_FUNC_TIM2_PWM            (52 << GPIO_FUNC_SHIFT)  /* Timer2 PWM */
+#  define GPIO_FUNC_TIM3_PWM            (53 << GPIO_FUNC_SHIFT)  /* Timer3 PWM */
+#  define GPIO_FUNC_TIM4_PWM            (54 << GPIO_FUNC_SHIFT)  /* Timer4 PWM */
+#  define GPIO_FUNC_TIM5_PWM            (55 << GPIO_FUNC_SHIFT)  /* Timer5 PWM */
+#  define GPIO_FUNC_TIM6_PWM            (56 << GPIO_FUNC_SHIFT)  /* Timer6 PWM */
+#  define GPIO_FUNC_TIM_1SHOT           (57 << GPIO_FUNC_SHIFT)  /* Timer 1-Shot */
+#  define GPIO_FUNC_TIM2_1SHOT          (58 << GPIO_FUNC_SHIFT)  /* Timer2 1-Shot */
+#  define GPIO_FUNC_TIM3_1SHOT          (59 << GPIO_FUNC_SHIFT)  /* Timer3 1-Shot */
+#  define GPIO_FUNC_TIM4_1SHOT          (60 << GPIO_FUNC_SHIFT)  /* Timer4 1-Shot */
+#  define GPIO_FUNC_TIM5_1SHOT          (61 << GPIO_FUNC_SHIFT)  /* Timer5 1-Shot */
+#  define GPIO_FUNC_TIM6_1SHOT          (62 << GPIO_FUNC_SHIFT)  /* Timer6 1-Shot */
+#  define GPIO_FUNC_CMAC_DIAG           (63 << GPIO_FUNC_SHIFT)  /* CMAC Diagnostic */
 
 /* Port number: W
  *

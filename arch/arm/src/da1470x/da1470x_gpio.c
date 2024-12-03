@@ -138,6 +138,32 @@ static inline void da1470x_gpio_mode(da1470x_pinset_t cfgset,
 }
 
 /****************************************************************************
+ * Name: da1470x_gpio_function
+ *
+ * Description:
+ *   Configure a GPIO function based on bit-encoded description of the pin.
+ *
+ ****************************************************************************/
+
+static inline void da1470x_gpio_function(da1470x_pinset_t cfgset,
+                                   unsigned int port, unsigned int pin)
+{
+  uint32_t function;
+  uint32_t regval;
+  uint32_t offset;
+
+  offset = DA1470_GPIO_MODE_OFFSET(port, pin);
+
+  function = cfgset & GPIO_FUNC_MASK;
+
+  regval = getreg32(offset);
+  regval &= ~GPIO_MODE_REG_PID_MASK(pin);
+  regval |= (function << GPIO_FUNC_SHIFT);
+
+  putreg32(regval, offset);
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -169,6 +195,11 @@ int da1470x_gpio_config(da1470x_pinset_t cfgset)
       pin = GPIO_PIN_DECODE(cfgset);
 
       //flags = spin_lock_irqsave(NULL);
+  //     /* Interrupts must be disabled from here on out so that we have mutually
+  //  * exclusive access to all of the GPIO configuration registers.
+  //  */
+
+  // flags = enter_critical_section();
 
       /* First, configure the port as a generic input so that we have a
        * known starting point and consistent behavior during the re-
