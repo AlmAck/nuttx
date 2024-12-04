@@ -18,42 +18,10 @@
  *
  ****************************************************************************/
 
-#include <nuttx/config.h>
-
-#define FLASH_CPUAPP_START_ADDR 0x00000000
-#define RAM_CPUAPP_START_ADDR   0x20000000
-
-/* Image format configuration */
-
-#ifdef CONFIG_NRF53_APP_FORMAT_MCUBOOT
-#  define MCUBOOT_HEADER_SIZE   CONFIG_NRF53_MCUBOOT_HEADER_SIZE
-#  ifdef CONFIG_BOARDCTL_BOOT_IMAGE
-#    define FLASH_OFFSET        0
-#    define FLASH_IMG_SIZE      CONFIG_NRF53_OTA_PRIMARY_SLOT_OFFSET
-#  else
-#    define FLASH_OFFSET        (CONFIG_NRF53_OTA_PRIMARY_SLOT_OFFSET + MCUBOOT_HEADER_SIZE)
-#    define FLASH_IMG_SIZE      (CONFIG_NRF53_OTA_SLOT_SIZE - MCUBOOT_HEADER_SIZE)
-#  endif
-#else
-#  define FLASH_OFFSET          0
-#  define FLASH_IMG_SIZE        CONFIG_NRF53_CPUAPP_MEM_FLASH_SIZE
-#endif
-
-/* Shared memory configuration */
-
-#ifdef CONFIG_RPTUN
-#  define RPTUN_SHMEM 0x8000
-#else
-#  define RPTUN_SHMEM 0
-#endif
-
 MEMORY
 {
-    progmem (rx)  : ORIGIN = FLASH_CPUAPP_START_ADDR + FLASH_OFFSET,
-                    LENGTH = FLASH_IMG_SIZE
-    datamem (rwx) : ORIGIN = RAM_CPUAPP_START_ADDR,
-                    LENGTH = CONFIG_NRF53_CPUAPP_MEM_RAM_SIZE - RPTUN_SHMEM
-    shmem (rw)    : ORIGIN = 0x20078000, LENGTH = RPTUN_SHMEM
+    progmem (rx) : ORIGIN = 0x10000000, LENGTH = 320K
+    datamem (rwx) : ORIGIN = 0x20000000, LENGTH = 1536K
 }
 
 OUTPUT_ARCH(arm)
@@ -121,15 +89,6 @@ SECTIONS
         . = ALIGN(4);
         _ebss = ABSOLUTE(.);
     } > datamem
-
-    /* Shmem */
-
-    .shmem :
-    {
-        . = ALIGN(4);
-        *(.shmem);
-        KEEP(*(.shmem))
-    } > shmem
 
     /* Stabs debugging sections. */
 
