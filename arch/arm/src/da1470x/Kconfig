@@ -204,19 +204,48 @@ endmenu # da1470 Peripheral Selection
 
 
 
-
-
-
 menu "High Frequency Clock (HFCLK) Configuration"
 
-config DA1470_HFCLK
-    bool "Enable High Frequency Clock (HFCLK) Initialization"
-    default y
-    ---help---
-      Enable initialization of the High Frequency Clock (HFCLK) in the DA1470 series.
-      This option initializes the HFCLK crystal oscillator, switching to the external
-      32 MHz oscillator if available and configured. When enabled, the system will
-      wait until the external oscillator is ready before continuing.
+choice
+	prompt "Select HFCLK Source"
+	default CLOCK_XTAL32M_SRC
+	---help---
+		Enable initialization of the High Frequency Clock (HFCLK) in the Renesas DA1470x series.
+		The HFCLK is crucial for the operation of various high-speed peripherals and core functionalities.
+		This option initializes the HFCLK crystal oscillator, switching to the external
+		32 MHz oscillator if it is available and properly configured. When enabled, the system will
+		wait until the external oscillator stabilizes and is ready before proceeding with the boot process.
+		Proper configuration of HFCLK ensures optimal performance and power efficiency for the microcontroller.
+
+
+	config CLOCK_XTAL32M_SRC
+		bool "XTAL32M RCX Source"
+		---help---
+			Selects the external 32 MHz crystal oscillator (XTAL32M) as the source for the High Frequency Clock (HFCLK).
+
+	config CLOCK_RCHS_SRC
+		bool "RCHS RCX Source"
+		---help---
+			Selects the internal High-Speed RC oscillator (RCHS) as the source for the High Frequency Clock (HFCLK).
+
+endchoice
+
+if CLOCK_RCHS_SRC
+	config CLOCK_HFCLK_SRC_RCHS_32
+		bool "RCHS_32 MHz"
+		---help---
+			Selects the 32 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
+
+	config CLOCK_HFCLK_SRC_RCHS_64
+		bool "RCHS_64 MHz"
+		---help---
+			Selects the 64 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
+
+	config CLOCK_HFCLK_SRC_RCHS_96
+		bool "RCHS_96 MHz"
+		---help---
+			Selects the 96 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
+endif
 
 endmenu
 
@@ -230,33 +259,33 @@ config DA1470_USE_LFCLK
     ---help---
       Enable the Low Power Clock (LFCLK) in the DA1470 series. This will allow
       the system to select and configure one of the available low-power clock
-      sources: RCLP, RCX, XTAL32K, or External Clock.
+      sources: RCLP, RCX, XTAL32K or External Clock.
 
 if DA1470_USE_LFCLK
 
 choice
     prompt "Select LFCLK Source"
-    default CLOCK_LPCLKSRC_SRC_RCLP
+    default CLOCK_LPCLK_SRC_RCLP
     ---help---
       Select the clock source to use as the low power clock (LFCLK). The options
       include RCLP, RCX, XTAL32K, or an external clock source.
 
-config CLOCK_LPCLKSRC_SRC_RCLP
+config CLOCK_LPCLK_SRC_RCLP
     bool "RCLP (Internal Low Power Clock)"
     ---help---
       Select RCLP (Internal Low Power Clock) as the LFCLK source.
 
-config CLOCK_LPCLKSRC_SRC_RCX
+config CLOCK_LPCLK_SRC_RCX
     bool "RCX (Internal 32kHz Clock)"
     ---help---
       Select RCX (Internal 32kHz Clock) as the LFCLK source.
 
-config CLOCK_LPCLKSRC_SRC_XTAL32K
+config CLOCK_LPCLK_SRC_XTAL32K
     bool "XTAL32K (External 32kHz Crystal)"
     ---help---
       Select XTAL32K (External 32kHz Crystal) as the LFCLK source.
 
-config CLOCK_LPCLKSRC_SRC_EXTERNAL
+config CLOCK_LPCLK_SRC_EXTERNAL
     bool "External Clock"
     ---help---
       Select an external clock source as the LFCLK. This option assumes the clock
