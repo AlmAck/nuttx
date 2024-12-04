@@ -32,12 +32,12 @@ include armv8-m/Make.defs
 CHIP_ASRCS  =
 CHIP_CSRCS  = da1470x_allocateheap.c da1470x_clk.c da1470x_clockconfig.c
 CHIP_CSRCS += da1470x_gpio.c da1470x_irq.c da1470x_lowputc.c
-CHIP_CSRCS += da1470x_start.c da1470x_systick.c
+CHIP_CSRCS += da1470x_start.c da1470x_systick.c da1470x_serial.c
 
 
-ifeq ($(CONFIG_DA1470_UART),y)
-CHIP_CSRCS += da1470x_serial.c
-endif
+#ifeq ($(CONFIG_DA1470_UART),y)
+#CHIP_CSRCS += da1470x_serial.c
+#endif
 
 #ifneq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 #CHIP_CSRCS += da1470x_idle.c
