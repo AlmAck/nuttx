@@ -18,19 +18,10 @@
  *
  ****************************************************************************/
 
-#include <nuttx/config.h>
-
-#ifdef CONFIG_RPTUN
-#  define RPTUN_SHMEM 0x8000
-#else
-#  define RPTUN_SHMEM 0
-#endif
-
 MEMORY
 {
-    progmem (rx)  : ORIGIN = 0x00000000, LENGTH = 1024K
-    datamem (rwx) : ORIGIN = 0x20000000, LENGTH = 512K - RPTUN_SHMEM
-    shmem (rw)    : ORIGIN = 0x20078000, LENGTH = RPTUN_SHMEM
+    progmem (rx) : ORIGIN = 0x10000000, LENGTH = 320K
+    datamem (rwx) : ORIGIN = 0x20000000, LENGTH = 1536K
 }
 
 OUTPUT_ARCH(arm)
@@ -98,15 +89,6 @@ SECTIONS
         . = ALIGN(4);
         _ebss = ABSOLUTE(.);
     } > datamem
-
-    /* Shmem */
-
-    .shmem :
-    {
-        . = ALIGN(4);
-        *(.shmem);
-        KEEP(*(.shmem))
-    } > shmem
 
     /* Stabs debugging sections. */
 
