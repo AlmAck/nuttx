@@ -26,7 +26,6 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
 #include "da1470x_config.h"
 
 /****************************************************************************
@@ -40,8 +39,8 @@
  *   Performs the low level UART initialization early in debug so that the
  *   serial console will be available during bootup.  This must be called
  *   before da1470x_serialinit.  NOTE:  This function depends on GPIO pin
- *   configuration performed in xmc_lowsetup() and main clock initialization
- *   performed in xmc_clock_configure().
+ *   configuration performed in xxxx_lowsetup() and main clock initialization
+ *   performed in xxx_clock_configure().
  *
  ****************************************************************************/
 

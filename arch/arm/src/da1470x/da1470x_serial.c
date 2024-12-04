@@ -172,7 +172,7 @@ static char g_uart2txbuffer[CONFIG_UART2_TXBUFSIZE];
 static struct da1470x_dev_s g_uart0priv =
 {
   .uartbase       = DA1470X_UART0_BASE,
-  .irq            = DA1470X_IRQ_SERIAL0,
+  .irq            = DA1470X_IRQ_UART0,
   .rx_available   = false,
   .config         =
   {
@@ -214,7 +214,7 @@ static uart_dev_t g_uart0port =
 static struct da1470x_dev_s g_uart1priv =
 {
   .uartbase       = DA1470X_UART1_BASE,
-  .irq            = DA1470X_IRQ_SERIAL1,
+  .irq            = DA1470X_IRQ_UART1,
   .rx_available   = false,
   .config         =
   {
@@ -256,7 +256,7 @@ static uart_dev_t g_uart1port =
 static struct da1470x_dev_s g_uart2priv =
 {
   .uartbase       = DA1470X_UART2_BASE,
-  .irq            = DA1470X_IRQ_SERIAL2,
+  .irq            = DA1470X_IRQ_UART2,
   .rx_available   = false,
   .config         =
   {
@@ -335,7 +335,7 @@ static int da1470x_setup(struct uart_dev_s *dev)
    * but just in case we leave the above note for some time.
    */
 
-  da1470x_usart_configure(priv->uartbase, &priv->config);
+  da1470x_uart_configure(priv->uartbase, &priv->config);
 #endif
 
   /* TODO: configure UART if not selected as console */
@@ -360,7 +360,7 @@ static void da1470x_shutdown(struct uart_dev_s *dev)
 
   /* Reset hardware and disable Rx and Tx */
 
-  da1470x_usart_disable(priv->uartbase, &priv->config);
+  da1470x_uart_disable(priv->uartbase, &priv->config);
 }
 
 /****************************************************************************
