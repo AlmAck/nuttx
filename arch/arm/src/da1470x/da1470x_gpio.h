@@ -106,8 +106,8 @@
  * .... .... .... ...D  D... .... .... ....
  */
 
-#define GPIO_FUNC_SHIFT         (15)    /* Bits 15-16: GPIO mode */
-#define GPIO_FUNC_MASK          (0x03 << GPIO_FUNC_SHIFT)
+#define GPIO_DIR_SHIFT         (15)    /* Bits 15-16: GPIO mode */
+#define GPIO_DIR_MASK          (0x03 << GPIO_FUNC_SHIFT)
 #  define GPIO_INPUT            (0x00 << GPIO_FUNC_SHIFT)  /* 00000 GPIO input pin */
 #  define GPIO_OUTPUT           (0x01 << GPIO_FUNC_SHIFT)  /* 00001 GPIO output pin */
 
