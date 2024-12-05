@@ -88,17 +88,28 @@ void da1470x_uart_configure(uintptr_t base,
 #endif
 
 /****************************************************************************
- * Name: da1470x_uart_disable
+ * Name: da1470x_uart_enable
  *
  * Description:
- *   Disable a UART.  it will be necessary to again call
- *   da1470x_usart_configure() in order to use this UART channel again.
+ *   Enable a UART.
  *
  ****************************************************************************/
 
 #ifdef HAVE_UART_DEVICE
-void da1470x_uart_disable(uintptr_t base,
-                         const struct uart_config_s *config);
+void da1470x_uart_enable();
+#endif
+
+/****************************************************************************
+ * Name: da1470x_uart_disable
+ *
+ * Description:
+ *   Disable a UART.  it will be necessary to again call
+ *   da1470x_uart_configure() in order to use this UART channel again.
+ *
+ ****************************************************************************/
+
+#ifdef HAVE_UART_DEVICE
+void da1470x_uart_disable();
 #endif
 
 /****************************************************************************
