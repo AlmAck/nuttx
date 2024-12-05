@@ -101,7 +101,6 @@ void __start(void)
 
   da1470_clockconfig();
   da1470x_lowsetup();
-  //da1470x_gpioinit();
   showprogress('A');
 
   /* Clear .bss.  We'll do this inline (vs. calling memset) just to be
