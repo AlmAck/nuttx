@@ -208,7 +208,7 @@ menu "High Frequency Clock (HFCLK) Configuration"
 
 choice
 	prompt "Select HFCLK Source"
-	default CLOCK_XTAL32M_SRC
+	default DA1470_CLOCK_XTAL32M_SRC
 	---help---
 		Enable initialization of the High Frequency Clock (HFCLK) in the Renesas DA1470x series.
 		The HFCLK is crucial for the operation of various high-speed peripherals and core functionalities.
@@ -218,30 +218,30 @@ choice
 		Proper configuration of HFCLK ensures optimal performance and power efficiency for the microcontroller.
 
 
-	config CLOCK_XTAL32M_SRC
+	config DA1470_CLOCK_XTAL32M_SRC
 		bool "XTAL32M RCX Source"
 		---help---
 			Selects the external 32 MHz crystal oscillator (XTAL32M) as the source for the High Frequency Clock (HFCLK).
 
-	config CLOCK_RCHS_SRC
+	config DA1470_CLOCK_RCHS_SRC
 		bool "RCHS RCX Source"
 		---help---
 			Selects the internal High-Speed RC oscillator (RCHS) as the source for the High Frequency Clock (HFCLK).
 
 endchoice
 
-if CLOCK_RCHS_SRC
-	config CLOCK_HFCLK_SRC_RCHS_32
+if DA1470_CLOCK_RCHS_SRC
+	config DA1470_CLOCK_HFCLK_SRC_RCHS_32
 		bool "RCHS_32 MHz"
 		---help---
 			Selects the 32 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
 
-	config CLOCK_HFCLK_SRC_RCHS_64
+	config DA1470_CLOCK_HFCLK_SRC_RCHS_64
 		bool "RCHS_64 MHz"
 		---help---
 			Selects the 64 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
 
-	config CLOCK_HFCLK_SRC_RCHS_96
+	config DA1470_CLOCK_HFCLK_SRC_RCHS_96
 		bool "RCHS_96 MHz"
 		---help---
 			Selects the 96 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
@@ -265,27 +265,27 @@ if DA1470_USE_LFCLK
 
 choice
     prompt "Select LFCLK Source"
-    default CLOCK_LPCLK_SRC_RCLP
+    default DA1470_CLOCK_LPCLK_SRC_RCLP
     ---help---
       Select the clock source to use as the low power clock (LFCLK). The options
       include RCLP, RCX, XTAL32K, or an external clock source.
 
-config CLOCK_LPCLK_SRC_RCLP
+config DA1470_CLOCK_LPCLK_SRC_RCLP
     bool "RCLP (Internal Low Power Clock)"
     ---help---
       Select RCLP (Internal Low Power Clock) as the LFCLK source.
 
-config CLOCK_LPCLK_SRC_RCX
+config DA1470_CLOCK_LPCLK_SRC_RCX
     bool "RCX (Internal 32kHz Clock)"
     ---help---
       Select RCX (Internal 32kHz Clock) as the LFCLK source.
 
-config CLOCK_LPCLK_SRC_XTAL32K
+config DA1470_CLOCK_LPCLK_SRC_XTAL32K
     bool "XTAL32K (External 32kHz Crystal)"
     ---help---
       Select XTAL32K (External 32kHz Crystal) as the LFCLK source.
 
-config CLOCK_LPCLK_SRC_EXTERNAL
+config DA1470_CLOCK_LPCLK_SRC_EXTERNAL
     bool "External Clock"
     ---help---
       Select an external clock source as the LFCLK. This option assumes the clock
