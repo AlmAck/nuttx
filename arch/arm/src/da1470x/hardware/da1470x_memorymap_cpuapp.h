@@ -94,12 +94,13 @@
 #define DA1470X_TIMER4_BASE                   0x50010300 /* 0x50010300-0x5001035B: 1KB TIMER4 registers */
 #define DA1470X_TIMER5_BASE                   0x50010400 /* 0x50010400-0x5001045B: 1KB TIMER5 registers */
 #define DA1470X_TIMER6_BASE                   0x50010500 /* 0x50010500-0x5001055B: 1KB TIMER6 registers */
-#define DA1470X_UART_BASE                     0x50020000 /* 0x50020000-0x500200FF: 1KB UART registers */
-#define DA1470X_UART2_BASE                    0x50020100 /* 0x50020100-0x500201FF: 1KB UART2 registers */
-#define DA1470X_UART3_BASE                    0x50020200 /* 0x50020200-0x500202FF: 1KB UART3 registers */
+#define DA1470X_UART0_BASE                    0x50020000 /* 0x50020000-0x500200FF: 1KB UART registers */
+#define DA1470X_UART1_BASE                    0x50020100 /* 0x50020100-0x500201FF: 1KB UART2 registers */
+#define DA1470X_UART2_BASE                    0x50020200 /* 0x50020200-0x500202FF: 1KB UART3 registers */
 #define DA1470X_USB_BASE                      0x51000000 /* 0x51000000-0x510001AF: 1KB USB registers */
 #define DA1470X_VAD_BASE                      0x50000C00 /* 0x50000C00-0x50000C23: 1KB VAD registers */
 #define DA1470X_WAKEUP_BASE                   0x50000900 /* 0x50000900-0x5000094F: 1KB WAKEUP registers */
 
+// NOTE: change UART to UART0 and shifted the others by 1 to make coding easier
 
 #endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_MEMORYMAP_CPUAPP_H */
