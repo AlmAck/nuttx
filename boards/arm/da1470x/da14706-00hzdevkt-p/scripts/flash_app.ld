@@ -18,77 +18,99 @@
  *
  ****************************************************************************/
 
+
+/* Define memory regions */
 MEMORY
 {
-    progmem (rx) : ORIGIN = 0x10000000, LENGTH = 320K
-    datamem (rwx) : ORIGIN = 0x20000000, LENGTH = 1536K
+    /* Interrupt Vector Table */
+    IVT (rx) : ORIGIN = 0x0F000200, LENGTH = 7680 /* bytes */
+
+    /* Shared Memory for Code and Read-Only Data */
+    SHARED (rx) : ORIGIN = 0x20110000, LENGTH = 128K
+
+    /* Cached RAM (Assumed for Fast Data or Special Purposes) */
+    RAMC (rwx) : ORIGIN = 0x00000000, LENGTH = 256K
+
+    /* Standard RAM for Data, BSS, Heap, and Stack */
+    RAMS (rwx) : ORIGIN = 0x20050000, LENGTH = 768K
 }
 
 OUTPUT_ARCH(arm)
 ENTRY(__start)         /* Treat __start as the anchor for dead code stripping */
 EXTERN(_vectors)       /* Force the vectors to be included in the output */
+
+/* Define sections */
 SECTIONS
 {
+    /* Interrupt Vector Table */
+    .isr_vector :
+    {
+        KEEP(*(.isr_vector))
+    } > IVT
+
+    /* Text section: code and read-only data */
     .text :
     {
         _stext = ABSOLUTE(.);
-        *(.vectors)
-        *(.text .text.*)
-        *(.fixup)
-        *(.gnu.warning)
-        *(.rodata .rodata.*)
-        *(.gnu.linkonce.t.*)
-        *(.glue_7)
+        *(.vectors)                   /* Vector table */
+        *(.text .text.*)              /* Code sections */
+        *(.fixup)                     /* Fixup sections */
+        *(.gnu.warning)               /* GNU warnings */
+        *(.rodata .rodata.*)          /* Read-only data */
+        *(.gnu.linkonce.t.*)          /* Link-once sections */
+        *(.glue_7)                    /* ARM glue code */
         *(.glue_7t)
-        *(.got)
-        *(.gcc_except_table)
-        *(.gnu.linkonce.r.*)
+        *(.got)                       /* Global Offset Table */
+        *(.gcc_except_table)          /* Exception tables */
+        *(.gnu.linkonce.r.*)          /* More link-once sections */
         _etext = ABSOLUTE(.);
-    } > progmem
+    } > SHARED
 
+    /* Initialization Section */
     .init_section :
     {
         _sinit = ABSOLUTE(.);
         KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
         KEEP(*(.init_array EXCLUDE_FILE(*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o) .ctors))
         _einit = ABSOLUTE(.);
-    } > progmem
+    } > SHARED
 
+    /* ARM Exception Tables */
     .ARM.extab :
     {
         *(.ARM.extab*)
-    } > progmem
+    } > SHARED
 
     __exidx_start = ABSOLUTE(.);
     .ARM.exidx :
     {
         *(.ARM.exidx*)
-    } > progmem
+    } > SHARED
     __exidx_end = ABSOLUTE(.);
 
     _eronly = ABSOLUTE(.);
 
+    /* Initialized Data */
     .data :
     {
         _sdata = ABSOLUTE(.);
-        *(.data .data.*)
-        *(.gnu.linkonce.d.*)
-        CONSTRUCTORS
+        *(.data .data.*)               /* Data sections */
+        *(.gnu.linkonce.d.*)           /* Link-once data sections */
+        CONSTRUCTORS                    /* Constructors */
         . = ALIGN(4);
         _edata = ABSOLUTE(.);
-    } > datamem AT > progmem
+    } > RAMS AT > SHARED
 
-    /* BSS */
-
+    /* BSS Section */
     .bss :
     {
         _sbss = ABSOLUTE(.);
-        *(.bss .bss.*)
-        *(.gnu.linkonce.b.*)
-        *(COMMON)
+        *(.bss .bss.*)                 /* BSS sections */
+        *(.gnu.linkonce.b.*)           /* Link-once BSS sections */
+        *(COMMON)                      /* Common symbols */
         . = ALIGN(4);
         _ebss = ABSOLUTE(.);
-    } > datamem
+    } > RAMS
 
     /* Stabs debugging sections. */
 
