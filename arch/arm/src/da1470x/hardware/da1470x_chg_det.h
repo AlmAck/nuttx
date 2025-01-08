@@ -1,5 +1,5 @@
 /****************************************************************************
- * ./tmp/da1470_chg_det.h
+ * arch/arm/src/da1470x/hardware/da1470x_chg_det.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470_CHG_DET_H
-#define __DA1470_CHG_DET_H
+#ifndef __DA1470X_CHG_DET_H
+#define __DA1470X_CHG_DET_H
 
 /****************************************************************************
  * Included Files
@@ -131,4 +131,4 @@
 #define CHG_DET_CHG_DET_TIMER_THRES_MASK          (0xFF << 0) /* This bit-field determines the value from which the charge detection timer starts */
 #define CHG_DET_CHG_DET_TIMER_THRES_POS           (0) /* This bit-field determines the value from which the charge detection timer starts */
 
-#endif /* __DA1470_CHG_DET_H */
+#endif /* __DA1470X_CHG_DET_H */

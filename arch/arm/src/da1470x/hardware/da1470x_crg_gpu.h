@@ -1,5 +1,5 @@
 /****************************************************************************
- * ./tmp/da1470_crg_gpu.h
+ * arch/arm/src/da1470x/hardware/da1470x_crg_gpu.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470_CRG_GPU_H
-#define __DA1470_CRG_GPU_H
+#ifndef __DA1470X_CRG_GPU_H
+#define __DA1470X_CRG_GPU_H
 
 /****************************************************************************
  * Included Files
@@ -52,4 +52,4 @@
 #define CRG_GPU_MIPI_DSI_EN                   (1U << 1) /* No description available. */
 #define CRG_GPU_GPU_ENABLE                    (1U << 0) /* No description available. */
 
-#endif /* __DA1470_CRG_GPU_H */
+#endif /* __DA1470X_CRG_GPU_H */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * ./tmp/da1470_charger.h
+ * arch/arm/src/da1470x/hardware/da1470x_charger.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470_CHARGER_H
-#define __DA1470_CHARGER_H
+#ifndef __DA1470X_CHARGER_H
+#define __DA1470X_CHARGER_H
 
 /****************************************************************************
  * Included Files
@@ -463,4 +463,4 @@
 #define CHARGER_VBAT_OVP_COMP_SETTLING_MASK               (0x3FF << 0) /* Settling time threshold (in us) for the Vbat comparator checking Vbat vs the pro */
 #define CHARGER_VBAT_OVP_COMP_SETTLING_POS                (0) /* Settling time threshold (in us) for the Vbat comparator checking Vbat vs the pro */
 
-#endif /* __DA1470_CHARGER_H */
+#endif /* __DA1470X_CHARGER_H */

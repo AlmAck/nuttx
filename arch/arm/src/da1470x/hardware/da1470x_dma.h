@@ -1,5 +1,5 @@
 /****************************************************************************
- * ./tmp/da1470_dma.h
+ * arch/arm/src/da1470x/hardware/da1470x_dma.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470_DMA_H
-#define __DA1470_DMA_H
+#ifndef __DA1470X_DMA_H
+#define __DA1470X_DMA_H
 
 /* Register offsets *********************************************************/
 
@@ -404,4 +404,4 @@
 #define DMA_DMA_SET_INT_MASK_DMA_SET_IRQ_ENABLE1      (1U << 1) /* Writing a '1' will enable the IRQs in the DMA channel 1, writing a '0' has no ef */
 #define DMA_DMA_SET_INT_MASK_DMA_SET_IRQ_ENABLE0      (1U << 0) /* Writing a '1' will enable the IRQs in the DMA channel 0, writing a '0' has no ef */
 
-#endif /* __DA1470_DMA_H */
+#endif /* __DA1470XS_DMA_H */

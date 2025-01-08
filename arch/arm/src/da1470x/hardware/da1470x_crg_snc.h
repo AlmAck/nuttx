@@ -1,5 +1,5 @@
 /****************************************************************************
- * ./tmp/da1470_crg_snc.h
+ * arch/arm/src/da1470x/hardware/da1470x_crg_snc.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470_CRG_SNC_H
-#define __DA1470_CRG_SNC_H
+#ifndef __DA1470X_CRG_SNC_H
+#define __DA1470X_CRG_SNC_H
 
 /****************************************************************************
  * Included Files
@@ -70,4 +70,4 @@
 #define CRG_SNC_UART0_CLK_SEL                 (1U << 1) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
 #define CRG_SNC_UART0_ENABLE                  (1U << 0) /* Enables the clock */
 
-#endif /* __DA1470_CRG_SNC_H */
+#endif /* __DA1470X_CRG_SNC_H */

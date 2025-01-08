@@ -1,5 +1,5 @@
 /****************************************************************************
- * ./tmp/da1470_crg_xtal.h
+ * arch/arm/src/da1470x/hardware/da1470x_crg_xtal.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470_CRG_XTAL_H
-#define __DA1470_CRG_XTAL_H
+#ifndef __DA1470X_CRG_XTAL_H
+#define __DA1470X_CRG_XTAL_H
 
 /****************************************************************************
  * Included Files
@@ -280,4 +280,4 @@
 #define CRG_XTAL_XTAL32M_TRIM_MASK                 (0x3FF << 0) /* Capacitance bank seting in running phase, use to trim the xtal32m output frequen */
 #define CRG_XTAL_XTAL32M_TRIM_POS                  (0) /* Capacitance bank seting in running phase, use to trim the xtal32m output frequen */
 
-#endif /* __DA1470_CRG_XTAL_H */
+#endif /* __DA1470X_CRG_XTAL_H */

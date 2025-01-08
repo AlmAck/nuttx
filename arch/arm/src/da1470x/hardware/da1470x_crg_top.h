@@ -1,5 +1,5 @@
 /****************************************************************************
- * ./tmp/da1470_crg_top.h
+ * arch/arm/src/da1470x/hardware/da1470x_crg_top.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470_CRG_TOP_H
-#define __DA1470_CRG_TOP_H
+#ifndef __DA1470X_CRG_TOP_H
+#define __DA1470X_CRG_TOP_H
 
 /****************************************************************************
  * Included Files
@@ -630,4 +630,4 @@
 #define CRG_TOP_WAKEUP_EN_MASK                    (0xF << 0) /* Enables GPIO[n] to wake up from hibernation Bit 0: P0_20 Bit 1: P0_29 Bit 2: P1_ */
 #define CRG_TOP_WAKEUP_EN_POS                     (0) /* Enables GPIO[n] to wake up from hibernation Bit 0: P0_20 Bit 1: P0_29 Bit 2: P1_ */
 
-#endif /* __DA1470_CRG_TOP_H */
+#endif /* __DA1470X_CRG_TOP_H */
