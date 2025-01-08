@@ -1,5 +1,5 @@
 /****************************************************************************
- * ./tmp/da1470_cache.h
+ * arch/arm/src/da1470x/hardware/da1470x_cache.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470_CACHE_H
-#define __DA1470_CACHE_H
+#ifndef __DA1470X_CACHE_H
+#define __DA1470X_CACHE_H
 
 /****************************************************************************
  * Included Files
@@ -129,4 +129,4 @@
 
 #define CACHE_SWD_HW_RESET_REQ                      (1U << 0) /* 0: default. 1: HW reset request (from the debugger tool). The register is automa */
 
-#endif /* __DA1470_CACHE_H */
+#endif /* __DA1470X_CACHE_H */

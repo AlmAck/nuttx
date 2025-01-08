@@ -1,5 +1,5 @@
 /****************************************************************************
- * ./tmp/da1470_crg_vsys.h
+ * arch/arm/src/da1470x/hardware/da1470x_crg_vsys.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470_CRG_VSYS_H
-#define __DA1470_CRG_VSYS_H
+#ifndef __DA1470X_CRG_VSYS_H
+#define __DA1470X_CRG_VSYS_H
 
 /****************************************************************************
  * Included Files
@@ -83,4 +83,4 @@
 #define CRG_VSYS_VBUS_LOW_DRIVE_IRQ_STATUS          (1U << 1) /* Indicates vbus drive strength is not enough to keep vbus up with the set limit o */
 #define CRG_VSYS_LDO_VSYS_HIGH_TEMP_IRQ_STATUS      (1U << 0) /* Indicates that a high temperature has been detected at ldo_vsys */
 
-#endif /* __DA1470_CRG_VSYS_H */
+#endif /* __DA1470X_CRG_VSYS_H */

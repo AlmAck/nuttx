@@ -1,5 +1,5 @@
 /****************************************************************************
- * ./tmp/da1470_crg_aud.h
+ * arch/arm/src/da1470x/hardware/da1470x_crg_aud.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470_CRG_AUD_H
-#define __DA1470_CRG_AUD_H
+#ifndef __DA1470X_CRG_AUD_H
+#define __DA1470X_CRG_AUD_H
 
 /****************************************************************************
  * Included Files
@@ -79,4 +79,4 @@
 #define CRG_AUD_SRC_DIV_MASK                  (0xFF << 0) /* SRC clock divider */
 #define CRG_AUD_SRC_DIV_POS                   (0) /* SRC clock divider */
 
-#endif /* __DA1470_CRG_AUD_H */
+#endif /* __DA1470X_CRG_AUD_H */

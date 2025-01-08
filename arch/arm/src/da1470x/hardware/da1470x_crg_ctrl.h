@@ -1,5 +1,5 @@
 /****************************************************************************
- * ./tmp/da1470_crg_ctrl.h
+ * arch/arm/src/da1470x/hardware/da1470x_crg_ctrl.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -58,4 +58,4 @@
 #define CRG_CTRL_SDIO_CLK_DIV_MASK            (0xF << 0) /* clock divider setting 0x0 : divide by 16 0x1 : divide by 1 0x2 : divide by 2 0x4 */
 #define CRG_CTRL_SDIO_CLK_DIV_POS             (0) /* clock divider setting 0x0 : divide by 16 0x1 : divide by 1 0x2 : divide by 2 0x4 */
 
-#endif /* __DA1470_CRG_CTRL_H */
+#endif /* __DA1470X_CRG_CTRL_H */
