@@ -104,97 +104,77 @@ void da1470_clockconfig(void)
 
 static void da1470_stdclockconfig(void)
 {
-  // TODO extend with board.h definitions
-uint32_t regval;
+  uint32_t regval;
 
-#ifdef CONFIG_DA1470_CLOCK_XTAL32M_SRC //CONFIG_DA1470_HFCLK
+  irqstate_t flags = enter_critical_section();
+
+#ifndef CONFIG_DA1470_CLOCK_XTAL32M_SRC // CONFIG_DA1470_HFCLK //TODO
   /* Initialize HFCLK crystal oscillator */
 
-  // XTAL
+  // Switch to XTAL32M as the system clock
   putreg32(0x1, DA1470_CRG_TOP_CLK_SWITCH2XTAL);
 
+  // #define SCB_VTOR ((volatile uint32_t*)0xE000ED08) // Address of VTOR register
+  // *SCB_VTOR = 0x18000000; // Set vector table to start of flash (OQSPI)
+
+  // Wait for XTAL32M to become stable
   while (!(getreg32(DA1470_CRG_TOP_CLK_CTRL) & RUNNING_AT_XTAL32M_MASK))
   {
-    /* wait for external oscillator to start */
+    /* Wait for external oscillator to start */
   }
 #endif
 
 #ifdef CONFIG_DA1470_USE_LFCLK
-  /* Initialize LFCLK */
+  /* Initialize LFCLK (Low Power clock) */
 
-  /* Initialize Low Power clock */
+  #if defined(CONFIG_DA1470_CLOCK_LPCLK_SRC_RCLP)
+    /* Enable RCLP clock */
+    regval = getreg32(DA1470_CRG_TOP_CLK_RCLP);
+    regval |= CRG_TOP_RCLP_ENABLE;
+    putreg32(regval, DA1470_CRG_TOP_CLK_RCLP);
 
-#if defined(CONFIG_DA1470_CLOCK_LPCLK_SRC_RCLP)
-  /* Enable RCLP clock */
+    /* Set LP_CLK_SEL to RCLP */
+    regval = getreg32(DA1470_CRG_TOP_CLK_CTRL);
+    regval &= ~CRG_TOP_LP_CLK_SEL_MASK;
+    regval |= (0x00 << CRG_TOP_LP_CLK_SEL_POS);
+    putreg32(regval, DA1470_CRG_TOP_CLK_CTRL);
 
-  regval = getreg32(DA1470_CRG_TOP_CLK_RCLP);
-  regval |= CRG_TOP_RCLP_ENABLE;
-  putreg32(regval, DA1470_CRG_TOP_CLK_RCLP);
+  #elif defined(CONFIG_DA1470_CLOCK_LPCLK_SRC_RCX)
+    /* Enable RCX clock */
+    regval = getreg32(DA1470_CRG_TOP_CLK_RCX);
+    regval |= CRG_TOP_RCX_ENABLE;
+    putreg32(regval, DA1470_CRG_TOP_CLK_RCX);
 
-  /* Set LP_CLK_SEL to RCLP */
+    /* Set LP_CLK_SEL to RCX */
+    regval = getreg32(DA1470_CRG_TOP_CLK_CTRL);
+    regval &= ~CRG_TOP_LP_CLK_SEL_MASK;
+    regval |= (0x01 << CRG_TOP_LP_CLK_SEL_POS);
+    putreg32(regval, DA1470_CRG_TOP_CLK_CTRL);
 
-  regval = getreg32(DA1470_CRG_TOP_CLK_CTRL);
-  regval = (regval & ~CRG_TOP_LP_CLK_SEL_MASK) | (0x00 << CRG_TOP_LP_CLK_SEL_POS);
-  putreg32(regval, DA1470_CRG_TOP_CLK_CTRL);
+  #elif defined(CONFIG_DA1470_CLOCK_LPCLK_SRC_XTAL32K)
+    /* Enable XTAL32K clock */
+    regval = getreg32(DA1470_CRG_TOP_CLK_XTAL32K);
+    regval |= CRG_TOP_XTAL32K_ENABLE;
+    putreg32(regval, DA1470_CRG_TOP_CLK_XTAL32K);
 
-#elif defined(CONFIG_DA1470_CLOCK_LPCLK_SRC_RCX)
-  /* Enable RCX clock */
+    /* Set LP_CLK_SEL to XTAL32K */
+    regval = getreg32(DA1470_CRG_TOP_CLK_CTRL);
+    regval &= ~CRG_TOP_LP_CLK_SEL_MASK;
+    regval |= (0x02 << CRG_TOP_LP_CLK_SEL_POS);
+    putreg32(regval, DA1470_CRG_TOP_CLK_CTRL);
 
-  regval = getreg32(DA1470_CRG_TOP_CLK_RCX);
-  regval |= CRG_TOP_RCX_ENABLE;
-  putreg32(regval, DA1470_CRG_TOP_CLK_RCX);
-
-  /* Set LP_CLK_SEL to RCX */
-
-  regval = getreg32(DA1470_CRG_TOP_CLK_CTRL);
-  regval = (regval & ~CRG_TOP_LP_CLK_SEL_MASK) | (0x01 << CRG_TOP_LP_CLK_SEL_POS);
-  putreg32(regval, DA1470_CRG_TOP_CLK_CTRL);
-
-#elif defined(CONFIG_DA1470_CLOCK_LPCLK_SRC_XTAL32K)
-  /* Enable XTAL32K clock */
-
-  regval = getreg32(DA1470_CRG_TOP_CLK_XTAL32K);
-  regval |= CRG_TOP_XTAL32K_ENABLE;
-  putreg32(regval, DA1470_CRG_TOP_CLK_XTAL32K);
-
-  /* Set LP_CLK_SEL to XTAL32K */
-
-  regval = getreg32(DA1470_CRG_TOP_CLK_CTRL);
-  regval = (regval & ~CRG_TOP_LP_CLK_SEL_MASK) | (0x02 << CRG_TOP_LP_CLK_SEL_POS);
-  putreg32(regval, DA1470_CRG_TOP_CLK_CTRL);
-
-#elif defined(CONFIG_DA1470_CLOCK_LPCLK_SRC_EXTERNAL)
-  /* No action needed for external clock */
-
-  /* External clock uses the default setup or is set elsewhere */
+  #elif defined(CONFIG_DA1470_CLOCK_LPCLK_SRC_EXTERNAL)
+    /* No action needed for external clock */
+    /* External clock uses the default setup or is set elsewhere */
+  #endif /* CONFIG_DA1470_CLOCK_LPCLK_SRC_EXTERNAL */
 
 #endif /* CONFIG_DA1470_USE_LFCLK */
 
-// /* Initialize system clock */
+modifyreg32(DA1470_CRG_TOP_CLK_AMBA, ~CRG_TOP_HCLK_DIV_MASK, 0 << CRG_TOP_HCLK_DIV_POS);
 
-// #if defined(CONFIG_DA1470_CLOCK_HFCLK_SRC_RCHS_32)
-// #elif defined(CONFIG_DA1470_CLOCK_XTAL32M_SRC)
-//   xtal32m_settled = (REG_GETF(CRG_XTAL, XTAL32M_STAT0_REG, XTAL32M_READY));
-//   if (xtal32m_settled == false) {
-//     // XTAL32M has not been started. Use PDC to start it.
-//     // Check the power supply
-//     ASSERT_WARNING(REG_GETF(CRG_TOP, POWER_CTRL_REG, DCDC_V14_EN));
-//     /* Enable the XTAL oscillator. */
+modifyreg32(DA1470_CRG_TOP_CLK_AMBA, ~CRG_TOP_PCLK_DIV_MASK, 0 << CRG_TOP_PCLK_DIV_POS);
 
-//     GLOBAL_INT_DISABLE();
-//     REG_SET_BIT(CRG_XTAL, XTAL32M_CTRL_REG, XTAL32M_ENABLE);
-//     GLOBAL_INT_RESTORE();
-//   }
-
-// #elif defined(CONFIG_DA1470_CLOCK_HFCLK_SRC_RCHS_64)
-// #elif defined(CONFIG_DA1470_CLOCK_HFCLK_SRC_RCHS_96)
-// #elif defined(CONFIG_DA1470_CLOCK_SYSCLKSRC_SRC_PLL160) //TODO
-// #endif
-
-// #if defined(CONFIG_NRF53_LFCLK_RC)
-//   /* TODO: calibrate LFCLK RC oscillator */
-// #endif
-#endif
+leave_critical_section(flags);
 }
 
 /****************************************************************************
