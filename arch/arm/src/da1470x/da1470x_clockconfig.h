@@ -132,6 +132,8 @@ static void da1470_stdclockconfig(void);
 void da1470_clockenable(void);
 #endif
 
+static inline void set_hclk_div(uint32_t div);
+static inline void set_pclk_div(uint32_t div);
 static inline void da1470_amba_enableperipherals(void);
 
 #undef EXTERN

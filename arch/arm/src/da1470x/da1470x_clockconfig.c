@@ -22,6 +22,7 @@
  * Included Files
  ****************************************************************************/
 
+//#include <cstdint>
 #include <nuttx/config.h>
 
 #include <assert.h>
@@ -36,7 +37,7 @@
 //#include "da1470x_clk.h"
 #include "da1470x_clockconfig.h"
 #include "hardware/da1470x_clock.h"
-
+#include "hardware/da1470x_crg_xtal.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -108,8 +109,24 @@ static void da1470_stdclockconfig(void)
 
   irqstate_t flags = enter_critical_section();
 
+// Todo implement sysclk_RCHS_32 sysclk_RCHS_64 sysclk_RCHS_96
+
 #ifndef CONFIG_DA1470_CLOCK_XTAL32M_SRC // CONFIG_DA1470_HFCLK //TODO
   /* Initialize HFCLK crystal oscillator */
+  uint32_t xtal32m_settled;
+
+  regval = getreg32(DA1470_CRG_XTAL_XTAL32M_STAT0); // Reads a 32-bit register
+  xtal32m_settled = (getreg32(DA1470_CRG_XTAL_XTAL32M_STAT0) & CRG_XTAL_XTAL32M_READY);
+
+  if (xtal32m_settled == false)
+    {
+      putreg32(getreg32(DA1470_CRG_XTAL_XTAL32M_CTRL) | CRG_XTAL_XTAL32M_ENABLE, DA1470_CRG_XTAL_XTAL32M_CTRL);
+    }
+
+  while (!(getreg32(DA1470_CRG_XTAL_XTAL32M_STAT0) & CRG_XTAL_XTAL32M_READY))
+    {
+      /* Wait for external oscillator to start */
+    }
 
   // Switch to XTAL32M as the system clock
   putreg32(0x1, DA1470_CRG_TOP_CLK_SWITCH2XTAL);
@@ -119,9 +136,9 @@ static void da1470_stdclockconfig(void)
 
   // Wait for XTAL32M to become stable
   while (!(getreg32(DA1470_CRG_TOP_CLK_CTRL) & RUNNING_AT_XTAL32M_MASK))
-  {
-    /* Wait for external oscillator to start */
-  }
+    {
+      /* Wait for external oscillator to start */
+    }
 #endif
 
 #ifdef CONFIG_DA1470_USE_LFCLK
@@ -170,11 +187,49 @@ static void da1470_stdclockconfig(void)
 
 #endif /* CONFIG_DA1470_USE_LFCLK */
 
-modifyreg32(DA1470_CRG_TOP_CLK_AMBA, ~CRG_TOP_HCLK_DIV_MASK, 0 << CRG_TOP_HCLK_DIV_POS);
 
-modifyreg32(DA1470_CRG_TOP_CLK_AMBA, ~CRG_TOP_PCLK_DIV_MASK, 0 << CRG_TOP_PCLK_DIV_POS);
+/* Set clock dividers */
+
+// TODO extend with dinamic value
+
+set_hclk_div(0);
+set_pclk_div(0);
 
 leave_critical_section(flags);
+}
+
+static inline void set_hclk_div(uint32_t div)
+{
+    uint32_t reg_val;
+
+    // Read the current value of the register
+    reg_val = getreg32(DA1470_CRG_TOP_CLK_AMBA);
+
+    // Clear the HCLK_DIV field
+    reg_val &= ~CRG_TOP_HCLK_DIV_MASK;
+
+    // Set the new value in the HCLK_DIV field
+    reg_val |= (div << CRG_TOP_HCLK_DIV_POS) & CRG_TOP_HCLK_DIV_MASK;
+
+    // Write the updated value back to the register
+    putreg32(reg_val, DA1470_CRG_TOP_CLK_AMBA);
+}
+
+static inline void set_pclk_div(uint32_t div)
+{
+    uint32_t reg_val;
+
+    // Read the current value of the register
+    reg_val = getreg32(DA1470_CRG_TOP_CLK_AMBA);
+
+    // Clear the PCLK_DIV field
+    reg_val &= ~CRG_TOP_PCLK_DIV_MASK;
+
+    // Set the new value in the PCLK_DIV field
+    reg_val |= (div << CRG_TOP_PCLK_DIV_POS) & CRG_TOP_PCLK_DIV_MASK;
+
+    // Write the updated value back to the register
+    putreg32(reg_val, DA1470_CRG_TOP_CLK_AMBA);
 }
 
 /****************************************************************************
