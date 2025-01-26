@@ -77,7 +77,7 @@
 
 /* Bit-encoded input to da1470x_gpio_config() *********************************/
 
-/* 32-Bit Encoding: .... .... .... .GGD  DFFF FFFM MVPN NNNN
+/* 32-Bit Encoding: .... .... ...G GDDF  FFFF FWMM VPPN NNNN
  *
  *   MCU selection:         GG
  *   Pin Direction:         DD
@@ -90,35 +90,38 @@
 
 /* MCU selection bits:
  *
- * .... .... .... .GG.  .... .... .... ....
+ * .... .... ...G G... .... .... .... ....
+ * 1098 7654 3210 9876 5432 1098 7654 3210
  */
 
-#define GPIO_MCUSEL_SHIFT       (17)    /* Bits 17-18: MCUSEL mode */
-#define GPIO_MCUSEL_MASK        (0x03 << GPIO_MCUSEL_SHIFT)
-#  define GPIO_MCUSEL_APP       (0x00 << GPIO_MCUSEL_SHIFT)  /* 00000 CPU APP */
-#  define GPIO_MCUSEL_NET       (0x01 << GPIO_MCUSEL_SHIFT)  /* 00001 CPU NET */
-#  define GPIO_MCUSEL_PERIP     (0x02 << GPIO_MCUSEL_SHIFT)  /* 00002 Periphneral */
-#  define GPIO_MCUSEL_TND       (0x03 << GPIO_MCUSEL_SHIFT)  /* 00003 Trace and Debug System */
+// #define GPIO_MCUSEL_SHIFT       (19)    /* Bits 19-20: MCUSEL mode */
+// #define GPIO_MCUSEL_MASK        (0x03 << GPIO_MCUSEL_SHIFT)
+// #  define GPIO_MCUSEL_APP       (0x00 << GPIO_MCUSEL_SHIFT)  /* 00000 CPU APP */
+// #  define GPIO_MCUSEL_NET       (0x01 << GPIO_MCUSEL_SHIFT)  /* 00001 CPU NET */
+// #  define GPIO_MCUSEL_PERIP     (0x02 << GPIO_MCUSEL_SHIFT)  /* 00002 Periphneral */
+// #  define GPIO_MCUSEL_TND       (0x03 << GPIO_MCUSEL_SHIFT)  /* 00003 Trace and Debug System */
 
 /* Pin Direction bits:
  * Only meaningful when the GPIO function is GPIO_PIN
  *
- * .... .... .... ...D  D... .... .... ....
+ * .... .... .... .DD. .... .... .... ....
+ * 1098 7654 3210 9876 5432 1098 7654 3210
  */
 
-#define GPIO_DIR_SHIFT         (15)    /* Bits 15-16: GPIO mode */
-#define GPIO_DIR_MASK          (0x03 << GPIO_FUNC_SHIFT)
-#  define GPIO_INPUT            (0x00 << GPIO_FUNC_SHIFT)  /* 00000 GPIO input pin */
-#  define GPIO_OUTPUT           (0x01 << GPIO_FUNC_SHIFT)  /* 00001 GPIO output pin */
+#define GPIO_DIR_SHIFT         (17)    /* Bits 17-18: GPIO mode */
+#define GPIO_DIR_MASK          (0x03 << GPIO_DIR_SHIFT)
+#  define GPIO_INPUT           (0x00 << GPIO_DIR_SHIFT)  /* 00000 GPIO input pin */
+#  define GPIO_OUTPUT          (0x01 << GPIO_DIR_SHIFT)  /* 00001 GPIO output pin */
 
 
-// /* Pin Function bits:
-//  *
-//  * .... .... .... ....  .FFF FFF. .... ....
-//  */
+/* Pin Function bits:
+ *
+ * .... .... .... ...F FFFF F... .... ....
+ * 1098 7654 3210 9876 5432 1098 7654 3210
+ */
 
 /* Shift and Mask Definitions */
-#define GPIO_FUNC_SHIFT                 (9)                      /* Bits 9-14: GPIO function selection */
+#define GPIO_FUNC_SHIFT                 (11)                     /* Bits 11-16: GPIO function selection */
 #define GPIO_FUNC_MASK                  (0x3F << GPIO_FUNC_SHIFT) /* Mask for GPIO function bits */
 #  define GPIO_FUNC_GPIO                (0  << GPIO_FUNC_SHIFT)  /* General Purpose Input/Output */
 #  define GPIO_FUNC_UART_RX             (1  << GPIO_FUNC_SHIFT)  /* UART Receive */
@@ -189,17 +192,19 @@
 
 /* Port number: W
  *
- * .... .... .... ....  .... .W.. .... ....
+ * .... .... .... .... .... .W.. .... ....
+ * 1098 7654 3210 9876 5432 1098 7654 3210
  */
 
-#define GPIO_PADPWR_SHIFT       (9)       /* Bit 10:  Output Power Control Register */
+#define GPIO_PADPWR_SHIFT       (10)       /* Bit 10:  Output Power Control Register */
 #define GPIO_PADPWR_MASK        (0x1 << GPIO_PORT_SHIFT)
 #  define GPIO_V30              (0 << GPIO_PORT_SHIFT)
 #  define GPIO_1V8P             (1 << GPIO_PORT_SHIFT)
 
 /* Pin Mode: MM
  *
- * .... .... .... ....  .... ..MM .... ....
+ * .... .... .... .... .... ..MM .... ....
+ * 1098 7654 3210 9876 5432 1098 7654 3210
  */
 
 #define GPIO_MODE_SHIFT         (8)      /* Bits 8-9: Pin pull-up mode */
@@ -210,16 +215,19 @@
 
 /* Initial value: V
  *
- * .... .... .... ....  .... .... V... ....
+ * .... .... .... .... .... .... V... ....
+ * 1098 7654 3210 9876 5432 1098 7654 3210
  */
 
-#define GPIO_VALUE              (1 << 7)  /* Bit 7: Initial GPIO output value */
+#define GPIO_VALUE_SHIFT        (7)      /* Bit 7: Initial GPIO output value */
+#define GPIO_VALUE              (1 << GPIO_VALUE_SHIFT)
 #  define GPIO_VALUE_ONE        GPIO_VALUE
 #  define GPIO_VALUE_ZERO       (0)
 
 /* Port number: PPP (0-5)
  *
- * .... .... .... ....  .... .... .PP. ....
+ * .... .... .... .... .... .... .PP. ....
+ * 1098 7654 3210 9876 5432 1098 7654 3210
  */
 
 #define GPIO_PORT_SHIFT         (5)       /* Bit 5-6:  Port number */
@@ -230,7 +238,8 @@
 
 /* Pin number: NNNNN (0-31)
  *
- * .... .... .... ....  .... .... ...N NNNN
+ * .... .... .... .... .... .... ...N NNNN
+ * 1098 7654 3210 9876 5432 1098 7654 3210
  */
 
 #define GPIO_PIN_SHIFT          0         /* Bits 0-4: GPIO number: 0-31 */
