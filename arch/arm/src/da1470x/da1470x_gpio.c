@@ -81,7 +81,7 @@ static inline uint32_t da1470x_gpio_regget(int port, uint32_t offset)
 static inline void da1470x_gpio_input(unsigned int port, unsigned int pin)
 {
   /* Configure the pin as an input */
-  modifyreg32(DA1470_GPIO_MODE_OFFSET(port, pin), DA1470_GPIO_BASE, GPIO_INPUT | GPIO_FUNC_GPIO);
+  modifyreg32(DA1470_GPIO_PX_MODE(port, pin), GPIO_MODE_REG_PUPD_MASK, GPIO_MODE_INPUT_PULL_DISABLED);
 }
 
 /****************************************************************************
@@ -97,7 +97,7 @@ static inline void da1470x_gpio_output(da1470x_pinset_t cfgset,
 {
   /* Configure the pin as an output */
 
-  modifyreg32(DA1470_GPIO_MODE_OFFSET(port, pin), DA1470_GPIO_BASE, GPIO_OUTPUT | GPIO_FUNC_GPIO);
+  modifyreg32(DA1470_GPIO_PX_MODE(port, pin), GPIO_MODE_REG_PUPD_MASK, GPIO_MODE_OUTPUT_PULL_DISABLED);
 
 // TODO need to be done before setting the pin as output?
   da1470x_gpio_write(cfgset, ((cfgset & GPIO_VALUE) != GPIO_VALUE_ZERO));
@@ -115,23 +115,34 @@ static inline void da1470x_gpio_mode(da1470x_pinset_t cfgset,
                                    unsigned int port, unsigned int pin)
 {
   uint32_t mode;
+  uint32_t dir;
   uint32_t regval;
   uint32_t offset;
 
-  offset = DA1470_GPIO_MODE_OFFSET(port, pin);
+  offset = DA1470_GPIO_PX_MODE(port, pin);
 
   mode = cfgset & GPIO_MODE_MASK;
 
-  regval = getreg32(offset);
-  regval &= ~GPIO_MODE_REG_PUPD_MASK(pin);
+  dir = cfgset & GPIO_DIR_MASK;
 
-  if (mode == GPIO_PULLUP)
+  regval = getreg32(offset);
+
+  regval &= ~GPIO_MODE_REG_PUPD_MASK;
+
+  if (dir == GPIO_INPUT)
     {
-      regval |= GPIO_CNF_PULL_UP;
+      if (mode == GPIO_PULLUP)
+        {
+          regval |= GPIO_MODE_INPUT_PULL_UP;
+        }
+      else if (mode == GPIO_PULLDOWN)
+        {
+          regval |= GPIO_MODE_INPUT_PULL_DOWN;
+        }
     }
-  else if (mode == GPIO_PULLDOWN)
+  else if (dir == GPIO_OUTPUT)
     {
-      regval |= GPIO_CNF_PULL_DOWN;
+      regval |= GPIO_MODE_OUTPUT_PULL_DISABLED;
     }
 
   putreg32(regval, offset);
@@ -152,13 +163,13 @@ static inline void da1470x_gpio_function(da1470x_pinset_t cfgset,
   uint32_t regval;
   uint32_t offset;
 
-  offset = DA1470_GPIO_MODE_OFFSET(port, pin);
+  offset = DA1470_GPIO_PX_MODE(port, pin);
 
   function = cfgset & GPIO_FUNC_MASK;
 
   regval = getreg32(offset);
-  regval &= ~GPIO_MODE_REG_PID_MASK(pin);
-  regval |= (function << GPIO_FUNC_SHIFT);
+  regval &= ~GPIO_MODE_REG_PID_MASK;
+  regval |= (function >> GPIO_FUNC_SHIFT);
 
   putreg32(regval, offset);
 }
@@ -195,11 +206,11 @@ int da1470x_gpio_config(da1470x_pinset_t cfgset)
       pin = GPIO_PIN_DECODE(cfgset);
 
       //flags = spin_lock_irqsave(NULL);
-  //     /* Interrupts must be disabled from here on out so that we have mutually
-  //  * exclusive access to all of the GPIO configuration registers.
-  //  */
+      //     /* Interrupts must be disabled from here on out so that we have mutually
+      //  * exclusive access to all of the GPIO configuration registers.
+      //  */
 
-  // flags = enter_critical_section();
+      // flags = enter_critical_section();
 
       /* First, configure the port as a generic input so that we have a
        * known starting point and consistent behavior during the re-
@@ -251,7 +262,7 @@ int da1470x_gpio_unconfig(da1470x_pinset_t cfgset)
 
   /* Configure as input and disconnect input buffer */
 
-  putreg32(GPIO_CNF_PULL_DISABLED, offset); //set as input
+  putreg32(GPIO_MODE_INPUT_PULL_DISABLED, offset); //set as input
 
   return OK;
 }
@@ -277,7 +288,14 @@ void da1470x_gpio_write(da1470x_pinset_t pinset, bool value)
 
   /* Get register address */
 
-  offset = DA1470_GPIO_SET_DATA_OFFSET(port);
+  if (value == true)
+    {
+      offset = DA1470_GPIO_PX_SET_DATA(port);
+    }
+  else
+    {
+      offset = DA1470_GPIO_PX_RESET_DATA(port);
+    }
 
   /* Put register value */
 
@@ -312,5 +330,6 @@ bool da1470x_gpio_read(da1470x_pinset_t pinset)
 
   regval = getreg32(offset);
 
-  return (regval >> pin) & 1UL;
+  return (regval >> pin) & 1;
 }
+
