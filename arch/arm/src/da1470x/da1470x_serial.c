@@ -110,6 +110,20 @@ struct da1470x_dev_s
   struct uart_config_s config;
 };
 
+/**
+ * \brief Interrupt Identification codes
+ *
+ */
+typedef enum {
+        HW_UART_INT_MODEM_STAT         = 0,
+        HW_UART_INT_NO_INT_PEND        = 1,
+        HW_UART_INT_THR_EMPTY          = 2,
+        HW_UART_INT_RECEIVED_AVAILABLE = 4,
+        HW_UART_INT_RECEIVE_LINE_STAT  = 6,
+        HW_UART_INT_BUSY_DETECTED      = 7,
+        HW_UART_INT_TIMEOUT            = 12,
+} HW_UART_INT;
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -413,7 +427,7 @@ static void da1470x_detach(struct uart_dev_s *dev)
 
   /* Disable interrupts */
 
-  putreg32(UART_INT_RXDRDY, priv->uartbase + DA1470X_UART_INTENCLR_OFFSET);
+  putreg32(UART_IIR_FCR, priv->uartbase + DA1470_UART_IIR_FCR_OFFSET);
   up_disable_irq(priv->irq);
 
   /* Detach from the interrupt(s) */
@@ -437,25 +451,26 @@ static int da1470x_interrupt(int irq, void *context, void *arg)
 {
   struct uart_dev_s *dev = (struct uart_dev_s *)arg;
   struct da1470x_dev_s *priv;
-  uint32_t regval;
+  HW_UART_INT int_id;
 
   DEBUGASSERT(dev != NULL && dev->priv != NULL);
   priv = (struct da1470x_dev_s *)dev->priv;
 
   /* Check RX event */
 
-  regval = getreg32(priv->uartbase + DA1470X_UART_EVENTS_RXDRDY_OFFSET);
+  int_id = getreg32(priv->uartbase + DA1470_UART_IIR_FCR_OFFSET) & 0xf;
 
-  if (regval != 0)
+  if (int_id == HW_UART_INT_RECEIVED_AVAILABLE)
     {
-      putreg32(0, priv->uartbase + DA1470X_UART_EVENTS_RXDRDY_OFFSET);
       priv->rx_available = true;
       uart_recvchars(dev);
     }
 
   /* Clear errors */
 
-  putreg32(0, priv->uartbase + DA1470X_UART_ERRORSRC_OFFSET);
+  /* Read Line Status Register once because errors are cleared after reading it. */
+
+  uint32_t lsr = getreg32(priv->uartbase + DA1470_UART_LSR_OFFSET);
 
   return OK;
 }
@@ -616,7 +631,7 @@ static int da1470x_receive(struct uart_dev_s *dev, unsigned int *status)
 
   /* Get input data along with receiver control information */
 
-  data = getreg32(priv->uartbase + DA1470X_UART_RXD_OFFSET);
+  data = getreg32(priv->uartbase + DA1470_UART_RBR_THR_DLL_OFFSET);
   priv->rx_available = false;
 
   /* Return receiver control information */
@@ -643,23 +658,25 @@ static void da1470x_rxint(struct uart_dev_s *dev, bool enable)
 {
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
 
-  if (enable)
-    {
-#ifndef CONFIG_SUPPRESS_SERIAL_INTS
-      /* Receive an interrupt when their is anything in the Rx data register
-       * (or an Rx timeout occurs).
-       */
+  putreg32(enable << UART_IER_DLH_ERBFI_DLH0, priv->uartbase + DA1470_UART_IER_DLH_OFFSET);
 
-      putreg32(UART_INT_RXDRDY, priv->uartbase + DA1470X_UART_INTENSET_OFFSET);
-      putreg32(1, priv->uartbase + DA1470X_UART_TASKS_STARTRX_OFFSET);
+//   if (enable)
+//     {
+// #ifndef CONFIG_SUPPRESS_SERIAL_INTS
+//       /* Receive an interrupt when their is anything in the Rx data register
+//        * (or an Rx timeout occurs).
+//        */
 
-#endif
-    }
-  else
-    {
-      putreg32(UART_INT_RXDRDY, priv->uartbase + DA1470X_UART_INTENCLR_OFFSET);
-      putreg32(1, priv->uartbase + DA1470X_UART_TASKS_STOPRX_OFFSET);
-    }
+//       putreg32(UART_INT_RXDRDY, priv->uartbase + DA1470X_UART_INTENSET_OFFSET);
+//       putreg32(1, priv->uartbase + DA1470X_UART_TASKS_STARTRX_OFFSET);
+
+// #endif
+//     }
+//   else
+//     {
+//       putreg32(UART_INT_RXDRDY, priv->uartbase + DA1470X_UART_INTENCLR_OFFSET);
+//       putreg32(1, priv->uartbase + DA1470X_UART_TASKS_STOPRX_OFFSET);
+//     }
 }
 
 /****************************************************************************
@@ -691,15 +708,13 @@ static void da1470x_send(struct uart_dev_s *dev, int ch)
 {
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
 
-  putreg32(0, priv->uartbase + DA1470X_UART_EVENTS_TXDRDY_OFFSET);
-  putreg32(1, priv->uartbase + DA1470X_UART_TASKS_STARTTX_OFFSET);
+// Wait if Transmit Holding Register is full
 
-  putreg32(ch, priv->uartbase + DA1470X_UART_TXD_OFFSET);
-  while (getreg32(priv->uartbase + DA1470X_UART_EVENTS_TXDRDY_OFFSET) == 0)
-    {
-    }
+  putreg32(ch, priv->uartbase + DA1470_UART_RBR_THR_DLL_OFFSET);
+  // while (getreg32(priv->uartbase + DA1470X_UART_EVENTS_TXDRDY_OFFSET) == 0)
+  //   {
+  //   }
 
-  putreg32(1, priv->uartbase + DA1470X_UART_TASKS_STOPTX_OFFSET);
 }
 
 /****************************************************************************
@@ -712,29 +727,39 @@ static void da1470x_send(struct uart_dev_s *dev, int ch)
 
 static void da1470x_txint(struct uart_dev_s *dev, bool enable)
 {
-  /* struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv; */
+  struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
+
+  /* Read the current value of the IER_DLH register */
+
+  uint16_t ier_dlh_reg = getreg32(priv->uartbase + DA1470_UART_IER_DLH_OFFSET);
+
+  irqstate_t flags = enter_critical_section();
+
+  /* Modify the required fields */
 
   if (enable)
     {
-#ifndef CONFIG_SUPPRESS_SERIAL_INTS
-      irqstate_t flags;
-
       /* Enable the TX interrupt */
 
-      flags = enter_critical_section();
+      ier_dlh_reg |= (UART_IER_DLH_ETBEI_DLH1 | UART_IER_DLH_PTIME_DLH7);
 
       /* Fake a TX interrupt here by just calling uart_xmitchars() with
        * interrupts disabled (note this may recurse).
        */
 
       uart_xmitchars(dev);
-      leave_critical_section(flags);
-#endif
     }
   else
     {
       /* Disable the TX interrupt */
+
+      ier_dlh_reg &= ~(UART_IER_DLH_ETBEI_DLH1 | UART_IER_DLH_PTIME_DLH7);
     }
+
+  /* Write the updated value back to the register */
+
+  putreg32(ier_dlh_reg, priv->uartbase + DA1470_UART_IER_DLH_OFFSET);
+  leave_critical_section(flags);
 }
 
 /****************************************************************************
