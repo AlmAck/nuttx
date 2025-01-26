@@ -125,4 +125,9 @@ void da1470x_uart_setformat(uintptr_t base,
                            const struct uart_config_s *config);
 #endif
 
+
+//TODO move on its own .c file
+void da1470x_enable_snc(void);
+
+
 #endif /* __ARCH_ARM_SRC_DA1470X_DA1470X_LOWPUTC_H */

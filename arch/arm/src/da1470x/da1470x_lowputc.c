@@ -93,7 +93,10 @@ static const struct uart_config_s g_console_config =
  * Private Functions
  ****************************************************************************/
 
-/* Function to configure UART serial clock input */
+/* Function to configure UART serial clock input
+ * sclk is false to use DivN
+ * sclk id true to use Div1
+ */
 
 void da1470x_uart_set_sclk(int uart, bool sclk)
 {
@@ -249,7 +252,7 @@ static void da1470x_setbaud(uintptr_t base, const struct uart_config_s *config)
         }
     }
 
-  da1470x_uart_set_sclk(base, false);
+  da1470x_uart_set_sclk(base, true);
 
 // TODO
 //if (baud_rate < 0x100) { /* HW_UART_BAUDRATE_2000000 = 0x100*/
@@ -379,10 +382,30 @@ void da1470x_lowsetup(void)
 #ifdef HAVE_UART_CONSOLE
   /* Configure the console UART (if any) */
 
+  // Enable PowerDomain snc to use the uart TODO create a proper "class" pm separately
+  da1470x_enable_snc();
+
   da1470x_uart_configure(CONSOLE_BASE, &g_console_config);
 
 #endif /* HAVE_UART_CONSOLE */
 #endif /* HAVE_UART_DEVICE */
+}
+
+void da1470x_enable_snc(void)
+{
+    irqstate_t flags;
+
+    // // Disable global interrupts
+    // flags = irqsave();
+
+    // Clear the CRG_TOP_SNC_SLEEP bit in the DA1470_CRG_TOP_PMU_CTRL
+    putreg32(getreg32(DA1470_CRG_TOP_PMU_CTRL) & ~CRG_TOP_SNC_SLEEP, DA1470_CRG_TOP_PMU_CTRL);
+
+    // // Restore global interrupts
+    // irqrestore(flags);
+
+    // Wait until the SNC_IS_UP bit in SYS_STAT_REG is set
+    while ((getreg32(DA1470_CRG_TOP_SYS_STAT) & CRG_TOP_SNC_IS_UP) == 0);
 }
 
 /****************************************************************************
@@ -457,17 +480,20 @@ void da1470x_uart_enable()
   /* Enable the UART clock */
 
   #ifdef CONFIG_UART0_SERIAL_CONSOLE
-    regval  = getreg32(DA1470_CRG_TOP_CLK_SNC_CTRL);
+    regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
     regval |= CRG_SNC_UART0_ENABLE;
-    putreg32(regval, DA1470_CRG_TOP_CLK_SNC_CTRL);
+    // regval |= CRG_SNC_UART0_CLK_SEL;
+    putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
   #elif CONFIG_UART1_SERIAL_CONSOLE
-    regval  = getreg32(DA1470_CRG_TOP_CLK_SNC_CTRL);
+    regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
     regval |= CRG_SNC_UART1_ENABLE;
-    putreg32(regval, DA1470_CRG_TOP_CLK_SNC_CTRL);
-  #elif CONFIG_UART2_SERIAL_CONSOLE
-    regval  = getreg32(DA1470_CRG_TOP_CLK_SNC_CTRL);
+    // regval |= CRG_SNC_UART1_CLK_SEL;
+    putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
+  #elif CONFIG_UART2_SERIAL_CONSOLEb
+    regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
     regval |= CRG_SNC_UART2_ENABLE;
-    putreg32(regval, DA1470_CRG_TOP_CLK_SNC_CTRL);
+    // regval |= CRG_SNC_UART2_CLK_SEL;
+    putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
   #endif
 
   /* Enable interrupts */
@@ -490,17 +516,17 @@ void da1470x_uart_disable()
   /* Disable the UART clock */
 
   #ifdef CONFIG_UART0_SERIAL_CONSOLE
-    regval  = getreg32(DA1470_CRG_TOP_CLK_SNC_CTRL);
+    regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
     regval &= ~CRG_SNC_UART1_ENABLE;
-    putreg32(regval, DA1470_CRG_TOP_CLK_SNC_CTRL);
+    putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
   #elif CONFIG_UART1_SERIAL_CONSOLE
-    regval  = getreg32(DA1470_CRG_TOP_CLK_SNC_CTRL);
+    regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
     regval &= ~CRG_SNC_UART2_ENABLE;
-    putreg32(regval, DA1470_CRG_TOP_CLK_SNC_CTRL);
+    putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
   #elif CONFIG_UART2_SERIAL_CONSOLE
-    regval  = getreg32(DA1470_CRG_TOP_CLK_SNC_CTRL);
+    regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
     regval &= ~CRG_SNC_UART3_ENABLE;
-    putreg32(regval, DA1470_CRG_TOP_CLK_SNC_CTRL);
+    putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
   #endif
 
   /* Disable interrupts */
@@ -563,7 +589,7 @@ void arm_lowputc(char ch)
 
   /* Then send the character */
 
-  putreg32((uint32_t)ch, CONSOLE_BASE + UART_RBR_THR_DLL);
+  putreg32((uint32_t)ch, CONSOLE_BASE + DA1470_UART_RBR_THR_DLL_OFFSET);
 
 #endif
 }
