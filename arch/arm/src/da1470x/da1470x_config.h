@@ -44,16 +44,17 @@
 
 #undef HAVE_UART0
 #undef HAVE_UART1
+#undef HAVE_UART2
 
-#ifdef CONFIG_DA1470X_UART0
+#ifdef CONFIG_DA1470_UART0
 #  define HAVE_UART0 1
 #endif
 
-#ifdef CONFIG_DA1470X_UART1
+#ifdef CONFIG_DA1470_UART1
 #  define HAVE_UART1 1
 #endif
 
-#ifdef CONFIG_DA1470X_UART2
+#ifdef CONFIG_DA1470_UART2
 #  define HAVE_UART2 1
 #endif
 
@@ -70,7 +71,7 @@
 #  define HAVE_UART_DEVICE 1
 #endif
 
-#if defined(HAVE_UART1)
+#if defined(HAVE_UART2)
 #  define HAVE_UART_DEVICE 1
 #endif
 
@@ -90,7 +91,7 @@
 #  define HAVE_UART_CONSOLE 1
 #endif
 
-#if defined(CONFIG_UART2_SERIAL_CONSOLE) && defined(HAVE_UART1)
+#if defined(CONFIG_UART2_SERIAL_CONSOLE) && defined(HAVE_UART2)
 #  undef CONFIG_UART0_SERIAL_CONSOLE
 #  undef CONFIG_UART1_SERIAL_CONSOLE
 #  define HAVE_UART_CONSOLE 1
