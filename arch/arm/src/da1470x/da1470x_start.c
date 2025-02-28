@@ -147,7 +147,7 @@ void __start(void)
   /* Perform early serial initialization */
 
 #ifdef USE_EARLYSERIALINIT
-  arm_earlyserialinit();
+  da1470x_earlyserialinit();
 #endif
   showprogress('D');
 

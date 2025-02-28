@@ -25,9 +25,11 @@ set(SRCS
     da1470x_gpio.c
     da1470x_irq.c
     da1470x_lowputc.c
-    da1470x_serial.c
     da1470x_start.c
     da1470x_systick.c
 )
+if(CONFIG_DA1470_UART)
+  list(APPEND SRCS da1470x_serial.c)
+endif()
 
 target_sources(arch PRIVATE ${SRCS})

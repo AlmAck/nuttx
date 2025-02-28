@@ -35,7 +35,7 @@ CHIP_CSRCS += da1470x_gpio.c da1470x_irq.c da1470x_lowputc.c
 CHIP_CSRCS += da1470x_start.c da1470x_systick.c
 
 
-ifeq ($(CONFIG_DA1470X_UART),y)
+ifeq ($(CONFIG_DA1470_UART),y)
 CHIP_CSRCS += da1470x_serial.c
 endif
 
