@@ -39,7 +39,6 @@
 #include "da1470x_gpio.h"
 #include "da1470x_serial.h"
 #include "da1470x_clockconfig.h"
-#include "da1470x_start.h"
 
 /****************************************************************************
  * Pre-processor Definitions
