@@ -121,6 +121,13 @@ config ARCH_CHIP_CSK6
 	---help---
 		LISTEANAI CSK6 architectures (ARM Cortex-M33).
 
+config ARCH_CHIP_DA1470X
+	bool "Renesas DA1470x"
+	select ARCH_CORTEXM33
+	depends on EXPERIMENTAL
+	---help---
+		Renesas DA1470 architectures (ARM dual Cortex-M33).
+
 config ARCH_CHIP_DM320
 	bool "TMS320 DM320"
 	select ARCH_ARM926EJS
@@ -1144,6 +1151,7 @@ config ARCH_CHIP
 	default "am335x"	if ARCH_CHIP_AM335X
 	default "fvp-v8r-aarch32"	if ARCH_CHIP_FVP_ARMV8R_AARCH32
 	default "c5471"		if ARCH_CHIP_C5471
+	default "da1470x"	if ARCH_CHIP_DA1470X
 	default "dm320"		if ARCH_CHIP_DM320
 	default "efm32"		if ARCH_CHIP_EFM32
 	default "eoss3"		if ARCH_CHIP_EOSS3
@@ -1552,6 +1560,9 @@ source "arch/arm/src/fvp-v8r-aarch32/Kconfig"
 endif
 if ARCH_CHIP_C5471
 source "arch/arm/src/c5471/Kconfig"
+endif
+if ARCH_CHIP_DA1470X
+source "arch/arm/src/da1470x/Kconfig"
 endif
 if ARCH_CHIP_DM320
 source "arch/arm/src/dm320/Kconfig"

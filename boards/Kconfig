@@ -592,6 +592,14 @@ config ARCH_BOARD_CHIPKIT_WIFIRE
 		board is a chipKIT Arduino-compatible board. This board
 		features the Microchip PIC32MZ2048EFG100 MCU running at 200 MHz.
 
+config ARCH_BOARD_DA14706_00HZDEVKT_P
+	bool "Renesas da1470x Development Kit (DA14706_00HZDEVKT_P)"
+	depends on ARCH_CHIP_DA1470X
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	---help---
+		This option selects the Renesas da1470x Development Kit (DA14706_00HZDEVKT_P)
+
 config ARCH_BOARD_FLIPNCLICK_PIC32MZ
 	bool "Mikroe Flip&Click PIC32MZ"
 	depends on ARCH_CHIP_PIC32MZ2048EFH
@@ -3334,6 +3342,7 @@ config ARCH_BOARD
 	default "circuit-express"           if ARCH_BOARD_CIRCUIT_EXPRESS
 	default "clicker2-stm32"            if ARCH_BOARD_CLICKER2_STM32
 	default "cloudctrl"                 if ARCH_BOARD_CLOUDCTRL
+	default "da14706-00hzdevkt-p" 		if ARCH_BOARD_DA14706_00HZDEVKT_P
 	default "demo9s12ne64"              if ARCH_BOARD_DEMOS92S12NEC64
 	default "dk-tm4c129x"               if ARCH_BOARD_DK_TM4C129X
 	default "ea3131"                    if ARCH_BOARD_EA3131
@@ -4699,6 +4708,9 @@ endif
 if ARCH_BOARD_CSK6011A_NANO
 source "boards/arm/csk6/csk6011a-nano/Kconfig"
 endif
+if ARCH_BOARD_DA14706_00HZDEVKT_P
+source "boards/arm/da1470x/da14706-00hzdevkt-p/Kconfig"
+endif
 if ARCH_BOARD_FRDM_MCXN236
 source "boards/arm/mcx-nxxx/frdm-mcxn236/Kconfig"
 endif
@@ -4759,6 +4771,9 @@ source "boards/arm/nrf53/common/Kconfig"
 endif
 if ARCH_CHIP_NRF91
 source "boards/arm/nrf91/common/Kconfig"
+endif
+if ARCH_CHIP_DA1470X
+source "boards/arm/da1470x/common/Kconfig"
 endif
 endif
 
