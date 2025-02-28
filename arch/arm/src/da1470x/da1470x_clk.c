@@ -154,12 +154,12 @@
 
 //     /* Drop bit0 to reduce the size of clocks[] */
 //     uint32_t index = (getreg32(DA1470_CRG_TOP_CLK_CTRL) & freq_msk) >> (CRG_TOP_RUNNING_AT_RCLP + 1);
-
+    
 //     DEBUGASSERT(index <= 4);
 
 //     sys_clk_is_t clk = clocks[index];
 //     DEBUGASSERT(clk != SYS_CLK_IS_INVALID);
-
+    
 //     return clk;
 // }
 
@@ -282,7 +282,7 @@
 //         if (mode == SYS_CLK_IS_XTAL32M && ((regval & RUNNING_AT_RCHS) != 0)) {
 
 //                 putreg32(0x01, DA1470_CRG_TOP_CLK_SWITCH2XTAL);
-
+                
 //         } else {
 
 //                 regval = getreg32(DA1470_CRG_TOP_CLK_CTRL);             // Read current register value

@@ -95,7 +95,7 @@ void da1470_board_clockconfig(void);
  *
  * Description:
  *   The standard logic to configure the clocks based on settings in board.h.
- *   Applicable if no custom clock config is provided.
+ *   Applicable if no custom clock config is provided. 
  *
  ****************************************************************************/
 

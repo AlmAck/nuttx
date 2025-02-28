@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/nrf53/nrf5340-audio-dk/src/nrf53_bringup.c
+ * boards/arm/da1470x/da14706-00hzdevkt-p/src/da1470x_bringup.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -36,7 +36,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nrf53_bringup
+ * Name: da1470x_bringup
  *
  * Description:
  *   Perform architecture-specific initialization
@@ -49,7 +49,7 @@
  *
  ****************************************************************************/
 
-int nrf53_bringup(void)
+int da1470x_bringup(void)
 {
   int ret;
 

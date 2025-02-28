@@ -220,7 +220,7 @@
  */
 
 #define GPIO_VALUE_SHIFT        (7)      /* Bit 7: Initial GPIO output value */
-#define GPIO_VALUE              (1 << GPIO_VALUE_SHIFT)
+#define GPIO_VALUE              (1 << GPIO_VALUE_SHIFT)  
 #  define GPIO_VALUE_ONE        GPIO_VALUE
 #  define GPIO_VALUE_ZERO       (0)
 
