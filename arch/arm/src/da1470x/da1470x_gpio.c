@@ -212,6 +212,10 @@ int da1470x_gpio_config(da1470x_pinset_t cfgset)
 
       da1470x_gpio_mode(cfgset, port, pin);
 
+      /* Set the Function bits */
+
+      da1470x_gpio_function(cfgset, port, pin);
+
       //spin_unlock_irqrestore(NULL, flags);
     }
   else
