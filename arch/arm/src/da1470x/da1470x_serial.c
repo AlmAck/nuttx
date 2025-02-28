@@ -888,7 +888,7 @@ void arm_serialinit(void)
  *
  ****************************************************************************/
 
-int up_putc(int ch)
+void up_putc(int ch)
 {
 #ifdef HAVE_UART_CONSOLE
   /* struct da1470x_dev_s *priv = (struct da1470x_dev_s *)CONSOLE_DEV.priv; */
@@ -904,8 +904,6 @@ int up_putc(int ch)
 
   arm_lowputc(ch);
 #endif
-
-  return ch;
 }
 
 #else /* USE_SERIALDRIVER */
@@ -918,7 +916,7 @@ int up_putc(int ch)
  *
  ****************************************************************************/
 
-int up_putc(int ch)
+void up_putc(int ch)
 {
 #ifdef HAVE_UART_CONSOLE
   /* Check for LF */
@@ -932,7 +930,6 @@ int up_putc(int ch)
 
   arm_lowputc(ch);
 #endif
-  return ch;
 }
 
 #endif /* HAVE_UART_DEVICE && USE_SERIALDRIVER */
