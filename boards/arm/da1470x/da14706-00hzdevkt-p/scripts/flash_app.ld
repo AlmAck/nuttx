@@ -1,5 +1,5 @@
 /****************************************************************************
-* boards/arm/nrf53/nrf5340-audio-dk/scripts/flash_net.ld
+* boards/arm/da1470x/da14706-00hzdevkt-p/scripts/flash_net.ld
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with

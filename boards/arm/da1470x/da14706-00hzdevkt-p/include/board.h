@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/nrf53/nrf5340-audio-dk/include/board.h
+ * boards/arm/da1470x/da14706-00hzdevkt-p/include/board.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __BOARDS_ARM_NRF53_NRF5340_AUDIO_DK_INCLUDE_BOARD_H
-#define __BOARDS_ARM_NRF53_NRF5340_AUDIO_DK_INCLUDE_BOARD_H
+#ifndef __BOARDS_ARM_DA1470X_DA14706_00HZDEVKT_P_INCLUDE_BOARD_H
+#define __BOARDS_ARM_DA1470X_DA14706_00HZDEVKT_P_INCLUDE_BOARD_H
 
 /****************************************************************************
  * Included Files
@@ -28,9 +28,9 @@
 #include <nuttx/config.h>
 #include <stdbool.h>
 
-#if defined(CONFIG_ARCH_IRQBUTTONS) && defined(CONFIG_NRF53_GPIOTE)
-#  include <nuttx/irq.h>
-#endif
+// #if defined(CONFIG_ARCH_IRQBUTTONS) && defined(CONFIG_NRF53_GPIOTE)
+// #  include <nuttx/irq.h>
+// #endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -99,14 +99,21 @@
 
 /* UART Pins ****************************************************************/
 
-/* The following definitions must be provided so that the NRF53 serial
+/* The following definitions must be provided so that the DA1470 serial
  * driver can set up the UART for the serial console properly.
+ * Interfaced by the FT2232HL
  */
 
-#define BOARD_UART0_RX_PIN  (GPIO_INPUT  | GPIO_PORT1 | GPIO_PIN(4))
-#define BOARD_UART0_TX_PIN  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(5))
+#define BOARD_UART0_RX_PIN  (GPIO_INPUT  | GPIO_PULLDOWN | GPIO_FUNC_UART_RX | GPIO_PORT2 | GPIO_PIN(1))
+#define BOARD_UART0_TX_PIN  (GPIO_OUTPUT | GPIO_FUNC_UART_TX | GPIO_PORT0 | GPIO_PIN(8))
 
-#define BOARD_UART1_RX_PIN  (GPIO_INPUT  | GPIO_PORT1 | GPIO_PIN(8))
-#define BOARD_UART1_TX_PIN  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(9))
+// #define BOARD_UART1_RX_PIN  (GPIO_INPUT  | GPIO_PORT1 | GPIO_PIN(8))
+// #define BOARD_UART1_TX_PIN  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(9))
 
-#endif /* __BOARDS_ARM_NRF53_NRF5340_AUDIO_DK_INCLUDE_BOARD_H */
+
+
+
+#define GPIO_TEST_OUTPUT (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PULLDOWN | GPIO_VALUE_ONE | GPIO_PORT0 | GPIO_PIN(12))
+
+
+#endif /* __BOARDS_ARM_DA1470X_DA14706_00HZDEVKT_P_INCLUDE_BOARD_H */

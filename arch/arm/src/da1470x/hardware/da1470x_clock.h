@@ -131,3 +131,4 @@ typedef enum sys_clk_is_e
 #  define CLK_AMBA_REG_HCLK_DIV16         (4 << CLK_AMBA_REG_PCLK_DIV)
 
 #endif /* __ARCH_ARM_SRC_DA1470X_CLOCK_H */
+

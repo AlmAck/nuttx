@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/nrf53/nrf5340-audio-dk/src/nrf53_appinit.c
+ * boards/arm/da1470x/da14706-00hzdevkt-p/src/da1470x_appinit.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -31,7 +31,7 @@
 #include <nuttx/board.h>
 
 #include "chip.h"
-#include "nrf5340-audio-dk.h"
+#include "da14706-00hzdevkt-p.h"
 
 /****************************************************************************
  * Public Functions
@@ -69,6 +69,6 @@ int board_app_initialize(uintptr_t arg)
 #else
   /* Perform board-specific initialization */
 
-  return nrf53_bringup();
+  return da1470x_bringup();
 #endif
 }

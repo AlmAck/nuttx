@@ -1,5 +1,5 @@
 ############################################################################
-# boards/arm/nrf53/nrf5340-audio-dk/scripts/Make.defs
+# boards/arm/da1470x/da14706-00hzdevkt-p/scripts/Make.defs
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -22,21 +22,21 @@ include $(TOPDIR)/.config
 include $(TOPDIR)/tools/Config.mk
 include $(TOPDIR)/arch/arm/src/armv8-m/Toolchain.defs
 
-ifeq ($(CONFIG_ARCH_CHIP_NRF5340_CPUAPP),y)
+ifeq ($(CONFIG_ARCH_CHIP_DA1470_CPUAPP),y)
 LDSCRIPT = flash_app.ld
 endif
 
-ifeq ($(CONFIG_ARCH_CHIP_NRF5340_CPUNET),y)
-LDSCRIPT = flash_net.ld
-endif
+#ifeq ($(CONFIG_ARCH_CHIP_DA1470_CPUNET),y)
+#LDSCRIPT = flash_net.ld
+#endif
 
 ARCHSCRIPT += $(BOARD_DIR)$(DELIM)scripts$(DELIM)$(LDSCRIPT)
 
 ARCHPICFLAGS = -fpic -msingle-pic-base -mpic-register=r10
 
-CFLAGS := $(ARCHCFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS) -pipe
+CFLAGS := $(ARCHCFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS)
 CPICFLAGS = $(ARCHPICFLAGS) $(CFLAGS)
-CXXFLAGS := $(ARCHCXXFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHXXINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS) -pipe
+CXXFLAGS := $(ARCHCXXFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHXXINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS)
 CXXPICFLAGS = $(ARCHPICFLAGS) $(CXXFLAGS)
 CPPFLAGS := $(ARCHINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS)
 AFLAGS := $(CFLAGS) -D__ASSEMBLY__
