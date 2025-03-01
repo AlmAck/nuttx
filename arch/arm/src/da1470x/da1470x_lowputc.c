@@ -94,8 +94,8 @@ static const struct uart_config_s g_console_config =
  ****************************************************************************/
 
 /* Function to configure UART serial clock input
- * sclk is false to use DivN
- * sclk id true to use Div1
+ * If sclk is false, the function uses DivN (a divided clock source).
+ * If sclk is true, the function uses Div1 (an undivided clock source, meaning the clock runs at full speed).
  */
 
 void da1470x_uart_set_sclk(int uart, bool sclk)
@@ -311,6 +311,7 @@ static void da1470x_setbaud(uintptr_t base, const struct uart_config_s *config)
   cr &= ~UART_LCR_UART_DLAB;
   putreg32(cr, base + DA1470_UART_LCR_OFFSET);
 }
+#endif
 
 /****************************************************************************
  * Name: da1470x_setparity
@@ -561,17 +562,14 @@ void da1470x_uart_enable()
   #ifdef CONFIG_UART0_SERIAL_CONSOLE
     regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
     regval |= CRG_SNC_UART0_ENABLE;
-    // regval |= CRG_SNC_UART0_CLK_SEL;
     putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
   #elif CONFIG_UART1_SERIAL_CONSOLE
     regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
     regval |= CRG_SNC_UART1_ENABLE;
-    // regval |= CRG_SNC_UART1_CLK_SEL;
     putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
   #elif CONFIG_UART2_SERIAL_CONSOLEb
     regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
     regval |= CRG_SNC_UART2_ENABLE;
-    // regval |= CRG_SNC_UART2_CLK_SEL;
     putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
   #endif
 
