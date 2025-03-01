@@ -109,7 +109,8 @@ void da1470x_uart_set_sclk(int uart, bool sclk)
 
   /* Determine the appropriate mask for the UART */
 
-  switch (uart) {
+  switch (uart)
+  {
       case DA1470X_UART0_BASE:
           mask = CRG_SNC_UART0_CLK_SEL;
           break;
@@ -140,127 +141,145 @@ void da1470x_uart_set_sclk(int uart, bool sclk)
 #ifdef HAVE_UART_DEVICE
 static void da1470x_setbaud(uintptr_t base, const struct uart_config_s *config)
 {
-  uint32_t br = 0;
+  uint32_t baud_rate = 0;
   uint32_t cr;
+  uint32_t divisor;
+  bool sclk = false;  // Use DivN by default
 
   switch (config->baud)
-    {
+  {
       case 1200:
-        {
-          br = UART_BAUDRATE_1200;
+          baud_rate = UART_BAUDRATE_1200;
           break;
-        }
 
       case 2400:
-        {
-          br = UART_BAUDRATE_2400;
+          baud_rate = UART_BAUDRATE_2400;
           break;
-        }
 
       case 4800:
-        {
-          br = UART_BAUDRATE_4800;
+          baud_rate = UART_BAUDRATE_4800;
           break;
-        }
 
       case 9600:
-        {
-          br = UART_BAUDRATE_9600;
+          baud_rate = UART_BAUDRATE_9600;
           break;
-        }
 
       case 14400:
-        {
-          br = UART_BAUDRATE_14400;
+          baud_rate = UART_BAUDRATE_14400;
           break;
-        }
 
       case 19200:
-        {
-          br = UART_BAUDRATE_19200;
+          baud_rate = UART_BAUDRATE_19200;
           break;
-        }
 
       case 28800:
-        {
-          br = UART_BAUDRATE_28800;
+          baud_rate = UART_BAUDRATE_28800;
           break;
-        }
-
-#ifdef UART_BAUDRATE_31250
-      case 31250:
-        {
-          br = UART_BAUDRATE_31250;
-          break;
-        }
-#endif
 
       case 38400:
-        {
-          br = UART_BAUDRATE_38400;
+          baud_rate = UART_BAUDRATE_38400;
           break;
-        }
-
-#ifdef UART_BAUDRATE_56000
-      case 56000:
-        {
-          br = UART_BAUDRATE_56000;
-          break;
-        }
-#endif
 
       case 57600:
-        {
-          br = UART_BAUDRATE_57600;
+          baud_rate = UART_BAUDRATE_57600;
           break;
-        }
 
       case 115200:
-        {
-          br = UART_BAUDRATE_115200;
+          baud_rate = UART_BAUDRATE_115200;
           break;
-        }
 
       case 230400:
-        {
-          br = UART_BAUDRATE_230400;
+          baud_rate = UART_BAUDRATE_230400;
           break;
-        }
+
+      case 256000:
+          baud_rate = UART_BAUDRATE_256000;
+          break;
 
       case 460800:
-        {
-          br = UART_BAUDRATE_460800;
+          baud_rate = UART_BAUDRATE_460800;
           break;
-        }
+
+      case 500000:
+          baud_rate = UART_BAUDRATE_500000;
+          break;
 
       case 921600:
-        {
-          br = UART_BAUDRATE_921600;
+          baud_rate = UART_BAUDRATE_921600;
           break;
-        }
 
       case 1000000:
-        {
-          br = UART_BAUDRATE_1000000;
+          baud_rate = UART_BAUDRATE_1000000;
           break;
-        }
 
+      case 2000000:
+          baud_rate = UART_BAUDRATE_2000000;
+          break;
+
+      case 3000000:
+          baud_rate = UART_BAUDRATE_3000000;
+          break;
+  #if MAIN_PROCESSOR_BUILD
+      case 6000000:
+          baud_rate = UART_BAUDRATE_6000000;
+          break;
+  #endif
       default:
-        {
           DEBUGPANIC();
           break;
-        }
-    }
+  }
 
-  da1470x_uart_set_sclk(base, true);
+  divisor = baud_rate;
 
-// TODO
-//if (baud_rate < 0x100) { /* HW_UART_BAUDRATE_2000000 = 0x100*/
-//  manage special cases with higher frequency and calculate divisor
-// }
-//else{
-  uint32_t divisor = br;
-//}
+#if TO_DEVELOP
+  if (baud_rate < 0x100) // If baud rate requires a high-speed clock
+  {
+      uint32_t sys_clk = hw_clk_get_sysclk();
+
+      if (sys_clk == SYS_CLK_IS_PLL)
+      {
+          switch (baud_rate)
+          {
+              case UART_BAUDRATE_3000000:
+                  divisor = 0x00000305;
+                  break;
+#if MAIN_PROCESSOR_BUILD
+              case UART_BAUDRATE_6000000:
+                  divisor = 0x0000010B;
+                  break;
+#endif
+              default:
+                  assert(false);
+          }
+
+          sclk = true; // Use Div1
+      }
+      else if ((sys_clk == SYS_CLK_IS_RCHS) && (hw_clk_get_rchs_mode() == RCHS_96))
+      {
+          switch (baud_rate)
+          {
+              case UART_BAUDRATE_3000000:
+                  divisor = 0x00000200;
+                  break;
+#if MAIN_PROCESSOR_BUILD
+              case UART_BAUDRATE_6000000:
+                  divisor = 0x00000100;
+                  break;
+#endif
+              default:
+                  assert(false);
+          }
+
+          sclk = true; // Use Div1
+      }
+      else
+      {
+          assert(false);
+      }
+  }
+#endif
+
+  da1470x_uart_set_sclk(base, sclk);
 
   /* Set Divisor Latch Access Bit in LCR register to access DLL & DLH registers */
 
