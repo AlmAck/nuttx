@@ -626,7 +626,7 @@ void arm_lowputc(char ch)
   /* Wait until the TX data register is empty */
 
   while ((getreg32(CONSOLE_BASE + DA1470_UART_LSR_OFFSET) &
-                   UART_LSR_UART_TEMT) == 0);
+                   UART_LSR_UART_THRE) == 0);
 
   /* Then send the character */
 
