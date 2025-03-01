@@ -46,11 +46,8 @@ struct uart_config_s
   uint8_t  parity;        /* 0=none, 1=odd, 2=even */
   uint8_t  bits;          /* Number of bits (5-9) */
   bool     stopbits2;     /* Configure with 2 stop bits instead of 1 */
-#ifdef CONFIG_SERIAL_IFLOWCONTROL
-  bool     iflow;         /* Input flow control supported */
-#endif
-#ifdef CONFIG_SERIAL_OFLOWCONTROL
-  bool     oflow;         /* Output flow control supported. */
+#ifdef CONFIG_SERIAL_AUTO_FLOW_CONTROL
+  bool     auto_flow_control;         /* Auto flow control supported */
 #endif
   da1470x_pinset_t txpin;   /* TX pin */
   da1470x_pinset_t rxpin;   /* RX pin */
