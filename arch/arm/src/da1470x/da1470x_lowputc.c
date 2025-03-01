@@ -350,14 +350,35 @@ static void da1470x_setstops(uintptr_t base,
 /****************************************************************************
  * Name: da1470x_sethwflow
  ****************************************************************************/
-
+#ifdef CONFIG_SERIAL_AUTO_FLOW_CONTROL
 static void da1470x_sethwflow(uintptr_t base,
                             const struct uart_config_s *config)
 {
+  uint32_t regval = 0;
+
+  // Configure Flow Control in MCR register
+  regval = getreg32(base + DA1470_UART_MCR_OFFSET);
+
   /* TODO */
   // // Set Auto flow control
   //       HW_UART_REG_SETF(uart, MCR, UART_AFCE, uart_init->auto_flow_control);
   //       HW_UART_REG_SETF(uart, MCR, UART_RTS, uart_init->auto_flow_control);
+
+    // Configure Flow Control in MCR register
+    regval = getreg32(base + DA1470_UART_MCR_OFFSET);
+
+    // Set Auto Flow Control (AFCE: bit 5, RTS: bit 1)
+    if (config->auto_flow_control)
+    {
+        regval |= (UART_MCR_AFCE | UART_MCR_RTS);
+    }
+    else
+    {
+        regval &= ~(UART_MCR_AFCE | UART_MCR_RTS);
+    }
+
+    // Write updated MCR register
+    putreg32(regval, base + DA1470_UART_MCR_OFFSET);
 }
 #endif
 
@@ -566,8 +587,9 @@ void da1470x_uart_setformat(uintptr_t base,
 #endif
 
   /* Configure hardware flow control */
-
+#ifdef CONFIG_SERIAL_AUTO_FLOW_CONTROL
   da1470x_sethwflow(base, config);
+#endif
 }
 #endif
 
