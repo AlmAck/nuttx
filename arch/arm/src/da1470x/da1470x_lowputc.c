@@ -308,7 +308,7 @@ static void da1470x_setbaud(uintptr_t base, const struct uart_config_s *config)
   /* Reset Divisor Latch Access Bit in LCR register */
 
   cr  = getreg32(base + DA1470_UART_LCR_OFFSET);
-  cr &= UART_LCR_UART_DLAB;
+  cr &= ~UART_LCR_UART_DLAB;
   putreg32(cr, base + DA1470_UART_LCR_OFFSET);
 }
 
