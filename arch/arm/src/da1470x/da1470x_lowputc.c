@@ -342,6 +342,45 @@ static void da1470x_setparity(uintptr_t base,
 }
 
 /****************************************************************************
+ * Name: da1470x_data_bits
+ ****************************************************************************/
+
+static void da1470x_data_bits(uintptr_t base,
+                            const struct uart_config_s *config)
+{
+  uint32_t regval = 0;
+  uint32_t data_bits = 0;
+
+  /* Read the current LCR register */
+
+  regval = getreg32(base + DA1470_UART_LCR_OFFSET);
+
+  switch (config->bits)
+  {
+    case 5:
+        data_bits = 0x00;
+        break;
+    case 6:
+        data_bits = 0x01;
+        break;
+    case 7:
+        data_bits = 0x10;
+        break;
+    case 8:
+    default:
+        data_bits = 0x11;
+        break;
+  }
+
+  /* Set Data Bits (DLS: bits [1:0])  */
+
+  regval &= ~UART_LCR_UART_DLS;                 // Clear previous data bits setting
+  regval |= (data_bits & UART_LCR_UART_DLS);    // Apply new data bits setting
+
+  putreg32(regval, base + DA1470_UART_LCR_OFFSET);
+}
+
+/****************************************************************************
  * Name: da1470x_setstops
  ****************************************************************************/
 
@@ -598,6 +637,10 @@ void da1470x_uart_setformat(uintptr_t base,
   /* Configure polarity */
 
   da1470x_setparity(base, config);
+
+  /* Configure data bits */
+
+  da1470x_data_bits(base, config);
 
 #ifdef HAVE_UART_STOPBITS
   /* Configure STOP bits */
