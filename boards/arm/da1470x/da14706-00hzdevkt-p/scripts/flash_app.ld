@@ -36,7 +36,6 @@ MEMORY
 {
     /* Interrupt Vector Table - Use NVM start */
     IVT (rx) : ORIGIN = 0x0F000200, LENGTH = 8K - 0x200 /* bytes */
-    //IVT (rx) : ORIGIN = 0x0, LENGTH = 128K
 
     /* Shared Memory between Main and M0 Cores */
     SHARED (rw): ORIGIN = 0x20110000, LENGTH = 0x20000 /* 128K */
@@ -47,7 +46,7 @@ MEMORY
     RAMS (rwx) : ORIGIN = RAMS_ORG, LENGTH = RAMS_LEN /* Full RAM range */
 
     /* Non-Volatile Memory for Code */
-    FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 0x4000000 /* NVM range */
+    FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 8M /* NVM range */
 
 }
 
