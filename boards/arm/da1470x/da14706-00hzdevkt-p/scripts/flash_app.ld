@@ -18,21 +18,37 @@
  *
  ****************************************************************************/
 
+# ifdef CONFIG_USE_SNC
+     /* reserve first 64K for SNC */
+#    define RAMC_ORG                 0x10010000
+#    define RAMS_ORG                 0x20010000
+#    define SNC_MEM_LEN              0
+# else
+#    define RAMC_ORG                 0x10000000
+#    define RAMS_ORG                 0x20000000
+#    define SNC_MEM_LEN              64K
+# endif
+
+# define RAMS_LEN                         (1024K + SNC_MEM_LEN)
 
 /* Define memory regions */
 MEMORY
 {
-    /* Interrupt Vector Table */
-    IVT (rx) : ORIGIN = 0x0F000200, LENGTH = 7680 /* bytes */
+    /* Interrupt Vector Table - Use NVM start */
+    IVT (rx) : ORIGIN = 0x0F000200, LENGTH = 8K - 0x200 /* bytes */
+    //IVT (rx) : ORIGIN = 0x0, LENGTH = 128K
 
-    /* Shared Memory for Code and Read-Only Data */
-    SHARED (rx) : ORIGIN = 0x20110000, LENGTH = 128K
+    /* Shared Memory between Main and M0 Cores */
+    SHARED (rw): ORIGIN = 0x20110000, LENGTH = 0x20000 /* 128K */
 
-    /* Cached RAM (Assumed for Fast Data or Special Purposes) */
-    RAMC (rwx) : ORIGIN = 0x00000000, LENGTH = 256K
+    RAMC : ORIGIN = RAMC_ORG, LENGTH = 256K
 
-    /* Standard RAM for Data, BSS, Heap, and Stack */
-    RAMS (rwx) : ORIGIN = 0x20050000, LENGTH = 768K
+    /* Main Core RAM */
+    RAMS (rwx) : ORIGIN = RAMS_ORG, LENGTH = RAMS_LEN /* Full RAM range */
+
+    /* Non-Volatile Memory for Code */
+    FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 0x4000000 /* NVM range */
+
 }
 
 OUTPUT_ARCH(arm)
@@ -42,75 +58,77 @@ EXTERN(_vectors)       /* Force the vectors to be included in the output */
 /* Define sections */
 SECTIONS
 {
-    /* Interrupt Vector Table */
-    .isr_vector :
-    {
-        KEEP(*(.isr_vector))
-    } > IVT
-
-    /* Text section: code and read-only data */
     .text :
     {
         _stext = ABSOLUTE(.);
-        *(.vectors)                   /* Vector table */
-        *(.text .text.*)              /* Code sections */
-        *(.fixup)                     /* Fixup sections */
-        *(.gnu.warning)               /* GNU warnings */
-        *(.rodata .rodata.*)          /* Read-only data */
-        *(.gnu.linkonce.t.*)          /* Link-once sections */
-        *(.glue_7)                    /* ARM glue code */
+        *(.vectors)
+        *(.text .text.*)
+        *(.fixup)
+        *(.gnu.warning)
+        *(.rodata .rodata.*)
+        *(.gnu.linkonce.t.*)
+        *(.glue_7)
         *(.glue_7t)
-        *(.got)                       /* Global Offset Table */
-        *(.gcc_except_table)          /* Exception tables */
-        *(.gnu.linkonce.r.*)          /* More link-once sections */
+        *(.got)
+        *(.gcc_except_table)
+        *(.gnu.linkonce.r.*)
         _etext = ABSOLUTE(.);
-    } > SHARED
+    } > FLASH
 
-    /* Initialization Section */
-    .init_section :
+    .init_section : 
     {
         _sinit = ABSOLUTE(.);
         KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
         KEEP(*(.init_array EXCLUDE_FILE(*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o) .ctors))
         _einit = ABSOLUTE(.);
-    } > SHARED
+    } > FLASH
 
-    /* ARM Exception Tables */
     .ARM.extab :
     {
         *(.ARM.extab*)
-    } > SHARED
+    } > FLASH
 
     __exidx_start = ABSOLUTE(.);
     .ARM.exidx :
     {
         *(.ARM.exidx*)
-    } > SHARED
+    } > FLASH
     __exidx_end = ABSOLUTE(.);
 
     _eronly = ABSOLUTE(.);
 
-    /* Initialized Data */
     .data :
     {
         _sdata = ABSOLUTE(.);
-        *(.data .data.*)               /* Data sections */
-        *(.gnu.linkonce.d.*)           /* Link-once data sections */
-        CONSTRUCTORS                    /* Constructors */
+        *(.data .data.*)
+        *(.gnu.linkonce.d.*)
+        CONSTRUCTORS
         . = ALIGN(4);
         _edata = ABSOLUTE(.);
-    } > RAMS AT > SHARED
+    } > RAMS AT > FLASH
 
-    /* BSS Section */
+    .stack_section (NOLOAD) : {
+        *(.stack*)
+    } > RAMS
+
     .bss :
     {
         _sbss = ABSOLUTE(.);
-        *(.bss .bss.*)                 /* BSS sections */
-        *(.gnu.linkonce.b.*)           /* Link-once BSS sections */
-        *(COMMON)                      /* Common symbols */
+        *(.bss .bss.*)
+        *(.gnu.linkonce.b.*)
+        *(COMMON)
         . = ALIGN(4);
         _ebss = ABSOLUTE(.);
     } > RAMS
+
+    /*
+    .shmem :
+    {
+        . = ALIGN(4);
+        *(.shmem);
+        KEEP(*(.shmem))
+    } > SHARED
+    */
 
     /* Stabs debugging sections. */
 
