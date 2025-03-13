@@ -27,6 +27,9 @@ HEAD_ASRC =
 
 include armv8-m/Make.defs
 
+LIBPATH = -L$(shell $(CC) $(CFLAGS) --print-libgcc-file-name | dirname)
+LIBGCC = "${shell $(CC) $(CFLAGS) --print-libgcc-file-name}"
+
 # Required da1470x files
 
 CHIP_ASRCS  =

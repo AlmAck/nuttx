@@ -25,7 +25,7 @@ config DA1470_APPCORE
 	bool
 	default n
 	#select ARM_HAVE_DSP
-	#select ARCH_HAVE_FPU
+	select ARCH_HAVE_FPU
 	select DA1470_HAVE_UART0
 
 config DA1470_SNCCORE
@@ -57,15 +57,15 @@ config DA1470_CPUAPP_MEM_RAM_SIZE
 	hex
 	default 0x080000 if DA1470_CPUAPP_MEM_RAM_512
 
-# # RAM size for the snc core
+# RAM size for the snc core
 
-# config DA1470_CPUSNC_MEM_RAM_64
-# 	bool
-# 	default n
+config DA1470_CPUSNC_MEM_RAM_64
+	bool
+	default n
 
-# config DA1470_CPUSNC_MEM_RAM_SIZE
-# 	hex
-# 	default 0x008000 if DA1470_CPUSNC_MEM_RAM_64
+config DA1470_CPUSNC_MEM_RAM_SIZE
+	hex
+	default 0x008000 if DA1470_CPUSNC_MEM_RAM_64
 
 # FLASH size for the app core
 
@@ -77,40 +77,35 @@ config DA1470_CPUAPP_MEM_FLASH_SIZE
 	hex
 	default 0x100000 if DA1470_CPUAPP_MEM_FLASH_1024
 
-# # FLASH size for the net core
+# FLASH size for the snc core
 
-# config DA1470_CPUSNC_MEM_FLASH_256
-# 	bool
-# 	default n
+config DA1470_CPUSNC_MEM_FLASH_256
+	bool
+	default n
 
-# config DA1470_CPUSNC_MEM_FLASH_SIZE
-# 	hex
-# 	default 0x040000 if DA1470_CPUSNC_MEM_FLASH_256
+config DA1470_CPUSNC_MEM_FLASH_SIZE
+	hex
+	default 0x040000 if DA1470_CPUSNC_MEM_FLASH_256
 
-# if NRF53_APPCORE
+config DA1470_SNC_BOOT
+	bool "DA1470 SNC core configuration"
+	depends on DA1470_APPCORE
+	default y
 
-# config DA1470_SNC_BOOT
-# 	bool "nRF53 Net core configuration"
-# 	default y
+if DA1470_SNC_BOOT
 
-# if DA1470_SNC_BOOT
+config DA1470_SNC_POWER_ON_BOOT
+	bool "DA1470 Power SNC core on App core boot"
+	default y
 
-# config DA1470_SNC_POWER_ON_BOOT
-# 	bool "nRF53 Power Net core on App core boot"
-# 	default y
+config DA1470_SNC_GPIO_ALLOW_ALL
+	bool "DA1470 allow all GPIO for SNC core"
+	default y
 
-# config DA1470_SNC_GPIO_ALLOW_ALL
-# 	bool "nRF53 allow all GPIO for Net core"
-# 	default y
-
-# endif # DA1470_SNC_BOOT
-
-# endif # NRF53_APPCORE
-
+endif # DA1470_SNC_BOOT
 
 # Peripheral support
 
-# call UART0 as convenience, even if is originally called UART from renesas
 config DA1470_HAVE_UART0
 	bool
 	default n
@@ -120,6 +115,10 @@ config DA1470_HAVE_UART1
 	default n
 
 config DA1470_HAVE_UART2
+	bool
+	default n
+
+config DA1470_HAVE_UART3
 	bool
 	default n
 
@@ -151,58 +150,61 @@ config DA1470_UART2
 	select UART2_SERIALDRIVER
 	select DA1470_UART
 
-endmenu # da1470 Peripheral Selection
+config DA1470_UART3
+	bool "UART3"
+	default n
+	depends on DA1470_HAVE_UART3
+	select UART3_SERIALDRIVER
+	select DA1470_UART
 
+endmenu # DA1470 Peripheral Selection
 
-# choice
-# 	prompt "System Timer Source"
-# 	default NRF53_SYSTIMER_SYSTICK
-# 	---help---
-# 		Choose which hardware resource will drive NuttX
-# 		system time
+menu "System Timer Configuration"
 
-# config NRF53_SYSTIMER_SYSTICK
-# 	bool "SysTick"
-# 	select TIMER_ARCH
-# 	select TIMER
-# 	select ARMV8M_SYSTICK
-# 	---help---
-# 		Use ARM SysTick. It can be used for tickless and
-# 		non-tickless mode.
+choice
+	prompt "System Timer Source"
+	default DA1470_SYSTIMER_SYSTICK
+	---help---
+		Choose which hardware resource will drive NuttX
+		system time
 
-# 		NOTE: nrf53 implementation of WFE/WFI involves is
-# 		incompatible with SysTick. This means that if
-# 		you choose this option, WFE/WFI will not be used
-# 		in idle loop.
+config DA1470_SYSTIMER_SYSTICK
+	bool "SysTick"
+	select TIMER_ARCH
+	select TIMER
+	select ARMV8M_SYSTICK
+	---help---
+		Use ARM SysTick. It can be used for tickless and
+		non-tickless mode.
 
-# config NRF53_SYSTIMER_RTC
-# 	bool "RTC"
-# 	select NRF53_RTC
-# 	select SCHED_TICKLESS
-# 	select SCHED_TICKLESS_ALARM
-# 	select NRF53_USE_LFCLK
-# 	---help---
-# 		Use RTC timer in tickless mode.
+		NOTE: DA1470 implementation of WFE/WFI may be
+		incompatible with SysTick. This means that if
+		you choose this option, WFE/WFI will not be used
+		in idle loop.
 
-# endchoice # System Timer Source
+config DA1470_SYSTIMER_RTC
+	bool "RTC"
+	select DA1470_RTC
+	select SCHED_TICKLESS
+	select SCHED_TICKLESS_ALARM
+	select DA1470_USE_LFCLK
+	---help---
+		Use RTC timer in tickless mode.
 
-# if NRF53_SYSTIMER_RTC
+endchoice # System Timer Source
 
-# config NRF53_SYSTIMER_RTC_INSTANCE
-# 	int "RTC timer instance"
-# 	default 0 if !NRF53_SOFTDEVICE_CONTROLLER
-# 	default 1 if NRF53_SOFTDEVICE_CONTROLLER
-# 	range 0 1
-# 	---help---
-# 		Which RTC instance to use to drive the system timer
+if DA1470_SYSTIMER_RTC
 
-# endif # NRF53_SYSTIMER_RTC
+config DA1470_SYSTIMER_RTC_INSTANCE
+	int "RTC timer instance"
+	default 0
+	range 0 1
+	---help---
+		Which RTC instance to use to drive the system timer
 
-# endmenu # System Timer
+endif # DA1470_SYSTIMER_RTC
 
-# endif # NRF53_SOFTDEVICE_CONTROLLER
-
-
+endmenu # System Timer Configuration
 
 menu "High Frequency Clock (HFCLK) Configuration"
 
@@ -217,39 +219,41 @@ choice
 		wait until the external oscillator stabilizes and is ready before proceeding with the boot process.
 		Proper configuration of HFCLK ensures optimal performance and power efficiency for the microcontroller.
 
+config DA1470_CLOCK_XTAL32M_SRC
+	bool "XTAL32M RCX Source"
+	---help---
+		Selects the external 32 MHz crystal oscillator (XTAL32M) as the source for the High Frequency Clock (HFCLK).
 
-	config DA1470_CLOCK_XTAL32M_SRC
-		bool "XTAL32M RCX Source"
-		---help---
-			Selects the external 32 MHz crystal oscillator (XTAL32M) as the source for the High Frequency Clock (HFCLK).
-
-	config DA1470_CLOCK_RCHS_SRC
-		bool "RCHS RCX Source"
-		---help---
-			Selects the internal High-Speed RC oscillator (RCHS) as the source for the High Frequency Clock (HFCLK).
+config DA1470_CLOCK_RCHS_SRC
+	bool "RCHS RCX Source"
+	---help---
+		Selects the internal High-Speed RC oscillator (RCHS) as the source for the High Frequency Clock (HFCLK).
 
 endchoice
 
 if DA1470_CLOCK_RCHS_SRC
-	config DA1470_CLOCK_HFCLK_SRC_RCHS_32
-		bool "RCHS_32 MHz"
-		---help---
-			Selects the 32 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
+choice
+	prompt "RCHS Frequency"
+	default DA1470_CLOCK_HFCLK_SRC_RCHS_32
 
-	config DA1470_CLOCK_HFCLK_SRC_RCHS_64
-		bool "RCHS_64 MHz"
-		---help---
-			Selects the 64 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
+config DA1470_CLOCK_HFCLK_SRC_RCHS_32
+	bool "RCHS_32 MHz"
+	---help---
+		Selects the 32 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
 
-	config DA1470_CLOCK_HFCLK_SRC_RCHS_96
-		bool "RCHS_96 MHz"
-		---help---
-			Selects the 96 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
+config DA1470_CLOCK_HFCLK_SRC_RCHS_64
+	bool "RCHS_64 MHz"
+	---help---
+		Selects the 64 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
+
+config DA1470_CLOCK_HFCLK_SRC_RCHS_96
+	bool "RCHS_96 MHz"
+	---help---
+		Selects the 96 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
+endchoice
 endif
 
-endmenu
-
-
+endmenu # High Frequency Clock Configuration
 
 menu "Low Power Clock (LFCLK) Configuration"
 
@@ -295,4 +299,69 @@ endchoice
 
 endif # DA1470_USE_LFCLK
 
-endmenu
+endmenu # Low Power Clock Configuration
+
+menu "Development and Debug Options"
+
+config DA1470_DEVELOPMENT_MODE
+	bool "Enable Development Mode"
+	default y
+	---help---
+		When enabled, the watchdog is configured to be freezable, and
+		the debugger is always enabled. This is useful during development
+		but should be disabled in production code.
+
+config DA1470_ENABLE_DEBUGGER
+	bool "Enable Hardware Debugger"
+	default y if DA1470_DEVELOPMENT_MODE
+	default n if !DA1470_DEVELOPMENT_MODE
+	---help---
+		Enable the hardware debugger interface.
+
+config DA1470_ENABLE_MTB
+	bool "Enable Micro Trace Buffer"
+	default n
+	---help---
+		Enable the ARM Cortex-M Micro Trace Buffer for improved debugging.
+
+config DA1470_CODE_IN_RAM
+	bool "Code execution from RAM"
+	default n
+	---help---
+		Configure the system for code execution from RAM instead of flash.
+		This disables the cache controller.
+
+config DA1470_SKIP_MAGIC_CHECK
+	bool "Skip debug magic check at startup"
+	default n
+	---help---
+		Skip checking for the debug magic word at startup.
+		When disabled, the system will check for a magic word at 0x0F001000
+		and pause to allow debugger attachment if found.
+
+endmenu # Development and Debug Options
+
+config DA1470_RTC
+	bool "Enable RTC Driver"
+	default n
+	depends on DA1470_USE_LFCLK
+	---help---
+		Enable support for the DA1470 RTC driver.
+
+config DA1470_RAM9_SIZE
+	int "RAM9 Size (bytes)"
+	default 0
+	---help---
+		Size of RAM9 in bytes. Set to 0 to disable RAM9.
+
+config DA1470_RAM10_SIZE
+	int "RAM10 Size (bytes)"
+	default 0
+	---help---
+		Size of RAM10 in bytes. Set to 0 to disable RAM10.
+
+config DA1470_USE_HW_QSPI2
+	bool "Enable Hardware QSPI2"
+	default n
+	---help---
+		Enable support for the Hardware QSPI2 interface.

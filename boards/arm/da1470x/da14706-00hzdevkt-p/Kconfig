@@ -3,6 +3,12 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
-if ARCH_BOARD_DA14706_00HZDEVKT_P
-
-endif
+config BOARD_CLOCK_FREQUENCY
+    int "System clock frequency (Hz)"
+    default 32000000
+    ---help---
+        The system clock frequency in Hz. This will be used to calculate
+        various timing parameters for the DA1470x chip and its peripherals.
+        For external crystal configurations, this should match the crystal frequency.
+        For internal oscillator configurations, this should match the selected
+        oscillator frequency.
