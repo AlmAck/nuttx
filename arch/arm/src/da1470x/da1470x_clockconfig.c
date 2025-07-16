@@ -38,6 +38,7 @@
 #include "da1470x_clockconfig.h"
 #include "hardware/da1470x_clock.h"
 #include "hardware/da1470x_crg_xtal.h"
+#include "da1470x_pmu.h"
 
 /****************************************************************************
  * Pre-processor Definitions

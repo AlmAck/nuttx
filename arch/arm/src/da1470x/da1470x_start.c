@@ -39,6 +39,7 @@
 #include "da1470x_gpio.h"
 #include "da1470x_serial.h"
 #include "da1470x_clockconfig.h"
+#include "da1470x_pmu.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -98,6 +99,7 @@ void __start(void)
 
   /* Configure the UART so that we can get debug output as soon as possible */
 
+  da1470x_pwr_init();
   da1470_clockconfig();
   da1470x_lowsetup();
   showprogress('A');
