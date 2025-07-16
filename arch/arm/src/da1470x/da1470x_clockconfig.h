@@ -29,7 +29,7 @@
 
 #include "arm_internal.h"
 #include "chip.h"
-
+#include "da1470x_clk.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -95,7 +95,7 @@ void da1470_board_clockconfig(void);
  *
  * Description:
  *   The standard logic to configure the clocks based on settings in board.h.
- *   Applicable if no custom clock config is provided. 
+ *   Applicable if no custom clock config is provided.
  *
  ****************************************************************************/
 
@@ -136,9 +136,17 @@ static inline void set_hclk_div(uint32_t div);
 static inline void set_pclk_div(uint32_t div);
 static inline void da1470_amba_enableperipherals(void);
 
+static void da1470x_switch_to_rchs(rchs_speed_t mode);
+void da1470x_set_sysclk(sys_clk_t type);
+
+static inline void da1470x_switch_sysclk(sys_clk_is_t mode);
+
+// static inline sys_clk_is_t hw_clk_get_sysclk(void);
+
 #undef EXTERN
 #if defined(__cplusplus)
 }
 #endif
+
 #endif /* __ASSEMBLY__ */
 #endif /* __ARCH_ARM_SRC_DA1470_CLOCKCONFIG_H */
