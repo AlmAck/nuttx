@@ -357,21 +357,21 @@ static void da1470x_data_bits(uintptr_t base,
   regval = getreg32(base + DA1470_UART_LCR_OFFSET);
 
   switch (config->bits)
-  {
-    case 5:
-        data_bits = 0x00;
+    {
+      case 5:
+        data_bits = 0b00;
         break;
-    case 6:
-        data_bits = 0x01;
+      case 6:
+        data_bits = 0b01;
         break;
-    case 7:
-        data_bits = 0x10;
+      case 7:
+        data_bits = 0b10;
         break;
-    case 8:
-    default:
-        data_bits = 0x11;
+      case 8:
+      default:
+        data_bits = 0b11;
         break;
-  }
+    }
 
   /* Set Data Bits (DLS: bits [1:0])  */
 
