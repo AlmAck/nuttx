@@ -114,15 +114,17 @@ struct da1470x_dev_s
  * \brief Interrupt Identification codes
  *
  */
-typedef enum {
-        HW_UART_INT_MODEM_STAT         = 0,
-        HW_UART_INT_NO_INT_PEND        = 1,
-        HW_UART_INT_THR_EMPTY          = 2,
-        HW_UART_INT_RECEIVED_AVAILABLE = 4,
-        HW_UART_INT_RECEIVE_LINE_STAT  = 6,
-        HW_UART_INT_BUSY_DETECTED      = 7,
-        HW_UART_INT_TIMEOUT            = 12,
-} HW_UART_INT;
+
+typedef enum
+  {
+          HW_UART_INT_MODEM_STAT         = 0,
+          HW_UART_INT_NO_INT_PEND        = 1,
+          HW_UART_INT_THR_EMPTY          = 2,
+          HW_UART_INT_RECEIVED_AVAILABLE = 4,
+          HW_UART_INT_RECEIVE_LINE_STAT  = 6,
+          HW_UART_INT_BUSY_DETECTED      = 7,
+          HW_UART_INT_TIMEOUT            = 12,
+  } HW_UART_INT;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -819,7 +821,7 @@ void da1470x_earlyserialinit(void)
 
 #ifdef HAVE_UART_CONSOLE
   CONSOLE_DEV.isconsole = true;
-  da1470x_setup(&CONSOLE_DEV);
+  //da1470x_setup(&CONSOLE_DEV);
 #endif
 }
 #endif
