@@ -1,65 +1,52 @@
-/****************************************************************************
-* boards/arm/da1470x/da14706-00hzdevkt-p/scripts/flash_net.ld
- *
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.  The
- * ASF licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the
- * License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
- * License for the specific language governing permissions and limitations
- * under the License.
- *
- ****************************************************************************/
+/* 
+ * DA14706 NuttX Linker Script
+ * Based on Dialog Semiconductor memory programming documentation
+ */
 
-# ifdef CONFIG_USE_SNC
-     /* reserve first 64K for SNC */
-#    define RAMC_ORG                 0x10010000
-#    define RAMS_ORG                 0x20010000
-#    define SNC_MEM_LEN              0
-# else
-#    define RAMC_ORG                 0x10000000
-#    define RAMS_ORG                 0x20000000
-#    define SNC_MEM_LEN              64K
-# endif
+/* Memory region definitions */
+__SNC_BASE = 0x20000000;         /* RAM1 and RAM2 for SNC */
+__SNC_SIZE = 64K;                /* 64KB for SNC */
+__SHARED_BASE = 0x20110000;      /* RAM8 for shared memory between CPUs */
+__SHARED_SIZE = 128K;            /* 128KB for shared memory */
+__IVT_BASE = 0x0F000000 + 0x200; /* IVT in RAM0 */
+__IVT_SIZE = 8K - 0x200;         /* 8KB - 0x200 for IVT */
+__CMAC_BASE = 0x20150000;        /* RAM10 for potential CMAC code */
+__CMAC_SIZE = 0;                 /* Configurable based on project needs */
+__RAMC_BASE = 0x10010000;        /* RAM3 for retained code, remapped */
+__RAMC_SIZE = 256K;              /* 256KB for retained code */
+__RAMS_BASE = 0x20050000;        /* RAM4-RAM7 for retained data */
+__RAMS_SIZE = 768K;              /* 768KB for retained data */
+__STACK_SIZE = 0x1000;           /* 4 KB for idle thread & exception handling */
 
-# define RAMS_LEN                         (1024K + SNC_MEM_LEN)
-
-/* Define memory regions */
 MEMORY
 {
-    /* Interrupt Vector Table - Use NVM start */
-    IVT (rx) : ORIGIN = 0x0F000200, LENGTH = 8K - 0x200 /* bytes */
-
-    /* Shared Memory between Main and M0 Cores */
-    SHARED (rw): ORIGIN = 0x20110000, LENGTH = 0x20000 /* 128K */
-
-    RAMC : ORIGIN = RAMC_ORG, LENGTH = 256K
-
-    /* Main Core RAM */
-    RAMS (rwx) : ORIGIN = RAMS_ORG, LENGTH = RAMS_LEN /* Full RAM range */
-
-    /* Non-Volatile Memory for Code */
-    FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 8M /* NVM range */
-
+    IVT (rx)    : ORIGIN = __IVT_BASE, LENGTH = __IVT_SIZE
+    SNC (rwx)   : ORIGIN = __SNC_BASE, LENGTH = __SNC_SIZE
+    SHARED (rw) : ORIGIN = __SHARED_BASE, LENGTH = __SHARED_SIZE
+    CMAC (rx)   : ORIGIN = __CMAC_BASE, LENGTH = __CMAC_SIZE
+    RAMC (x)    : ORIGIN = __RAMC_BASE, LENGTH = __RAMC_SIZE
+    RAMS (rwx)  : ORIGIN = __RAMS_BASE, LENGTH = __RAMS_SIZE
+    FLASH (rx)  : ORIGIN = 0x00000000, LENGTH = 4M
 }
 
 OUTPUT_ARCH(arm)
 ENTRY(__start)         /* Treat __start as the anchor for dead code stripping */
 EXTERN(_vectors)       /* Force the vectors to be included in the output */
 
-/* Define sections */
 SECTIONS
 {
+    /* Interrupt Vector Table */
+    .isr_vector :
+    {
+        . = ALIGN(4);
+        KEEP(*(.isr_vector))
+        . = ALIGN(4);
+    } > IVT
+
+    /* Code section in FLASH */
     .text :
     {
-        _stext = ABSOLUTE(.);
+        . = ALIGN(4);
         *(.vectors)
         *(.text .text.*)
         *(.fixup)
@@ -71,63 +58,133 @@ SECTIONS
         *(.got)
         *(.gcc_except_table)
         *(.gnu.linkonce.r.*)
-        _etext = ABSOLUTE(.);
+        . = ALIGN(4);
+        __etext = ABSOLUTE(.);
+
     } > FLASH
 
-    .init_section : 
+    /* Retained code section */
+    .retention_text : AT (0x0 + __etext)
     {
-        _sinit = ABSOLUTE(.);
-        KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
-        KEEP(*(.init_array EXCLUDE_FILE(*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o) .ctors))
-        _einit = ABSOLUTE(.);
-    } > FLASH
+        . = ALIGN(4);
+        __retention_text_start__ = .;
+        *(text_retained)
+        *libnosys.a:sbrk.o (.text*)
+        *libgcc.a:_aeabi_uldivmod.o (.text*)
+        *libgcc.a:_muldi3.o (.text*)
+        *libgcc.a:_dvmd_tls.o (.text*)
+        *libgcc.a:bpabi.o (.text*)
+        *libgcc.a:_udivdi3.o (.text*)
+        *libgcc.a:_clzdi2.o (.text*)
+        *libgcc.a:_clzsi2.o (.text*)
+        . = ALIGN(4);
+        __retention_text_end__ = .;
+    } > RAMC
 
-    .ARM.extab :
+    /* Ensure RAM data doesn't overlap with retained code */
+    .RAM_UNUSED_THROUGH_CPU_S (NOLOAD) :
     {
-        *(.ARM.extab*)
-    } > FLASH
+        . += (__retention_text_end__ - __retention_text_start__);
+    } > RAMS
 
-    __exidx_start = ABSOLUTE(.);
-    .ARM.exidx :
+    /* Retained initialized data */
+    .retention_ram_init : AT (0x0 + __etext + (__retention_text_end__ - __retention_text_start__))
     {
-        *(.ARM.exidx*)
-    } > FLASH
-    __exidx_end = ABSOLUTE(.);
+        . = ALIGN(4);
+        __retention_ram_init_start__ = .;
+        *(privileged_data_init)
+        *(.retention)
+        *(vtable)
+        *(retention_mem_init)
+        *(retention_mem_const)
+        *libg_nano.a:* (.data*)
+        *libnosys.a:* (.data*)
+        *libgcc.a:* (.data*)
+        *crtbegin.o (.data*)
+        KEEP(*(.jcr*))
+        . = ALIGN(4);
+        __retention_ram_init_end__ = .;
+    } > RAMS
 
-    _eronly = ABSOLUTE(.);
+    /* Retained uninitialized data (zero-initialized) */
+    .retention_ram_zi (NOLOAD) :
+    {
+        . = ALIGN(4);
+        __retention_ram_zi_start__ = .;
+        *(privileged_data_zi)
+        *(retention_mem_zi)
+        . = ALIGN(4);
+        __retention_ram_zi_end__ = .;
+    } > RAMS
 
+    /* Shared memory section for CPU communication */
+    .shared_section_retained_zi (NOLOAD) :
+    {
+        . = ALIGN(4);
+        __shared_section_retained_zi_start__ = .;
+        KEEP(*(.snc_shared_ram_area*))
+        *(retention_mem_shared_zi)
+        . = ALIGN(4);
+        __shared_section_retained_zi_end__ = .;
+    } > SHARED
+
+    /* SNC shared memory section */
+    .snc_shared (NOLOAD) :
+    {
+        . = ALIGN(4);
+        __snc_shared_start__ = .;
+        __snc_shared_space_start__ = .;
+        KEEP(*(retention_mem_shared_zi))
+        __snc_shared_space_end__ = .;
+        __snc_exception_space_start__ = .;
+        KEEP(*(nmi_info))
+        KEEP(*(hard_fault_info))
+        __snc_exception_space_end__ = .;
+        . = ALIGN(4);
+        __snc_shared_end__ = .;
+    } > SHARED
+
+    /* Data section (initialized data) */
     .data :
     {
-        _sdata = ABSOLUTE(.);
-        *(.data .data.*)
-        *(.gnu.linkonce.d.*)
-        CONSTRUCTORS
         . = ALIGN(4);
-        _edata = ABSOLUTE(.);
+        __data_start__ = .;
+        EXCLUDE_FILE(*libg_nano.a:* *libnosys.a:* *libgcc.a:* *crtbegin.o) *(.data*)
+        . = ALIGN(4);
+        __data_end__ = .;
     } > RAMS AT > FLASH
 
-    .stack_section (NOLOAD) : {
-        *(.stack*)
-    } > RAMS
-
+    /* BSS section (zero-initialized data) */
     .bss :
     {
-        _sbss = ABSOLUTE(.);
-        *(.bss .bss.*)
-        *(.gnu.linkonce.b.*)
+        . = ALIGN(4);
+        __bss_start__ = .;
+        EXCLUDE_FILE(*libg_nano.a:* *libnosys.a:* *libgcc.a:* *crtbegin.o) *(.bss*)
         *(COMMON)
         . = ALIGN(4);
-        _ebss = ABSOLUTE(.);
+        __bss_end__ = .;
+        __end__ = .;
     } > RAMS
 
-    /*
-    .shmem :
+    /* Stack section */
+    .stack_section (NOLOAD) :
     {
-        . = ALIGN(4);
-        *(.shmem);
-        KEEP(*(.shmem))
-    } > SHARED
-    */
+        . = . + 1;
+        . = ALIGN(8);
+        __StackLimit = .;
+        KEEP(*(.stack*))
+        . = ALIGN(8);
+        . = . + __STACK_SIZE;
+        __StackTop = .;
+        PROVIDE(__stack = __StackTop);
+    } > RAMS
+
+    /* Discard unused sections */
+    /DISCARD/ :
+    {
+        *(.comment)
+        *(.ARM.attributes)
+    }
 
     /* Stabs debugging sections. */
 
@@ -144,3 +201,12 @@ SECTIONS
     .debug_pubnames 0 : { *(.debug_pubnames) }
     .debug_aranges 0 : { *(.debug_aranges) }
 }
+
+/* Provide symbols needed by the code */
+PROVIDE(_stext = ADDR(.text));
+PROVIDE(_etext = ADDR(.text) + SIZEOF(.text));
+PROVIDE(_eronly = ADDR(.text) + SIZEOF(.text));
+PROVIDE(_sdata = ADDR(.data));
+PROVIDE(_edata = ADDR(.data) + SIZEOF(.data));
+PROVIDE(_sbss = ADDR(.bss));
+PROVIDE(_ebss = ADDR(.bss) + SIZEOF(.bss));
