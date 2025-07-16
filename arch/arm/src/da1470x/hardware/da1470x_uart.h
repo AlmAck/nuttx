@@ -418,6 +418,8 @@
 #define UART_USR_UART_TFNF            (1 << 1)  /* UART_TFNF (Bit 1) */
 #define UART_USR_UART_BUSY            (1 << 0)  /* UART_BUSY (Bit 0) */
 
+#define UART_MCR_AFCE                 (1 << 5)  /* Auto Flow Control Enable (AFCE) bit */
+#define UART_MCR_RTS                  (1 << 1)  /* Request To Send (RTS) control bit */
 
 /*!< UART_BUSY Mask: 0x01 */
 #endif

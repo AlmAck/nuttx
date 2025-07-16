@@ -486,7 +486,8 @@
 
 #define CRG_TOP_VSYS_LEVEL_MASK                   (0x3 << 17) /* Level setting for VSYS rail when ldo_vsys is enabled (COMP_VBUS_OK & COMP_VBUS_A */
 #define CRG_TOP_VSYS_LEVEL_POS                    (17) /* Level setting for VSYS rail when ldo_vsys is enabled (COMP_VBUS_OK & COMP_VBUS_A */
-#define CRG_TOP_V18_LEVEL                         (1U << 16) /* Level setting for V18 rail: 0=1.8V 1=1.2V */
+#define CRG_TOP_V18_LEVEL_MASK                    (1U << 16) /* Level setting for V18 rail: 0=1.8V 1=1.2V */
+#define CRG_TOP_V18_LEVEL_POS                     (16) /* Level setting for V18 rail: 0=1.8V 1=1.2V */
 #define CRG_TOP_V14_LEVEL_MASK                    (0x3 << 14) /* Level setting for V14 rail: 0=1.2V 1=1.3V 2=1.4V 3=1.5V */
 #define CRG_TOP_V14_LEVEL_POS                     (14) /* Level setting for V14 rail: 0=1.2V 1=1.3V 2=1.4V 3=1.5V */
 #define CRG_TOP_V12_SLEEP_LEVEL_MASK              (0x3 << 12) /* Level setting for V12 rail in sleep: 0=0.75V 1=0.9V 2=1.2V 3=reserved */
@@ -629,5 +630,27 @@
 #define CRG_TOP_WAKEUP_PD_EN_POS                  (6) /* Enables pulldown for GPIO[n] during hibernation Bit 0: P0_20 Bit 1: P0_29 Bit 2: */
 #define CRG_TOP_WAKEUP_EN_MASK                    (0xF << 0) /* Enables GPIO[n] to wake up from hibernation Bit 0: P0_20 Bit 1: P0_29 Bit 2: P1_ */
 #define CRG_TOP_WAKEUP_EN_POS                     (0) /* Enables GPIO[n] to wake up from hibernation Bit 0: P0_20 Bit 1: P0_29 Bit 2: P1_ */
+
+
+/* V12 Power level options */
+#define V12_LEVEL_0P75V   0
+#define V12_LEVEL_0P90V   1
+#define V12_LEVEL_1P20V   2
+
+/* V18 Power level options */
+#define V18_LEVEL_1P20V   0
+#define V18_LEVEL_1P80V   1
+
+/* V30 Power level options */
+#define V30_LEVEL_3P00V   0
+#define V30_LEVEL_3P30V   2
+
+/* Selection of the clock sources */
+#define CLK_SEL_XTAL32M              (0) /* Selects the XTAL32M clock as the system clock source. */     
+#define CLK_SEL_RCHS                 (1) /* Selects the RCHS clock as the system clock source. */    
+#define CLK_SEL_RCLP                 (2) /* Selects the RCLP clock as the system clock source. */
+#define CLK_SEL_PLL160               (3) /* Selects the PLL160 clock as the system clock source. */
+
+
 
 #endif /* __DA1470X_CRG_TOP_H */

@@ -99,18 +99,18 @@ typedef enum apb_div_e
 } apb_div_t;
 
 
-/**
- * @brief The type of the system clock
- */
+// /**
+//  * @brief The type of the system clock
+//  */
 
-typedef enum sys_clk_is_e
-{
-  SYS_CLK_IS_XTAL32M = 0,   /**< XTAL32M clock */
-  SYS_CLK_IS_RCHS,          /**< RCHS clock */
-  SYS_CLK_IS_RCLP,          /**< RCLP clock */
-  SYS_CLK_IS_PLL,           /**< PLL clock */
-  SYS_CLK_IS_INVALID        /**< Invalid clock */
-} sys_clk_is_t;
+// typedef enum sys_clk_is_e
+// {
+//   SYS_CLK_IS_XTAL32M = 0,   /**< XTAL32M clock */
+//   SYS_CLK_IS_RCHS,          /**< RCHS clock */
+//   SYS_CLK_IS_RCLP,          /**< RCLP clock */
+//   SYS_CLK_IS_PLL,           /**< PLL clock */
+//   SYS_CLK_IS_INVALID        /**< Invalid clock */
+// } sys_clk_is_t;
 
 /* CLK_AMBA_REG Register */
 
