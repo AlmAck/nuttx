@@ -105,18 +105,10 @@ ifeq ($(CONFIG_ESP32S3_RT_TIMER),y)
 CHIP_CSRCS += esp32s3_rt_timer.c
 endif
 
-ifeq ($(CONFIG_ESP32S3_ADC),y)
-CHIP_CSRCS += esp32s3_adc.c
-endif
-
 ifeq ($(CONFIG_ESP32S3_I2C),y)
 ifeq ($(CONFIG_ESPRESSIF_I2C_PERIPH_MASTER_MODE),y)
 CHIP_CSRCS += esp32s3_i2c.c
 endif
-endif
-
-ifeq ($(CONFIG_ESP32S3_I2S),y)
-CHIP_CSRCS += esp32s3_i2s.c
 endif
 
 ifeq ($(CONFIG_ESP32S3_SPI),y)
@@ -225,7 +217,7 @@ endif
 
 ESP_HAL_3RDPARTY_REPO = esp-hal-3rdparty
 ifndef ESP_HAL_3RDPARTY_VERSION
-	ESP_HAL_3RDPARTY_VERSION = e5cef265cca9d272c428d210453d574bcc25c5f4
+	ESP_HAL_3RDPARTY_VERSION = 65d20bfeed8dc22ff6eb096cea4486f925b92f1e
 endif
 
 ifndef ESP_HAL_3RDPARTY_URL

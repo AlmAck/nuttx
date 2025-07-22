@@ -394,6 +394,8 @@ config ARCH_CHIP_RP23XX
 	select ARCH_HAVE_MULTICPU
 	select ARCH_HAVE_I2CRESET
 	select ARM_HAVE_WFE_SEV
+	select ARM_HAVE_DSP
+	select ARCH_HAVE_FPU
 	select ARCH_HAVE_CUSTOM_TESTSET
 	select ARCH_HAVE_PWM_MULTICHAN
 	select ARCH_BOARD_COMMON
@@ -517,13 +519,20 @@ config ARCH_CHIP_STM32L0
 	bool "STMicro STM32 L0"
 	select ARCH_CORTEXM0
 	---help---
-		STMicro STM32L0 architectures (ARM Cortex-M0).
+		STMicro STM32L0 architectures (ARM Cortex-M0+).
 
 config ARCH_CHIP_STM32G0
 	bool "STMicro STM32 G0"
 	select ARCH_CORTEXM0
+	select ARCH_HAVE_PROGMEM
 	---help---
-		STMicro STM32G0 architectures (ARM Cortex-M0).
+		STMicro STM32G0 architectures (ARM Cortex-M0+).
+
+config ARCH_CHIP_STM32C0
+	bool "STMicro STM32 C0"
+	select ARCH_CORTEXM0
+	---help---
+		STMicro STM32C0 architectures (ARM Cortex-M0+).
 
 config ARCH_CHIP_STM32F7
 	bool "STMicro STM32 F7"
@@ -1002,7 +1011,6 @@ config ARCH_ARMV7R
 	default n
 	select ARCH_HAVE_CPUINFO
 	select ARCH_HAVE_PERF_EVENTS
-	select ARM_THUMB if BUILD_PROTECTED
 
 config ARCH_CORTEXR4
 	bool
@@ -1187,7 +1195,7 @@ config ARCH_CHIP
 	default "sam34"		if ARCH_CHIP_SAM34
 	default "samv7"		if ARCH_CHIP_SAMV7
 	default "stm32"		if ARCH_CHIP_STM32
-	default "stm32f0l0g0"	if ARCH_CHIP_STM32F0 || ARCH_CHIP_STM32L0 || ARCH_CHIP_STM32G0
+	default "stm32f0l0g0"	if ARCH_CHIP_STM32F0 || ARCH_CHIP_STM32L0 || ARCH_CHIP_STM32G0 || ARCH_CHIP_STM32C0
 	default "stm32f7"	if ARCH_CHIP_STM32F7
 	default "stm32h7"	if ARCH_CHIP_STM32H7
 	default "stm32l4"	if ARCH_CHIP_STM32L4
@@ -1488,7 +1496,7 @@ config ARM_SEMIHOSTING_HOSTFS_CACHE_COHERENCE
 	bool "Cache coherence in semihosting hostfs"
 	depends on ARCH_DCACHE
 	---help---
-		Flush & Invalidte cache before & after bkpt instruction.
+		Flush & Invalidate cache before & after bkpt instruction.
 
 endif # ARM_SEMIHOSTING_HOSTFS
 
@@ -1669,7 +1677,7 @@ endif
 if ARCH_CHIP_STM32
 source "arch/arm/src/stm32/Kconfig"
 endif
-if ARCH_CHIP_STM32F0 || ARCH_CHIP_STM32L0 || ARCH_CHIP_STM32G0
+if ARCH_CHIP_STM32F0 || ARCH_CHIP_STM32L0 || ARCH_CHIP_STM32G0 || ARCH_CHIP_STM32C0
 source "arch/arm/src/stm32f0l0g0/Kconfig"
 endif
 if ARCH_CHIP_STM32F7

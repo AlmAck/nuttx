@@ -33,7 +33,7 @@
 #include <stdint.h>
 
 #include <nuttx/clock.h>
-#include <nuttx/queue.h>
+#include <nuttx/list.h>
 #include <nuttx/wdog.h>
 
 /****************************************************************************
@@ -249,18 +249,11 @@ typedef CODE void (*worker_t)(FAR void *arg);
 
 struct work_s
 {
-  union
-  {
-    struct
-    {
-      struct dq_entry_s dq;      /* Implements a double linked list */
-      clock_t qtime;             /* Time work queued */
-    } s;
-    struct wdog_s timer;         /* Delay expiry timer */
-  } u;
-  worker_t  worker;              /* Work callback */
-  FAR void *arg;                 /* Callback argument */
-  FAR struct kwork_wqueue_s *wq; /* Work queue */
+  struct list_node node;   /* Implements a double linked list */
+  clock_t          qtime;  /* Time work queued */
+  clock_t          period; /* Periodical delay ticks */
+  worker_t         worker; /* Work callback */
+  FAR void        *arg;    /* Callback argument */
 };
 
 /* This is an enumeration of the various events that may be
@@ -418,6 +411,43 @@ int work_queue_wq(FAR struct kwork_wqueue_s *wqueue,
                   FAR void *arg, clock_t delay);
 
 /****************************************************************************
+ * Name: work_queue_period/work_queue_period_wq
+ *
+ * Description:
+ *   Queue work to be performed periodically.  All queued work will be
+ *   performed on the worker thread of execution (not the caller's).
+ *
+ *   The work structure is allocated and must be initialized to all zero by
+ *   the caller.  Otherwise, the work structure is completely managed by the
+ *   work queue logic.  The caller should never modify the contents of the
+ *   work queue structure directly.  If work_queue() is called before the
+ *   previous work has been performed and removed from the queue, then any
+ *   pending work will be canceled and lost.
+ *
+ * Input Parameters:
+ *   qid    - The work queue ID (must be HPWORK or LPWORK)
+ *   wqueue - The work queue handle
+ *   work   - The work structure to queue
+ *   worker - The worker callback to be invoked.  The callback will be
+ *            invoked on the worker thread of execution.
+ *   arg    - The argument that will be passed to the worker callback when
+ *            it is invoked.
+ *   delay  - Delay (in clock ticks) from the time queue until the worker
+ *            is invoked. Zero means to perform the work immediately.
+ *   period - Period (in clock ticks).
+ *
+ * Returned Value:
+ *   Zero on success, a negated errno on failure
+ *
+ ****************************************************************************/
+
+int work_queue_period(int qid, FAR struct work_s *work, worker_t worker,
+                      FAR void *arg, clock_t delay, clock_t period);
+int work_queue_period_wq(FAR struct kwork_wqueue_s *wqueue,
+                         FAR struct work_s *work, worker_t worker,
+                         FAR void *arg, clock_t delay, clock_t period);
+
+/****************************************************************************
  * Name: work_queue_pri
  *
  * Description: Get priority of the wqueue. We believe that all worker
@@ -522,11 +552,7 @@ int work_cancel_sync_wq(FAR struct kwork_wqueue_s *wqueue,
  *
  ****************************************************************************/
 
-#ifdef __KERNEL__
-#  define work_timeleft(work) wd_gettime(&((work)->u.timer))
-#else
-#  define work_timeleft(work) ((sclock_t)((work)->u.s.qtime - clock()))
-#endif
+#define work_timeleft(work) ((sclock_t)((work)->qtime - clock()))
 
 /****************************************************************************
  * Name: lpwork_boostpriority

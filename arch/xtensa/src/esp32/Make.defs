@@ -80,9 +80,6 @@ CHIP_CSRCS += esp32_i2c.c
 endif
 endif
 
-ifeq ($(CONFIG_ESP32_I2S),y)
-CHIP_CSRCS += esp32_i2s.c
-endif
 
 ifeq ($(CONFIG_ESP32_TWAI),y)
 CHIP_CSRCS += esp32_twai.c
@@ -195,6 +192,14 @@ ifeq ($(CONFIG_ESP32_AES_ACCELERATOR),y)
 CHIP_CSRCS += esp32_aes.c
 endif
 
+ifeq ($(CONFIG_ESP32_SHA_ACCELERATOR),y)
+CHIP_CSRCS += esp32_sha.c
+endif
+
+ifeq ($(CONFIG_CRYPTO_CRYPTODEV_HARDWARE),y)
+CHIP_CSRCS += esp32_crypto.c
+endif
+
 ifeq ($(CONFIG_ESP32_RTC),y)
 CHIP_CSRCS += esp32_rtc.c
 ifeq ($(CONFIG_RTC_DRIVER),y)
@@ -215,11 +220,6 @@ CHIP_CSRCS += esp32_ble_adapter.c esp32_ble.c
 EXTRA_LIBS += -lbtdm_app
 endif
 
-ifeq ($(CONFIG_ESP32_ESPNOW_PKTRADIO),y)
-CHIP_CSRCS += esp32_espnow_pktradio.c
-EXTRA_LIBS += -lespnow
-endif
-
 #############################################################################
 # Espressif HAL for 3rd Party Platforms
 #############################################################################
@@ -228,7 +228,7 @@ endif
 
 ESP_HAL_3RDPARTY_REPO   = esp-hal-3rdparty
 ifndef ESP_HAL_3RDPARTY_VERSION
-	ESP_HAL_3RDPARTY_VERSION = e5cef265cca9d272c428d210453d574bcc25c5f4
+	ESP_HAL_3RDPARTY_VERSION = 3f02f2139e79ddc60f98ca35ed65c62c6914f079
 endif
 
 ifndef ESP_HAL_3RDPARTY_URL

@@ -328,9 +328,9 @@ Header File Installation
 
 Build Notes:
 
-  It may not necessary to have a built version of avr-lib; only header files
-  are required.  Bu if you choose to use the optimized libraru functions of
-  the flowing point library, then you may have to build avr-lib from sources.
+  It may not be necessary to have a built version of avr-lib; only header files
+  are required.  But if you choose to use the optimized library functions of
+  the floating point library, then you may have to build avr-lib from sources.
   Below are instructions for building avr-lib from fresh sources:
 
   1. Download the avr-libc package from:
@@ -339,7 +339,7 @@ Build Notes:
 
      I am using avr-lib-1.7.1.tar.bz2
 
-  2. Upack the tarball and cd into the
+  2. Unpack the tarball and cd into the
 
      tar jxf avr-lib-1.7.1.tar.bz2
      cd avr-lib-1.7.1
@@ -505,6 +505,11 @@ Common Configuration Notes
         CONFIG_HOST_WINDOWS=y
         CONFIG_WINDOWS_CYGWIN=y
         CONFIG_AVR_BUILDROOT_TOOLCHAIN=y
+
+  4. Build with GCC disables CONFIG_DEBUG_OPT_UNUSED_SECTIONS by default.
+     This is because the linker script was not checked to determine
+     if it properly prevents removal of sections which the linker considers
+     unreferenced but which must be present in the binary.
 
 Configuration Sub-Directories
 -----------------------------

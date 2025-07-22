@@ -37,11 +37,11 @@
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_ESPRESSIF_I2C0_SLAVE
+#ifdef CONFIG_ESPRESSIF_I2C0_SLAVE_MODE
 #  define ESPRESSIF_I2C0_SLAVE 0
 #endif
 
-#ifdef CONFIG_ESPRESSIF_I2C1_SLAVE
+#ifdef CONFIG_ESPRESSIF_I2C1_SLAVE_MODE
 #  define ESPRESSIF_I2C1_SLAVE 1
 #endif
 
@@ -61,7 +61,7 @@
  *
  * Input Parameters:
  *   port - Port number (for hardware that has multiple I2C interfaces)
- *   addr - Adress of the slave device
+ *   addr - Address of the slave device
  *
  * Returned Value:
  *   Valid I2C device structure reference on success; a NULL on failure

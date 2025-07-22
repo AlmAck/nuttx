@@ -2,6 +2,8 @@
 ESP32S3-DevKit
 ==============
 
+.. tags:: chip:esp32, chip:esp32s3
+
 The `ESP32S3 DevKit <https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/hw-reference/esp32s3/user-guide-devkitc-1.html>`_ is a development board for the ESP32-S3 SoC from Espressif, based on a ESP32-S3-WROOM-1 module.
 
 .. list-table::
@@ -81,6 +83,27 @@ All of the configurations presented below can be tested by running the following
 Where <config_name> is the name of board configuration you want to use, i.e.: nsh, buttons, wifi...
 Then use a serial console terminal like ``picocom`` configured to 115200 8N1.
 
+adc
+---
+
+The ``adc`` configuration enables the ADC driver and the ADC example application.
+ADC Unit 1 is registered to ``/dev/adc0`` with channels 0, 1, 2 and 3 enabled by default.
+Currently, the ADC operates in oneshot mode.
+
+More ADC channels can be enabled or disabled in ``ADC Configuration`` menu.
+
+This example shows channels 0 and 1 connected to 3.3 V and channels 2 and 3 to GND (all readings
+show in units of mV)::
+
+    nsh> adc -n 1
+    adc_main: g_adcstate.count: 1
+    adc_main: Hardware initialized. Opening the ADC device: /dev/adc0
+    Sample:
+    1: channel: 0 value: 3061
+    2: channel: 1 value: 3061
+    3: channel: 2 value: 106
+    4: channel: 3 value: 99
+
 audio
 -----
 
@@ -157,10 +180,10 @@ the following output is expected::
     nsh> cap
     cap_main: Hardware initialized. Opening the capture device: /dev/capture0
     cap_main: Number of samples: 0
-    pwm duty cycle: 50 % 
-    pwm frequence: 50 Hz 
-    pwm duty cycle: 50 % 
-    pwm frequence: 50 Hz 
+    pwm duty cycle: 50 %
+    pwm frequency: 50 Hz
+    pwm duty cycle: 50 %
+    pwm frequency: 50 Hz
 
 coremark
 --------
@@ -234,6 +257,41 @@ interrupt fires::
 The pin is configured to trigger an interrupt on the rising edge, so after
 issuing the above command, connect it to 3.3V.
 
+To use dedicated gpio for controlling multiple gpio pin at the same time
+or having better response time, you need to enable
+`CONFIG_ESPRESSIF_DEDICATED_GPIO` option. Dedicated GPIO is suitable
+for faster response times required applications like simulate serial/parallel
+interfaces in a bit-banging way.
+After this option enabled GPIO4 and GPIO5 pins are ready to used as dedicated GPIO pins
+as input/output mode. These pins are for example, you can use any pin up to 8 pins for
+input and 8 pins for output for dedicated gpio.
+To write and read data from dedicated gpio, you need to use
+`write` and `read` calls.
+
+The following snippet demonstrates how to read/write to dedicated GPIO pins:
+
+.. code-block:: C
+
+    int fd; = open("/dev/dedic_gpio0", O_RDWR);
+    int rd_val = 0;
+    int wr_mask = 0xffff;
+    int wr_val = 3;
+
+    while(1)
+      {
+        write(fd, &wr_val, wr_mask);
+        if (wr_val == 0)
+          {
+            wr_val = 3;
+          }
+        else
+          {
+            wr_val = 0;
+          }
+        read(fd, &rd_val, sizeof(uint32_t));
+        printf("rd_val: %d", rd_val);
+      }
+
 i2c
 ---
 
@@ -259,6 +317,42 @@ using slave driver:
        ret = write(i2c_slave_fd, buffer, 5);
        close(i2c_slave_fd);
     }
+
+i2schar
+-------
+
+This configuration enables the I2S character device and the i2schar example
+app, which provides an easy-to-use way of testing the I2S peripherals (I2S0
+and I2S1), enabling both the TX and the RX for those peripherals.
+
+**I2S0 pinout**
+
+============= ========== =========================================
+ESP32-S3 Pin  Signal Pin Description
+============= ========== =========================================
+0             MCLK       Master Clock
+4             BCLK       Bit Clock (SCLK)
+5             WS         Word Select (LRCLK)
+18            DOUT       Data Out
+19            DIN        Data IN
+============= ========== =========================================
+
+**I2S1 pinout**
+
+============= ========== =========================================
+ESP32-S3 Pin  Signal Pin Description
+============= ========== =========================================
+22            BCLK       Bit Clock (SCLK)
+23            WS         Word Select (LRCLK)
+25            DOUT       Data Out
+26            DIN        Data IN
+============= ========== =========================================
+
+After successfully built and flashed, run on the boards's terminal::
+
+    i2schar -p /dev/i2schar[0-1]
+
+The corresponding output should show related debug information.
 
 knsh
 ----
@@ -379,7 +473,7 @@ To test it, just run the ``oneshot`` example::
 qencoder
 ---
 
-This configuration demostrates the use of Quadrature Encoder connected to pins
+This configuration demonstrates the use of Quadrature Encoder connected to pins
 GPIO10 and GPIO11. You can start measurement of pulses using the following
 command (by default, it will open ``\dev\qe0`` device and print 20 samples
 using 1 second delay)::
@@ -471,6 +565,40 @@ psram_octal
 Similar to the ```psram_quad``` configuration but using the SPIRAM
 interface in octal mode.
 
+psram_usrheap
+-------------
+
+This configuration enables allocating the userspace heap into SPI RAM and reserves the
+internal RAM for kernel heap.
+
+Important: this config defaults to flash QUAD mode, and should be changed if the board
+runs on OCTAL mode by setting ``CONFIG_ESP32S3_SPIRAM_MODE_OCT``. If wrong, a SPIRAM error
+will appear during boot.
+
+To check the flash type, run the following command::
+
+    $ esptool.py flash_id
+    esptool.py v4.8.1
+    Found 33 serial ports
+    Serial port /dev/ttyUSB0
+    Connecting....
+    Detecting chip type... ESP32-S3
+    Chip is ESP32-S3 (QFN56) (revision v0.1)
+    Features: WiFi, BLE, Embedded PSRAM 2MB (AP_3v3)
+    Crystal is 40MHz
+    MAC: 7c:df:a1:e5:d8:5c
+    Uploading stub...
+    Running stub...
+    Stub running...
+    Manufacturer: 20
+    Device: 4017
+    Detected flash size: 8MB
+    Flash type set in eFuse: quad (4 data lines)
+    Flash voltage set by eFuse to 3.3V
+    Hard resetting via RTS pin...
+
+The flash type can be seen on the "Flash type set in eFuse: quad" line.
+
 pwm
 ---
 
@@ -481,12 +609,28 @@ To test it, just execute the ``pwm`` application::
     pwm_main: starting output with frequency: 10000 duty: 00008000
     pwm_main: stopping output
 
+python
+------
+
+This configuration enables the Python for ESP32-S3.
+Please refer to the :doc:`Python Interpreter </applications/interpreters/python/index>` page.
+
+.. warning:: Note that this defconfig uses a board with the ESP32-S3-WROOM-2 module with 32MiB
+  of flash and 8MiB of PSRAM. Running Python on ESP32-S3 requires at least 16MiB of flash and
+  8MiB of PSRAM.
+
 qemu_debug
 ----------
 
 A configuration tailored for the `Espressif fork of QEMU`_.
 
 .. _Espressif fork of QEMU: https://github.com/espressif/qemu
+
+qemu_toywasm
+------------
+
+Based on ``qemu_debug`` defconfig, with the addition of WebAssembly support.
+See :ref:`toywasm` for more further details.
 
 random
 ------
@@ -547,6 +691,19 @@ You can set an alarm, check its progress and receive a notification after it exp
     Opening /dev/rtc0
     Alarm 0 is active with 10 seconds to expiration
     nsh> alarm_daemon: alarm 0 received
+
+sdm
+---
+
+This configuration enables the support for the Sigma-Delta Modulation (SDM) driver
+which can be used for LED dimming, simple dac with help of an low pass filter either
+active or passive and so on. ESP32-S3 supports 1 group of SDM up to 8 channels with
+any GPIO up to user. This configuration enables 1 channel of SDM on GPIO5. You can test
+DAC feature with following command with connecting simple LED on GPIO5
+
+    nsh> dac -d 100 -s 10 test
+
+After this command you will see LED will light up in different brightness.
 
 sdmmc
 -----
@@ -667,6 +824,8 @@ To test it, just run the following::
   nsh> timer -d /dev/timerx
 
 Where x in the timer instance.
+
+.. _toywasm:
 
 toywasm
 -------

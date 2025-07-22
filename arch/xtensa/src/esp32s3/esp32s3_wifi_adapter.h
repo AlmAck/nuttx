@@ -200,7 +200,7 @@ int esp_wifi_sta_stop(void);
  *
  ****************************************************************************/
 
-int esp_wifi_sta_send_data(void *pbuf, uint32_t len);
+int esp_wifi_sta_send_data(void *pbuf, size_t len);
 
 /****************************************************************************
  * Name: esp_wifi_sta_register_recv_cb
@@ -828,7 +828,7 @@ int esp_wifi_softap_rssi(struct iwreq *iwr, bool set);
  * Name: esp_wifi_bt_coexist_init
  *
  * Description:
- *   Initialize ESP32-S3 Wi-Fi and BT coexistance module.
+ *   Initialize ESP32-S3 Wi-Fi and BT coexistence module.
  *
  * Input Parameters:
  *   None

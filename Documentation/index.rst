@@ -36,8 +36,10 @@ Last Updated: |today|
    implementation/index.rst
    reference/index.rst
    faq/index.rst
+   debugging/index.rst
    guides/index.rst
    glossary.rst
    logos/index.rst
+   _tags/tagsindex.rst
 
 .. include:: substitutions.rst

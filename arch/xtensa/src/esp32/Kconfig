@@ -311,10 +311,11 @@ config ESP32_SDMMC
 		No yet implemented
 
 config ESP32_I2S
-	bool "I2S"
+	bool "I2S (legacy implementation: read help)"
 	select I2S
 	---help---
-		See the Board Selection menu to configure the pins used by I2S.
+		This is a deprecated Kconfig macro. Its kept for retrocompatibility only.
+		Use "CONFIG_ESPRESSIF_I2S" instead.
 
 if ESP32_I2S
 
@@ -323,6 +324,7 @@ config ESP32_I2S0
 	default n
 	select ARCH_DMA
 	select ESP32_GPIO_IRQ
+	select ESPRESSIF_I2S0
 
 if ESP32_I2S0
 
@@ -452,6 +454,7 @@ config ESP32_I2S1
 	default n
 	select ARCH_DMA
 	select ESP32_GPIO_IRQ
+	select ESPRESSIF_I2S1
 
 if ESP32_I2S1
 
@@ -725,108 +728,6 @@ config ESP32_UART2
 	select UART2_SERIALDRIVER
 	select ARCH_HAVE_SERIAL_TERMIOS
 
-config ESP32_ESPNOW_PKTRADIO
-	bool "ESPNOW packet radio support"
-	select ESP32_WIRELESS
-	depends on WIRELESS_PKTRADIO
-	default n
-	---help---
-		Enable using espnow for packet radio
-
-if ESP32_ESPNOW_PKTRADIO
-
-config ESP32_ESPNOW_PKTRADIO_FRAMELEN
-	int "ESPNOW frame length"
-	range 127 250
-	default 196
-	---help---
-		Frame size used for espnow transmitions. Ensure that this is
-		set equal for all nodes.
-
-config ESP32_ESPNOW_PKTRADIO_PANID
-	hex "ESPNOW node panid"
-	range 0x0 0xffff
-	default 0x0
-	---help---
-		PANID for espnow packet radio
-
-if PKTRADIO_ADDRLEN = 1
-
-config ESP32_ESPNOW_PKTRADIO_NODE_ADDR_0
-	hex "ESPNOW node address"
-	range 0x0 0xff
-	default 0x0
-	---help---
-		Node address for espnow packet radio
-
-endif #PKTRADIO_ADDRLEN = 1
-
-if PKTRADIO_ADDRLEN > 1
-
-config ESP32_ESPNOW_PKTRADIO_NODE_ADDR_0
-	hex "ESPNOW node address[0]"
-	range 0x0 0xff
-	default 0x0
-	---help---
-		Node address for espnow packet radio
-
-config ESP32_ESPNOW_PKTRADIO_NODE_ADDR_1
-	hex "ESPNOW node address[1]"
-	range 0x0 0xff
-	default 0x0
-	---help---
-		Node address for espnow packet radio
-
-if PKTRADIO_ADDRLEN > 2
-
-config ESP32_ESPNOW_PKTRADIO_NODE_ADDR_2
-	hex "ESPNOW node address[2]"
-	range 0x0 0xff
-	default 0x0
-	---help---
-		Node address for espnow packet radio
-
-config ESP32_ESPNOW_PKTRADIO_NODE_ADDR_3
-	hex "ESPNOW node address[3]"
-	range 0x0 0xff
-	default 0x0
-	---help---
-		Node address for espnow packet radio
-
-config ESP32_ESPNOW_PKTRADIO_NODE_ADDR_4
-	hex "ESPNOW node address[4]"
-	range 0x0 0xff
-	default 0x0
-	---help---
-		Node address for espnow packet radio
-
-config ESP32_ESPNOW_PKTRADIO_NODE_ADDR_5
-	hex "ESPNOW node address[5]"
-	range 0x0 0xff
-	default 0x0
-	---help---
-		Node address for espnow packet radio
-
-config ESP32_ESPNOW_PKTRADIO_NODE_ADDR_6
-	hex "ESPNOW node address[6]"
-	range 0x0 0xff
-	default 0x0
-	---help---
-		Node address for espnow packet radio
-
-config ESP32_ESPNOW_PKTRADIO_NODE_ADDR_7
-	hex "ESPNOW node address[7]"
-	range 0x0 0xff
-	default 0x0
-	---help---
-		Node address for espnow packet radio
-
-endif #PKTRADIO_ADDRLEN > 2
-
-endif #PKTRADIO_ADDRLEN > 1
-
-endif #ESP32_ESPNOW_PKTRADIO
-
 config ESP32_I2C0
 	bool "I2C 0"
 	default n
@@ -893,6 +794,11 @@ config ESP32_TWAI0
 config ESP32_AES_ACCELERATOR
 	bool "AES Accelerator"
 	default n
+config ESP32_SHA_ACCELERATOR
+	bool "SHA Accelerator"
+	default n
+	---help---
+		Enable ESP32 SHA accelerator support.
 
 config ESP32_PID
 	bool "PID Controller"
@@ -2094,6 +2000,15 @@ config ESP32_SPIRAM_IGNORE_NOTFOUND
 		panic. If this is enabled, booting will complete but no PSRAM
 		will be available.
 
+config ESP32_SPIRAM_MEMTEST
+	bool "Run write-read test on SPIRAM during startup"
+	default y
+	depends on ESP32_SPIRAM_BOOT_INIT
+	---help---
+		If enabled, SPI RAM will be tested during initial boot.
+		Disabling this test will reduce startup time at the expense
+		of testing the external memory.
+
 config ESP32_SPIRAM_2T_MODE
 	bool "Enable SPI PSRAM 2T mode"
 	depends on ESP32_SPIRAM
@@ -2638,6 +2553,193 @@ config ESP_MCPWM_TEST_LOOPBACK
 
 endmenu # MCPWM Configuration
 
+menu "ADC Configuration"
+	depends on ESPRESSIF_ADC
+
+if ESPRESSIF_ADC_1
+
+config ESPRESSIF_ADC_1_DEVNAME
+	string "ADC 1 Device Name"
+	default "/dev/adc0"
+
+choice ESPRESSIF_ADC_1_ATTENUATION
+	prompt "ADC 1 Input Attenuation"
+	default ESPRESSIF_ADC_1_ATTEN_12
+	---help---
+		Select input attenuation for the ADC unit.
+		Relates to maximum measurable input voltage.
+		See ESP32 Technical Reference Manual for details.
+
+config ESPRESSIF_ADC_1_ATTEN_0
+	bool "0 dB (1.1 V)"
+
+config ESPRESSIF_ADC_1_ATTEN_2_5
+	bool "2.5 dB (1.47 V)"
+
+config ESPRESSIF_ADC_1_ATTEN_6
+	bool "6 dB (2.2 V)"
+
+config ESPRESSIF_ADC_1_ATTEN_12
+	bool "12 dB (4.4 V)"
+
+endchoice  # ESPRESSIF_ADC_1_ATTENUATION
+
+config ESPRESSIF_ADC_1_ATTENUATION
+	int
+	default 0 if ESPRESSIF_ADC_1_ATTEN_0
+	default 1 if ESPRESSIF_ADC_1_ATTEN_2_5
+	default 2 if ESPRESSIF_ADC_1_ATTEN_6
+	default 3 if ESPRESSIF_ADC_1_ATTEN_12
+
+choice ESPRESSIF_ADC_1_MODE
+	prompt "ADC 1 Mode"
+	default ESPRESSIF_ADC_1_MODE_ONE_SHOT
+	---help---
+		Select operating mode for ADC 1.
+
+config ESPRESSIF_ADC_1_MODE_ONE_SHOT
+	bool "One-Shot Mode"
+
+config ESPRESSIF_ADC_1_MODE_CONTINUOUS
+	bool "Continuous Mode"
+
+endchoice  # ESPRESSIF_ADC_1_MODE
+
+menu "ADC 1 Channel Selection"
+
+config ESPRESSIF_ADC_1_CH0
+	bool "Channel 0"
+	default y
+
+config ESPRESSIF_ADC_1_CH1
+	bool "Channel 1"
+	default n
+
+config ESPRESSIF_ADC_1_CH2
+	bool "Channel 2"
+	default n
+
+config ESPRESSIF_ADC_1_CH3
+	bool "Channel 3"
+	default y
+
+config ESPRESSIF_ADC_1_CH4
+	bool "Channel 4"
+	default y
+
+config ESPRESSIF_ADC_1_CH5
+	bool "Channel 5"
+	default n
+
+config ESPRESSIF_ADC_1_CH6
+	bool "Channel 6"
+	default n
+
+config ESPRESSIF_ADC_1_CH7
+	bool "Channel 7"
+	default n
+
+endmenu # ADC 1 Channel Selection
+
+endif  # ESPRESSIF_ADC_1
+
+if ESPRESSIF_ADC_2
+
+config ESPRESSIF_ADC_2_DEVNAME
+	string "ADC 2 Device Name"
+	default "/dev/adc1"
+
+choice ESPRESSIF_ADC_2_ATTENUATION
+	prompt "ADC 2 Input Attenuation"
+	default ESPRESSIF_ADC_2_ATTEN_12
+	---help---
+		Select input attenuation for the ADC unit.
+		Relates to maximum measurable input voltage (Vmax) and the internal ADC reference voltage (approx. 1100 mV).
+		See ESP32 Technical Reference Manual for details.
+
+config ESPRESSIF_ADC_2_ATTEN_0
+	bool "0 dB (1.1 V)"
+
+config ESPRESSIF_ADC_2_ATTEN_2_5
+	bool "2.5 dB (1.47 V)"
+
+config ESPRESSIF_ADC_2_ATTEN_6
+	bool "6 dB (2.2 V)"
+
+config ESPRESSIF_ADC_2_ATTEN_12
+	bool "12 dB (4.4 V)"
+
+endchoice  # ESPRESSIF_ADC_2_ATTENUATION
+
+config ESPRESSIF_ADC_2_ATTENUATION
+	int
+	default 0 if ESPRESSIF_ADC_2_ATTEN_0
+	default 1 if ESPRESSIF_ADC_2_ATTEN_2_5
+	default 2 if ESPRESSIF_ADC_2_ATTEN_6
+	default 3 if ESPRESSIF_ADC_2_ATTEN_12
+
+choice ESPRESSIF_ADC_2_MODE
+	prompt "ADC 2 Mode"
+	default ESPRESSIF_ADC_2_MODE_ONE_SHOT
+	---help---
+		Select operating mode for ADC 2.
+
+config ESPRESSIF_ADC_2_MODE_ONE_SHOT
+	bool "One-Shot Mode"
+
+config ESPRESSIF_ADC_2_MODE_CONTINUOUS
+	bool "Continuous Mode"
+
+endchoice  # ESPRESSIF_ADC_2_MODE
+
+menu "ADC 2 Channel Selection"
+
+config ESPRESSIF_ADC_2_CH0
+	bool "Channel 0"
+	default y
+
+config ESPRESSIF_ADC_2_CH1
+	bool "Channel 1"
+	default n
+
+config ESPRESSIF_ADC_2_CH2
+	bool "Channel 2"
+	default y
+
+config ESPRESSIF_ADC_2_CH3
+	bool "Channel 3"
+	default y
+
+config ESPRESSIF_ADC_2_CH4
+	bool "Channel 4"
+	default n
+
+config ESPRESSIF_ADC_2_CH5
+	bool "Channel 5"
+	default n
+
+config ESPRESSIF_ADC_2_CH6
+	bool "Channel 6"
+	default n
+
+config ESPRESSIF_ADC_2_CH7
+	bool "Channel 7"
+	default n
+
+config ESPRESSIF_ADC_2_CH8
+	bool "Channel 8"
+	default n
+
+config ESPRESSIF_ADC_2_CH9
+	bool "Channel 9"
+	default n
+
+endmenu # ADC 2 Channel Selection
+
+endif  # ESPRESSIF_ADC_2
+
+endmenu  # ADC Configuration
+
 config ESP32_HAVE_OTA_PARTITION
 	bool
 	default n
@@ -2692,7 +2794,7 @@ endchoice
 config ESP32_MCUBOOT_VERSION
 	string "MCUboot version"
 	depends on ESP32_APP_FORMAT_MCUBOOT
-	default "b206b99b1555ca15f790a3287e57dc98ef3df2ac"
+	default "20f98e0a975c24864872e0df5701eb1082e9c957"
 
 config ESP32_APP_MCUBOOT_HEADER_SIZE
 	int "Application image header size (in bytes)"

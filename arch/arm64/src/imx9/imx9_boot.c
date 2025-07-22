@@ -126,7 +126,7 @@ void arm64_el_init(void)
 
 void arm64_chip_boot(void)
 {
-#ifdef CONFIG_IMX9_BOOTLOADER
+#if defined(CONFIG_IMX9_BOOTLOADER) && CONFIG_ARCH_ARM64_EXCEPTION_LEVEL == 3
   imx9_mix_powerup();
 
   /* Before DDR init we need to initialize clocks and trdc */
@@ -142,9 +142,11 @@ void arm64_chip_boot(void)
 #endif
 #endif
 
+#ifdef CONFIG_ARCH_USE_MMU
   /* MAP IO and DRAM, enable MMU. */
 
   arm64_mmu_init(true);
+#endif
 
   /* Do UART early initialization & pin muxing */
 

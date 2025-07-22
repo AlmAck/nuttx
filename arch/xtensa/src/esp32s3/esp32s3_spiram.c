@@ -123,8 +123,10 @@ static struct smp_call_data_s g_call_data =
 SMP_CALL_INITIALIZER(pause_cpu_handler, NULL);
 #endif
 
+#ifdef CONFIG_XTENSA_EXTMEM_BSS
 extern uint8_t _ext_ram_bss_start;
 extern uint8_t _ext_ram_bss_end;
+#endif
 
 /****************************************************************************
  * ROM Function Prototypes
@@ -397,7 +399,7 @@ int IRAM_ATTR esp_spiram_init_cache(void)
   uint32_t mapped_vaddr_size;
   uint32_t target_mapped_vaddr_start;
   uint32_t target_mapped_vaddr_end;
-  uint32_t ext_bss_size;
+  uint32_t ext_bss_size = 0;
 
   int ret = psram_get_available_size(&psram_size);
   if (ret != OK)
@@ -405,7 +407,7 @@ int IRAM_ATTR esp_spiram_init_cache(void)
       abort();
     }
 
-  minfo("PSRAM available size = %d\n", psram_size);
+  minfo("PSRAM available size = %" PRIu32 "\n", psram_size);
   mapped_vaddr_size = mmu_valid_space(&g_mapped_vaddr_start);
 
   if ((SPIRAM_VADDR_OFFSET + SPIRAM_VADDR_MAP_SIZE) > 0)
@@ -418,7 +420,8 @@ int IRAM_ATTR esp_spiram_init_cache(void)
                                 SPIRAM_VADDR_MAP_SIZE;
       if (target_mapped_vaddr_start < g_mapped_vaddr_start)
         {
-          mwarn("Invalid target vaddr = 0x%x, change vaddr to: 0x%x\n",
+          mwarn("Invalid target vaddr = 0x%" PRIx32 ", "
+                "change vaddr to: 0x%" PRIx32 "\n",
                 target_mapped_vaddr_start, g_mapped_vaddr_start);
           target_mapped_vaddr_start = g_mapped_vaddr_start;
           ret = ERROR;
@@ -427,7 +430,8 @@ int IRAM_ATTR esp_spiram_init_cache(void)
       if (target_mapped_vaddr_end >
          (g_mapped_vaddr_start + mapped_vaddr_size))
         {
-          mwarn("Invalid vaddr map size: 0x%x, change vaddr end: 0x%x\n",
+          mwarn("Invalid vaddr map size: 0x%x, change vaddr end: "
+                "0x%" PRIx32 "\n",
                 SPIRAM_VADDR_MAP_SIZE,
                 g_mapped_vaddr_start + mapped_vaddr_size);
           target_mapped_vaddr_end = g_mapped_vaddr_start + mapped_vaddr_size;
@@ -446,8 +450,8 @@ int IRAM_ATTR esp_spiram_init_cache(void)
       /* Decide these logics when there's a real PSRAM with larger size */
 
       g_mapped_size = mapped_vaddr_size;
-      mwarn("Virtual address not enough for PSRAM, only %d size is mapped!",
-            g_mapped_size);
+      mwarn("Virtual address not enough for PSRAM, only %" PRIu32 " "
+            "size is mapped!", g_mapped_size);
       ret = ERROR;
     }
   else
@@ -455,7 +459,8 @@ int IRAM_ATTR esp_spiram_init_cache(void)
       g_mapped_size = psram_size;
     }
 
-  minfo("Virtual address size = 0x%x, start: 0x%x, end: 0x%x\n",
+  minfo("Virtual address size = 0x%" PRIx32 ", start: 0x%" PRIx32 ", "
+        "end: 0x%" PRIx32 "\n",
          mapped_vaddr_size, g_mapped_vaddr_start,
          g_mapped_vaddr_start + g_mapped_size);
 
@@ -478,8 +483,10 @@ int IRAM_ATTR esp_spiram_init_cache(void)
 
   cache_resume_dcache(0);
 
+#ifdef CONFIG_XTENSA_EXTMEM_BSS
   ext_bss_size = ((intptr_t)&_ext_ram_bss_end -
                   (intptr_t)&_ext_ram_bss_start);
+#endif
 
   g_allocable_vaddr_start = g_mapped_vaddr_start + ext_bss_size;
   g_allocable_vaddr_end = g_mapped_vaddr_start + g_mapped_size -
@@ -661,7 +668,8 @@ int IRAM_ATTR esp_spiram_init(void)
     }
 #endif
 
-  minfo("Found %dMB SPI RAM device\n", psram_physical_size / (1024 * 1024));
+  minfo("Found %" PRIu32 "MB SPI RAM device\n",
+        psram_physical_size / (1024 * 1024));
   minfo("Speed: %dMHz\n", CONFIG_ESP32S3_SPIRAM_SPEED);
   minfo("Initialized, cache is in %s mode.\n",
                  (PSRAM_MODE == PSRAM_VADDR_MODE_EVENODD) ?

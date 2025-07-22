@@ -202,6 +202,16 @@ config ARCH_CHIP_STM32H747XI
 		Dual core STM32 H7 Cortex M7+M4, 2048 Kb FLASH, 1024K Kb SRAM
 		TFBGA240
 
+config ARCH_CHIP_STM32H750B
+	bool "STM32H750B"
+	select STM32H7_STM32H7X5XX
+	select STM32H7_FLASH_CONFIG_I
+	select STM32H7_IO_CONFIG_X
+	select STM32H7_HAVE_SMPS
+	---help---
+		STM32 H7 Cortex M7+M4, 1024 Kb FLASH, 1024K Kb SRAM,
+		LQFP208
+
 config ARCH_CHIP_STM32H753AI
 	bool "STM32H753AI"
 	select STM32H7_STM32H7X3XX
@@ -304,11 +314,11 @@ choice
 	default STM32H7_PWR_DEFAULT_SUPPLY
 	depends on STM32H7_HAVE_SMPS && !STM32H7_HAVE_PWR_DIRECT_SMPS_SUPPLY
 	---help---
-		The STM32H7x5 and STM32H7x7 support power supply configrations for the VCORE core domain and an external supply,
+		The STM32H7x5 and STM32H7x7 support power supply configurations for the VCORE core domain and an external supply,
 		by configuring the SMPS step-down converter and voltage regulator.
 		Note:The SMPS step-down converter is not available on all packages.
 
-		Currenlty the only supported modes are Direct SMPS supply and LDO supply.
+		Currently the only supported modes are Direct SMPS supply and LDO supply.
 
 config STM32H7_PWR_DEFAULT_SUPPLY
 	bool "Default"
@@ -5608,6 +5618,15 @@ config STM32H7_LTDC_FB_SIZE
 	default 0
 	---help---
 		Must be the whole size of the active LTDC layer.
+
+config STM32H7_LTDC_FB_DOUBLE_BUFFER
+	bool "Enable double buffering"
+	default n
+	---help---
+		Enable double buffering to allow updates to the framebuffer while the display is being refreshed.
+		This configuration requires two framebuffers: one active and one inactive.
+		When the display refreshes, the active and inactive framebuffers are swapped,
+		enabling smooth and flicker-free updates.
 
 config STM32H7_LTDC_L1_CHROMAKEYEN
 	bool "Enable chromakey support for layer 1"

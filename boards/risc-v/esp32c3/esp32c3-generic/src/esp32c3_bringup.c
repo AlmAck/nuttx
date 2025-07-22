@@ -41,6 +41,10 @@
 #include "esp_board_i2c.h"
 #include "esp_board_bmp180.h"
 
+#ifdef CONFIG_ESPRESSIF_ADC
+#  include "esp_board_adc.h"
+#endif
+
 #ifdef CONFIG_WATCHDOG
 #  include "espressif/esp_wdt.h"
 #endif
@@ -108,6 +112,10 @@
 
 #ifdef CONFIG_SYSTEM_NXDIAG_ESPRESSIF_CHIP_WO_TOOL
 #  include "espressif/esp_nxdiag.h"
+#endif
+
+#ifdef CONFIG_ESP_SDM
+#  include "espressif/esp_sdm.h"
 #endif
 
 #include "esp32c3-generic.h"
@@ -354,6 +362,23 @@ int esp_bringup(void)
     }
 #endif
 
+#ifdef CONFIG_ESP_SDM
+  struct esp_sdm_chan_config_s config =
+  {
+    .gpio_num = 5,
+    .sample_rate_hz = 1000 * 1000,
+    .flags = 0,
+  };
+
+  struct dac_dev_s *dev = esp_sdminitialize(config);
+  ret = dac_register("/dev/dac0", dev);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to initialize DAC driver: %d\n",
+             ret);
+    }
+#endif
+
 #ifdef CONFIG_ESPRESSIF_TWAI
 
   /* Initialize TWAI and register the TWAI driver. */
@@ -396,6 +421,14 @@ int esp_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: esp_nxdiag_initialize failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_ESPRESSIF_ADC
+  ret = board_adc_init();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to initialize ADC driver: %d\n", ret);
     }
 #endif
 

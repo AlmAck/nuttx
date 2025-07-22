@@ -105,6 +105,14 @@ if(CONFIG_STACK_CANARIES)
   add_compile_options(-fstack-protector-all)
 endif()
 
+if(CONFIG_STACK_USAGE)
+  add_compile_options(-fstack-usage)
+endif()
+
+if(CONFIG_STACK_USAGE_WARNING)
+  add_compile_options(-Wstack-usage=${CONFIG_STACK_USAGE_WARNING})
+endif()
+
 if(CONFIG_MM_UBSAN_ALL)
   add_compile_options(${CONFIG_MM_UBSAN_OPTION})
 endif()
@@ -193,6 +201,10 @@ endif()
 
 if(CONFIG_DEBUG_SYMBOLS)
   add_compile_options(${CONFIG_DEBUG_SYMBOLS_LEVEL})
+endif()
+
+if(NOT CONFIG_ARCH_USE_MMU)
+  add_compile_options(-fno-builtin)
 endif()
 
 if(CONFIG_ARCH_TOOLCHAIN_GNU AND NOT CONFIG_ARCH_TOOLCHAIN_CLANG)

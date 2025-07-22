@@ -1,7 +1,7 @@
 README
 ^^^^^^
 
-This port conributed by jeditekunum.
+This port was contributed by jeditekunum.
 
 This is the README file for the port of NuttX to the MoteinoMEGA from
 LowPowerLab (http://www.lowpowerlab.com).  The MoteinoMEGA is based
@@ -253,6 +253,11 @@ Common Configuration Notes
 
      b. Execute 'make menuconfig' in nuttx/ in order to start the
         reconfiguration process.
+
+  4. Build with GCC disables CONFIG_DEBUG_OPT_UNUSED_SECTIONS by default.
+     This is because the linker script was not checked to determine
+     if it properly prevents removal of sections which the linker considers
+     unreferenced but which must be present in the binary.
 
 Configuration Sub-Directories
 -----------------------------
