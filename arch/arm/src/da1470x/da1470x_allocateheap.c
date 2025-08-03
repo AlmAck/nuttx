@@ -50,8 +50,47 @@
  * to the heap.
  */
 
+
+/* DA1470x on-chip SRAM: 1.5 MB starting at DA1470X_SRAM_BASE */
+
+#define DA1470X_SRAM_SIZE    (1536 * 1024)
+#define DA1470X_SRAM_END     (DA1470X_SRAM_BASE + DA1470X_SRAM_SIZE)
+
+#ifndef CONFIG_RAM_START
+#  define CONFIG_RAM_START  DA1470X_SRAM_BASE
+#endif
+
+#ifndef CONFIG_RAM_SIZE
+#  define CONFIG_RAM_SIZE   DA1470X_SRAM_SIZE
+#endif
+
+#ifndef CONFIG_RAM_END
+#  define CONFIG_RAM_END    (CONFIG_RAM_START + CONFIG_RAM_SIZE)
+#endif
+
+/* Now check that [CONFIG_RAM_START, CONFIG_RAM_END) is fully inside SRAM */
+
+#if (CONFIG_RAM_START < DA1470X_SRAM_BASE) \
+ || ((CONFIG_RAM_START + CONFIG_RAM_SIZE) > DA1470X_SRAM_END)
+#  warning                                                           \
+    "CONFIG_RAM_START/END lie outside on-chip SRAM—"                \
+    " resetting to full SRAM"
+#  undef   CONFIG_RAM_START
+#  define  CONFIG_RAM_START  DA1470X_SRAM_BASE
+#  undef   CONFIG_RAM_SIZE
+#  define  CONFIG_RAM_SIZE   DA1470X_SRAM_SIZE
+#  undef   CONFIG_RAM_END
+#  define  CONFIG_RAM_END    DA1470X_SRAM_END
+#endif
+
 /****************************************************************************
- * Public Data
+ * Private Data
+ ****************************************************************************/
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
  ****************************************************************************/
 
 /* _sbss is the start of the BSS region (see the linker script) _ebss is the
