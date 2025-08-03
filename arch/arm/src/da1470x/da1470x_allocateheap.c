@@ -91,6 +91,25 @@
  * Private Functions
  ****************************************************************************/
 
+/****************************************************************************
+ * Name: up_heap_color
+ *
+ * Description:
+ *   Set heap memory to a known, non-zero state to checking heap usage.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_HEAP_COLORATION
+static inline void up_heap_color(void *start, size_t size)
+{
+  memset(start, HEAP_COLOR, size);
+}
+#else
+#  define up_heap_color(start,size)
+#endif
+
+/****************************************************************************
+ * Public Functions
  ****************************************************************************/
 
 /* _sbss is the start of the BSS region (see the linker script) _ebss is the
@@ -179,6 +198,10 @@ void up_allocate_heap(void **heap_start, size_t *heap_size)
   board_autoled_on(LED_HEAPALLOCATE);
   *heap_start = (void *)g_idle_topstack;
   *heap_size  = CONFIG_RAM_END - g_idle_topstack;
+
+  /* Colorize the heap for debug */
+
+  up_heap_color(*heap_start, *heap_size);
 #endif
 }
 
