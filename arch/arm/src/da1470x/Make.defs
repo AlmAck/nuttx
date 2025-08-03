@@ -40,24 +40,24 @@ CHIP_CSRCS += da1470x_pmu.c
 #CHIP_CSRCS += da1470x_serial.c
 #endif
 
-#ifneq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
-#CHIP_CSRCS += da1470x_idle.c
-#endif
-#
+ifneq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
+CHIP_CSRCS += da1470x_idle.c
+endif
+
 #ifeq ($(CONFIG_TIMER),y)
 #CHIP_CSRCS += da1470x_tim_lowerhalf.c
 #endif
-#
+
 #ifeq ($(CONFIG_BUILD_PROTECTED),y)
 #CHIP_CSRCS += da1470x_userspace.c da1470x_mpuinit.c
 #endif
-#
+
 #ifeq ($(CONFIG_DEBUG_FEATURES),y)
 #CHIP_CSRCS += da1470x_dumpgpio.c
 #endif
-#
+
 ## Required chip type specific files
-#
+
 #ifeq ($(CONFIG_USBDEV),y)
 #CHIP_CSRCS += da1470x_otgdev.c
 #endif
