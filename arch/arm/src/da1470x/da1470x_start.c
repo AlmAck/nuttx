@@ -24,22 +24,20 @@
 
 #include <nuttx/config.h>
 
-#include <stdint.h>
 #include <assert.h>
 #include <debug.h>
+#include <stdint.h>
 
-#include <nuttx/init.h>
 #include <arch/board/board.h>
+#include <nuttx/init.h>
 
 #include "arm_internal.h"
 #include "nvic.h"
 
-#include "da1470x_lowputc.h"
-#include "da1470x_start.h"
-#include "da1470x_gpio.h"
-#include "da1470x_serial.h"
 #include "da1470x_clockconfig.h"
+#include "da1470x_lowputc.h"
 #include "da1470x_pmu.h"
+#include "da1470x_start.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -54,9 +52,9 @@
  ****************************************************************************/
 
 #ifdef CONFIG_DEBUG_FEATURES
-#  define showprogress(c) arm_lowputc(c)
+#define showprogress(c) arm_lowputc(c)
 #else
-#  define showprogress(c)
+#define showprogress(c)
 #endif
 
 /****************************************************************************
@@ -81,21 +79,49 @@ void __start(void) noinstrument_function;
  *
  ****************************************************************************/
 
-void __start(void)
-{
+void __start(void) {
   const uint32_t *src;
   uint32_t *dest;
 
 #ifdef CONFIG_ARMV8M_STACKCHECK
   /* Set the stack limit before we attempt to call any functions */
 
-  __asm__ volatile("sub r10, sp, %0" : :
-                   "r"(CONFIG_IDLETHREAD_STACKSIZE - 64) :);
+  __asm__ volatile("sub r10, sp, %0"
+                   :
+                   : "r"(CONFIG_IDLETHREAD_STACKSIZE - 64)
+                   :);
 #endif
+
+  extern uint32_t _svectors_lma[];
+  extern uint32_t _svectors[];
+  extern uint32_t _evectors[];
+  extern uint32_t _sretention_text_lma[];
+  extern uint32_t _sretention_text[];
+  extern uint32_t _eretention_text[];
+  extern uint32_t _sram_data_lma[];
+  extern uint32_t _sram_data[];
+  extern uint32_t _eram_data[];
+  extern uint32_t _sbss[];
+  extern uint32_t _ebss[];
 
   /* Make sure that interrupts are disabled */
 
-  __asm__ __volatile__ ("\tcpsid  i\n");
+  __asm__ __volatile__("\tcpsid  i\n");
+
+  /* Copy the vector table from FLASH to RAM0 */
+
+  for (src = (const uint32_t *)_svectors_lma, dest = (uint32_t *)_svectors;
+       dest < (uint32_t *)_evectors;) {
+    *dest++ = *src++;
+  }
+
+  /* Set the vector table base address.  The default vector address is
+   * 0x0000:0000 but if we are executing code that is positioned in SRAM or in
+   * external FLASH, then we may need to reset the interrupt vector so that
+   * it refers to the table in SRAM or in external FLASH.
+   */
+
+  putreg32((uintptr_t)_svectors, NVIC_VECTAB);
 
   /* Configure the UART so that we can get debug output as soon as possible */
 
@@ -104,29 +130,37 @@ void __start(void)
   da1470x_lowsetup();
   showprogress('A');
 
+  /*  int my_heap_start = g_idle_topstack;
+    int my_heap_size  = CONFIG_RAM_END - g_idle_topstack;
+
+    _info("heap_start=%p heap_size=%lu, idle_top=%p\n",
+      my_heap_start, my_heap_size, g_idle_topstack);
+  */
+
   /* Clear .bss.  We'll do this inline (vs. calling memset) just to be
    * certain that there are no issues with the state of global variables.
    */
 
-  for (dest = (uint32_t *)_sbss; dest < (uint32_t *)_ebss; )
-    {
-      *dest++ = 0;
-    }
+  for (dest = (uint32_t *)_sbss; dest < (uint32_t *)_ebss;) {
+    *dest++ = 0;
+  }
+
+  /* Move the retention code section into RAMC. */
+
+  for (src = (const uint32_t *)_sretention_text_lma,
+      dest = (uint32_t *)_sretention_text;
+       dest < (uint32_t *)_eretention_text;) {
+    *dest++ = *src++;
+  }
 
   showprogress('B');
 
-  /* Move the initialized data section from his temporary holding spot in
-   * FLASH into the correct place in SRAM.  The correct place in SRAM is
-   * give by _sdata and _edata.  The temporary location is in FLASH at the
-   * end of all of the other read-only data (.text, .rodata) at _eronly.
-   */
+  /* Move the consolidated data and retention data sections into RAMS. */
 
-  for (src = (const uint32_t *)_eronly,
-       dest = (uint32_t *)_sdata; dest < (uint32_t *)_edata;
-      )
-    {
-      *dest++ = *src++;
-    }
+  for (src = (const uint32_t *)_sram_data_lma, dest = (uint32_t *)_sram_data;
+       dest < (uint32_t *)_eram_data;) {
+    *dest++ = *src++;
+  }
 
   showprogress('C');
 
@@ -165,5 +199,6 @@ void __start(void)
 
   /* Shoulnd't get here */
 
-  for (; ; );
+  for (;;)
+    ;
 }

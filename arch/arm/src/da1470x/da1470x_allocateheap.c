@@ -50,7 +50,6 @@
  * to the heap.
  */
 
-
 /* DA1470x on-chip SRAM: 1.5 MB starting at DA1470X_SRAM_BASE */
 
 #define DA1470X_SRAM_SIZE    (1536 * 1024)

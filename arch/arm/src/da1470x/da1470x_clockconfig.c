@@ -34,11 +34,11 @@
 
 #include "arm_internal.h"
 #include "chip.h"
-#include "da1470x_clockconfig.h"
 #include "da1470x_clk.h"
+#include "da1470x_clockconfig.h"
+#include "da1470x_pmu.h"
 #include "hardware/da1470x_clock.h"
 #include "hardware/da1470x_crg_xtal.h"
-#include "da1470x_pmu.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -78,8 +78,7 @@
  *
  ****************************************************************************/
 
-void da1470_clockconfig(void)
-{
+void da1470_clockconfig(void) {
 #if 0
 
 #endif
@@ -104,15 +103,13 @@ void da1470_clockconfig(void)
   da1470_amba_enableperipherals();
 }
 
-static void da1470x_xtal32m_enable_and_wait(bool boost)
-{
+static void da1470x_xtal32m_enable_and_wait(bool boost) {
   uint32_t regval;
 
   DEBUGASSERT((getreg32(DA1470_CRG_TOP_POWER_LVL) & CRG_TOP_V12_LEVEL_MASK) ==
               V12_LEVEL_1P20V);
 
-  if (boost)
-  {
+  if (boost) {
     regval = getreg32(DA1470_CRG_XTAL_XTAL32M_TRIM);
     regval &= ~CRG_XTAL_XTAL32M_BOOST_TRIM_MASK;
     regval |= (9 << CRG_XTAL_XTAL32M_BOOST_TRIM_POS);
@@ -123,31 +120,27 @@ static void da1470x_xtal32m_enable_and_wait(bool boost)
   regval |= CRG_XTAL_XTAL32M_ENABLE;
   putreg32(regval, DA1470_CRG_XTAL_XTAL32M_CTRL);
 
-  while ((getreg32(DA1470_CRG_XTAL_XTAL32M_STAT0) &
-          CRG_XTAL_XTAL32M_READY) == 0)
-  {
+  while ((getreg32(DA1470_CRG_XTAL_XTAL32M_STAT0) & CRG_XTAL_XTAL32M_READY) ==
+         0) {
     /* Spin until XTAL32M stabilizes (typically 140–350 us) */
   }
 }
 
-static void hw_clk_set_sysclk_xtal32m(void)
-{
+static void hw_clk_set_sysclk_xtal32m(void) {
   putreg32(0x01, CRG_TOP_SWITCH2XTAL);
 
-  while ((getreg32(DA1470_CRG_TOP_CLK_CTRL) & CRG_TOP_RUNNING_AT_XTAL32M) == 0)
-  {
+  while ((getreg32(DA1470_CRG_TOP_CLK_CTRL) & CRG_TOP_RUNNING_AT_XTAL32M) ==
+         0) {
     /* Wait for clock switch */
   }
 }
 
-static void da1470_stdclockconfig(void)
-{
+static void da1470_stdclockconfig(void) {
   uint32_t regval;
 
   irqstate_t flags = enter_critical_section();
 
   // Todo implement sysclk_RCHS_32 sysclk_RCHS_64 sysclk_RCHS_96
-
 
   da1470x_set_sysclk(SYSCLK_RCHS_96); // Set the system clock to RCHS 32MHz
 
@@ -222,8 +215,7 @@ static void da1470_stdclockconfig(void)
   leave_critical_section(flags);
 }
 
-static inline void set_hclk_div(uint32_t div)
-{
+static inline void set_hclk_div(uint32_t div) {
   uint32_t reg_val;
 
   // Read the current value of the register
@@ -239,8 +231,7 @@ static inline void set_hclk_div(uint32_t div)
   putreg32(reg_val, DA1470_CRG_TOP_CLK_AMBA);
 }
 
-static inline void set_pclk_div(uint32_t div)
-{
+static inline void set_pclk_div(uint32_t div) {
   uint32_t reg_val;
 
   // Read the current value of the register
@@ -260,8 +251,7 @@ static inline void set_pclk_div(uint32_t div)
  * Name: da1470_amba_enableperipherals
  ****************************************************************************/
 
-static inline void da1470_amba_enableperipherals(void)
-{
+static inline void da1470_amba_enableperipherals(void) {
   uint32_t cr;
   cr = getreg32(DA1470_CRG_TOP_CLK_AMBA);
 
@@ -276,8 +266,7 @@ static inline void da1470_amba_enableperipherals(void)
   putreg32(cr, DA1470_CRG_TOP_CLK_AMBA);
 }
 
-static void da1470x_switch_to_rchs(rchs_speed_t mode)
-{
+static void da1470x_switch_to_rchs(rchs_speed_t mode) {
   uint32_t regval;
 
   regval = getreg32(DA1470_CRG_TOP_CLK_RCHS);
@@ -288,7 +277,7 @@ static void da1470x_switch_to_rchs(rchs_speed_t mode)
 
   // hw_clk_enable_rchs();
 
-  //da1470x_switch_sysclk(SYSCLK_RCHS_32);
+  // da1470x_switch_sysclk(SYSCLK_RCHS_32);
 
   /* Switch SYS_CLK to RCHS */
   regval = getreg32(DA1470_CRG_TOP_CLK_CTRL);
@@ -297,15 +286,12 @@ static void da1470x_switch_to_rchs(rchs_speed_t mode)
   putreg32(regval, DA1470_CRG_TOP_CLK_CTRL);
 
   /* Wait for SYS_CLK to be running at RCHS */
-  while ((getreg32(DA1470_CRG_TOP_CLK_CTRL) &
-          CRG_TOP_RUNNING_AT_RCHS) == 0)
-  {
+  while ((getreg32(DA1470_CRG_TOP_CLK_CTRL) & CRG_TOP_RUNNING_AT_RCHS) == 0) {
     /* Busy wait */
   }
 }
 
-void da1470x_set_sysclk(sys_clk_t type)
-{
+void da1470x_set_sysclk(sys_clk_t type) {
   irqstate_t flags;
   sys_clk_t sysclk_booter;
   sys_clk_t sysclk;
@@ -315,22 +301,19 @@ void da1470x_set_sysclk(sys_clk_t type)
   /* Get current clock (stubbed here for now) */
   sysclk = sysclk_booter = SYSCLK_RCHS_32;
 
-  if (type == SYSCLK_BOOTER)
-  {
+  if (type == SYSCLK_BOOTER) {
     type = sysclk_booter;
   }
 
   /* Handle RCHS clock selection */
 
-  if (type == SYSCLK_RCHS_32 ||
-      type == SYSCLK_RCHS_64 ||
-      type == SYSCLK_RCHS_96)
-  {
-    rchs_speed_t rchs_mode = (type == SYSCLK_RCHS_32) ? RCHS_32 : (type == SYSCLK_RCHS_64) ? RCHS_64
-                                                                                           : RCHS_96;
+  if (type == SYSCLK_RCHS_32 || type == SYSCLK_RCHS_64 ||
+      type == SYSCLK_RCHS_96) {
+    rchs_speed_t rchs_mode = (type == SYSCLK_RCHS_32)   ? RCHS_32
+                             : (type == SYSCLK_RCHS_64) ? RCHS_64
+                                                        : RCHS_96;
 
-    if (type != SYSCLK_RCHS_32)
-    {
+    if (type != SYSCLK_RCHS_32) {
       /* Set 1.2V domain to maximum voltage if needed */
       da1470x_pmu_set_1v2_max(); /* You must implement this */
     }
@@ -346,49 +329,46 @@ void da1470x_set_sysclk(sys_clk_t type)
  *
  * \param[in] mode The new system clock.
  *
- * \note System clock switch to PLL is only allowed when current system clock is XTAL32M.
- * System clock switch from PLL is only allowed when new system clock is XTAL32M.
+ * \note System clock switch to PLL is only allowed when current system clock is
+ * XTAL32M. System clock switch from PLL is only allowed when new system clock
+ * is XTAL32M.
  */
 
-static inline void da1470x_switch_sysclk(sys_clk_is_t mode)
-{
+static inline void da1470x_switch_sysclk(sys_clk_is_t mode) {
   /* Make sure a valid sys clock is requested */
 
   DEBUGASSERT(mode <= SYS_CLK_IS_PLL);
 
   /* Switch to PLL is only allowed when current system clock is XTAL32M */
 
-  DEBUGASSERT(mode != SYS_CLK_IS_PLL ||
-              (getreg32(DA1470_CRG_TOP_CLK_CTRL) & CRG_TOP_RUNNING_AT_XTAL32M) ||
-              (getreg32(DA1470_CRG_TOP_CLK_CTRL) & CRG_TOP_RUNNING_AT_PLL));
+  DEBUGASSERT(
+      mode != SYS_CLK_IS_PLL ||
+      (getreg32(DA1470_CRG_TOP_CLK_CTRL) & CRG_TOP_RUNNING_AT_XTAL32M) ||
+      (getreg32(DA1470_CRG_TOP_CLK_CTRL) & CRG_TOP_RUNNING_AT_PLL));
 
   /* Switch from PLL is only allowed when new system clock is XTAL32M */
 
   DEBUGASSERT(!(getreg32(DA1470_CRG_TOP_CLK_CTRL) & CRG_TOP_RUNNING_AT_PLL) ||
-              mode == SYS_CLK_IS_XTAL32M ||
-              mode == SYS_CLK_IS_PLL);
+              mode == SYS_CLK_IS_XTAL32M || mode == SYS_CLK_IS_PLL);
 
   uint32_t regval = getreg32(DA1470_CRG_TOP_CLK_CTRL);
 
-  if (mode == SYS_CLK_IS_XTAL32M && (regval & CRG_TOP_RUNNING_AT_RCHS) != 0)
-  {
+  if (mode == SYS_CLK_IS_XTAL32M && (regval & CRG_TOP_RUNNING_AT_RCHS) != 0) {
     // When writing to this register, the clock switch will
     // happen from RC32M to XTAL32M. If any other
     // clock is selected than RC32M, the selection is
     // discarded.
     putreg32(0x01, DA1470_CRG_TOP_CLK_SWITCH2XTAL);
-  }
-  else
-  {
-    regval &= ~CRG_TOP_SYS_CLK_SEL_MASK;                                    /* Clear the bits for SYS_CLK_SEL */
-    regval |= (mode << CRG_TOP_SYS_CLK_SEL_POS) & CRG_TOP_SYS_CLK_SEL_MASK; /* Set new mode */
+  } else {
+    regval &= ~CRG_TOP_SYS_CLK_SEL_MASK; /* Clear the bits for SYS_CLK_SEL */
+    regval |= (mode << CRG_TOP_SYS_CLK_SEL_POS) &
+              CRG_TOP_SYS_CLK_SEL_MASK; /* Set new mode */
     putreg32(regval, DA1470_CRG_TOP_CLK_CTRL);
   }
 
   /* Wait until the switch is done */
 
-  switch (mode)
-  {
+  switch (mode) {
   case SYS_CLK_IS_XTAL32M:
     while (!(getreg32(DA1470_CRG_TOP_CLK_CTRL) & CRG_TOP_RUNNING_AT_XTAL32M))
       ;
@@ -413,37 +393,46 @@ static inline void da1470x_switch_sysclk(sys_clk_is_t mode)
   }
 }
 
-// /**
-//  * @brief Return the clock used as the system clock.
-//  *
-//  * @return The type of the system clock
-//  */
-// static inline sys_clk_is_t hw_clk_get_sysclk(void)
-// {
-//     static const uint32_t freq_msk = CRG_TOP_RUNNING_AT_RCLP |
-//                                      CRG_TOP_RUNNING_AT_RCHS |
-//                                      CRG_TOP_RUNNING_AT_XTAL32M |
-//                                      CRG_TOP_RUNNING_AT_PLL;
+/**
+ * @brief Return the clock used as the system clock.
+ *
+ * @return The type of the system clock
+ */
+sys_clk_is_t hw_clk_get_sysclk(void) {
+  static const uint32_t freq_msk =
+      CRG_TOP_RUNNING_AT_RCLP | CRG_TOP_RUNNING_AT_RCHS |
+      CRG_TOP_RUNNING_AT_XTAL32M | CRG_TOP_RUNNING_AT_PLL;
 
-//     static const sys_clk_is_t clocks[] = {
-//         SYS_CLK_IS_RCLP,        /* 0b000 */
-//         SYS_CLK_IS_RCHS,        /* 0b001 */
-//         SYS_CLK_IS_XTAL32M,     /* 0b010 */
-//         SYS_CLK_IS_INVALID,
-//         SYS_CLK_IS_PLL          /* 0b100 */
-//     };
+  static const sys_clk_is_t clocks[] = {
+      SYS_CLK_IS_RCLP,                   /* 0b000 */
+      SYS_CLK_IS_RCHS,                   /* 0b001 */
+      SYS_CLK_IS_XTAL32M,                /* 0b010 */
+      SYS_CLK_IS_INVALID, SYS_CLK_IS_PLL /* 0b100 */
+  };
 
-//     /* Drop bit0 to reduce the size of clocks[] */
+  /* Drop bit0 to reduce the size of clocks[] */
 
-//     uint32_t index = (getreg32(DA1470_CRG_TOP_CLK_CTRL) & freq_msk) >> (CRG_TOP_RUNNING_AT_RCLP + 1);
+  uint32_t index = (getreg32(DA1470_CRG_TOP_CLK_CTRL) & freq_msk) >>
+                   (CRG_TOP_RUNNING_AT_RCLP_POS + 1);
 
-//     DEBUGASSERT(index <= 4);
+  DEBUGASSERT(index <= 4);
 
-//     sys_clk_is_t clk = clocks[index];
-//     DEBUGASSERT(clk != SYS_CLK_IS_INVALID);
+  sys_clk_is_t clk = clocks[index];
+  DEBUGASSERT(clk != SYS_CLK_IS_INVALID);
 
-//     return clk;
-// }
+  return clk;
+}
+
+/**
+ * @brief Return the RCHS mode.
+ *
+ * @return The RCHS mode (RCHS_32, RCHS_64, RCHS_96)
+ */
+rchs_speed_t hw_clk_get_rchs_mode(void) {
+  uint32_t regval = getreg32(DA1470_CRG_TOP_CLK_RCHS);
+  return (rchs_speed_t)((regval & CRG_TOP_RCHS_SPEED_MASK) >>
+                        CRG_TOP_RCHS_SPEED_POS);
+}
 
 /****************************************************************************
  * Name
@@ -471,8 +460,7 @@ static inline void da1470x_switch_sysclk(sys_clk_is_t mode)
  ****************************************************************************/
 
 #ifdef CONFIG_PM
-void da1470_clockenable(void)
-{
+void da1470_clockenable(void) {
 #if defined(CONFIG_ARCH_BOARD_DA1470_CUSTOM_CLOCKCONFIG)
 
   /* Invoke Board Custom Clock Configuration */

@@ -59,5 +59,5 @@ void up_timer_initialize(void)
 {
   /* Use SysTick to drive system timer  */
 
-  up_timer_set_lowerhalf(systick_initialize(true, BOARD_SYSTICK_CLOCK, -1));
+  //up_timer_set_lowerhalf(systick_initialize(true, BOARD_SYSTICK_CLOCK, -1));
 }

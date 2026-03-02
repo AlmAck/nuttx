@@ -18,10 +18,6 @@
 #
 ##############################################################################
 
-# The start-up, "head", file.  Only common vectors are support so there
-# isn't one.
-
-HEAD_ASRC =
 
 # Common ARM and Cortex-M4 files (copied from da1470x/Make.defs)
 

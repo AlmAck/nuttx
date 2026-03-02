@@ -17,14 +17,14 @@ __SNC_BASE = 0x20000000;         /* RAM1 and RAM2 for SNC */
 __SNC_SIZE = 64K;                /* 64KB for SNC */
 __SHARED_BASE = 0x20110000;      /* RAM8 for shared memory between CPUs */
 __SHARED_SIZE = 128K;            /* 128KB for shared memory */
-__IVT_BASE = 0x0F000000  + IVT_OVERHEAD;         /* IVT in RAM0 */
+__IVT_BASE = 0x0F000000 + IVT_OVERHEAD;         /* IVT in RAM0 */
 __IVT_SIZE = 8K - IVT_OVERHEAD;                 /* 8KB - 0x200 for IVT */
 __CMAC_BASE = 0x20150000;        /* RAM10 for potential CMAC code */
 __CMAC_SIZE = 0;                 /* Configurable based on project needs */
 __RAMC_BASE = 0x10010000;        /* RAM3 for retained code, remapped */
 __RAMC_SIZE = 256K;              /* 256KB for retained code */
 __RAMS_BASE = 0x20010000;        /* RAM4-RAM7 for retained data */
-__RAMS_SIZE = 1024K;       /* 1MB for retained data, 64K reserved for SNC */
+__RAMS_SIZE = 1024K;             /* 1MB for retained data */
 __STACK_SIZE = 0x1000;           /* 4 KB for idle thread & exception handling */
 
 MEMORY
@@ -44,20 +44,21 @@ EXTERN(_vectors)       /* Force the vectors to be included in the output */
 
 SECTIONS
 {
-    /* Interrupt Vector Table */
-    /*
-    .vectors :
+    /* Interrupt Vector Table is stored in FLASH at address 0 and
+     * copied to RAM0 (remapped at 0x0F000000) during startup.
+     */
+    .vectors : AT(0)
     {
-        . = ALIGN(4);
+        _svectors = .;
         KEEP(*(.vectors))
-        . = ALIGN(4);
+        . = ALIGN(0x200);
+        _evectors = .;
     } > IVT
-    */
+    _svectors_lma = LOADADDR(.vectors);
 
-    /* Code section in FLASH */
-    .text : {
+    /* Code section in FLASH starts at 0x200 to follow vectors */
+    .text 0x200 : AT(0x200) {
         _stext = ABSOLUTE(.);
-        *(.vectors)                   /* Vector table */
         *(.text .text.*)              /* Code sections */
         *(.fixup)                     /* Fixup sections */
         *(.gnu.warning)               /* GNU warnings */
@@ -89,12 +90,16 @@ SECTIONS
     } > FLASH
 
     _eronly = ABSOLUTE(.);
+    _eronly_data = _eronly;
+
+    _sram_lma = _eronly;
+    _sram_vma = ORIGIN(RAMS);
 
     /* Retained code section */
-    .retention_text : AT (0x0 + __etext)
+    _sretention_text_lma = _eronly;
+    .retention_text : AT (_sretention_text_lma)
     {
-        . = ALIGN(4);
-        __retention_text_start__ = .;
+        _sretention_text = .;
         *(text_retained)
         *libnosys.a:sbrk.o (.text*)
         *libgcc.a:_aeabi_uldivmod.o (.text*)
@@ -105,19 +110,21 @@ SECTIONS
         *libgcc.a:_clzdi2.o (.text*)
         *libgcc.a:_clzsi2.o (.text*)
         . = ALIGN(4);
-        __retention_text_end__ = .;
+        _eretention_text = .;
     } > RAMC
 
-    /* Ensure RAM data doesn't overlap with retained code */
+    /* Ensure RAM data doesn't overlap with retained code if they shared physical space */
     .RAM_UNUSED_THROUGH_CPU_S (NOLOAD) :
     {
-        . += (__retention_text_end__ - __retention_text_start__);
+        . += (_eretention_text - _sretention_text);
     } > RAMS
 
     /* Retained initialized data */
-    .retention_ram_init : AT (0x0 + __etext + (__retention_text_end__ - __retention_text_start__))
+    _sram_data_lma = LOADADDR(.retention_text) + SIZEOF(.retention_text);
+    .retention_ram_init : AT (_sram_data_lma)
     {
         . = ALIGN(4);
+        _sram_data = .;
         __retention_ram_init_start__ = .;
         *(privileged_data_init)
         *(.retention)
@@ -172,14 +179,18 @@ SECTIONS
     } > SHARED
 
     /* Data section (initialized data) */
-    .data : {
+    .data : AT (_sram_data_lma + (__retention_ram_init_end__ - _sram_data)) {
         _sdata = ABSOLUTE(.);
         *(.data .data.*)
         *(.gnu.linkonce.d.*)
         CONSTRUCTORS
         . = ALIGN(4);
         _edata = ABSOLUTE(.);
-    } > RAMS AT > FLASH
+    } > RAMS
+
+    _eram_data = _edata;
+    _eronly = _sram_data_lma;
+    _eronly_data = _eronly;
 
     /* BSS section (zero-initialized data) */
     .bss : {
