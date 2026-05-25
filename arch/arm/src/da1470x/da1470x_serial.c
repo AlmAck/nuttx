@@ -303,20 +303,19 @@ static int da1470x_setup(struct uart_dev_s *dev) {
 #ifndef CONFIG_SUPPRESS_UART_CONFIG
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
 
-  /* TODO: Configure the UART as an RS-232 UART */
-
-  /* REVISIT: If da1470x_usart_configure() called 2nd time uart stops working.
-   * Rx interrupt keeps firing.
-   * configuring is done on __start
-   *
-   * UPDATE 19.12.2019: No problems described above were observed,
-   * but just in case we leave the above note for some time.
+  /* The console UART was already brought up by da1470x_lowsetup() before
+   * any kernel code ran. Reconfiguring it here is unsafe: the DesignWare
+   * UART silently ignores LCR writes (including the DLAB latch) while
+   * USR.BUSY is asserted, which causes divisor writes to be redirected
+   * into THR and breaks the baud rate. da1470x_uart_configure() now does
+   * a software reset, but for the console we still skip the redundant
+   * reconfigure to avoid any race against in-flight TX from boot output.
    */
 
-  da1470x_uart_configure(priv->uartbase, &priv->config);
+  if (!dev->isconsole) {
+    da1470x_uart_configure(priv->uartbase, &priv->config);
+  }
 #endif
-
-  /* TODO: configure UART if not selected as console */
 
   return OK;
 }
@@ -360,9 +359,7 @@ static int da1470x_attach(struct uart_dev_s *dev) {
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
   int ret;
 
-  /* Attach and enable the IRQ(s).  The interrupts are (probably) still
-   * disabled in the C2 register.
-   */
+  /* Attach and enable the IRQ(s). */
 
   ret = irq_attach(priv->irq, da1470x_interrupt, dev);
   if (ret == OK) {

@@ -412,8 +412,10 @@ sys_clk_is_t hw_clk_get_sysclk(void) {
 
   /* Drop bit0 to reduce the size of clocks[] */
 
-  uint32_t index = (getreg32(DA1470_CRG_TOP_CLK_CTRL) & freq_msk) >>
-                   (CRG_TOP_RUNNING_AT_RCLP + 1);
+  /* RUNNING_AT_RCLP is bit 12, so shift by 13 to align RCLP/RCHS/XTAL32M/PLL
+   * into a 0/1/2/4-valued index for the clocks[] table above.
+   */
+  uint32_t index = (getreg32(DA1470_CRG_TOP_CLK_CTRL) & freq_msk) >> 13;
 
   DEBUGASSERT(index <= 4);
 

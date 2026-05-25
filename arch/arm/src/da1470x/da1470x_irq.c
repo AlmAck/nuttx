@@ -253,12 +253,11 @@ void up_irqinitialize(void) {
    * external FLASH.
    */
 
-  uint32_t vectab = (uint32_t)_vectors;
-  if ((vectab & 0xff000000) == 0x0f000000) {
-    vectab += 0x11000000; /* Translate to data bus alias 0x20000000 */
-  }
+  /* Vectors live at remapped flash (0x00000000) on DA1470x.  See
+   * da1470x_start.c for rationale.
+   */
 
-  putreg32(vectab, NVIC_VECTAB);
+  putreg32(0x00000000, NVIC_VECTAB);
 
   __asm__ __volatile__("dsb" : : : "memory");
   __asm__ __volatile__("isb" : : : "memory");

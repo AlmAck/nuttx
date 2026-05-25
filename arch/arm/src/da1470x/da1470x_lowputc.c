@@ -149,6 +149,12 @@ void da1470x_uart_set_sclk(int uart, bool sclk) {
  ****************************************************************************/
 
 static uint32_t da1470x_get_uart_clk(void) {
+  /* DEBUG: hardcode 32 MHz to validate the rest of the UART setup path
+   * regardless of what the RCHS/PLL is actually doing. Revert once serial
+   * is confirmed working.
+   */
+  return 32000000;
+
   sys_clk_is_t sys_clk = hw_clk_get_sysclk();
   uint32_t freq = 32000000; /* Default safe frequency */
 
@@ -190,13 +196,18 @@ static void da1470x_setbaud(uintptr_t base,
   uint32_t divisor;
   uint32_t dlf;
   uint32_t cr;
-  bool sclk = true; /* Use Div1 (System Clock) explicitly */
+  /* Use DivN clock (32 MHz on DA1470x regardless of sysclk speed) to match
+   * the Renesas SDK default. Selecting DIV1 (= sysclk, e.g. 96 MHz on RCHS)
+   * would require recomputing the divisor against that clock — but the
+   * per-baud divisor constants documented in the datasheet (UART_BAUDRATE_*)
+   * assume 32 MHz DivN.
+   */
+  bool sclk = false; /* DivN = 32 MHz */
 
-  /* Set UART Clock Source to DIV1 (System Clock) */
   da1470x_uart_set_sclk(base, sclk);
 
-  /* Get UART Clock Frequency */
-  uart_clk = da1470x_get_uart_clk();
+  /* UART runs from DivN = 32 MHz */
+  uart_clk = 32000000;
 
   /* Calculate Divisor
    * Divisor = UART_CLK / (16 * BaudRate)
@@ -217,7 +228,11 @@ static void da1470x_setbaud(uintptr_t base,
    * val_x16 >> 4 dlf = val_x16 & 0xF
    */
 
-  uint32_t clk_per_bit = uart_clk / baud_rate;
+  /* Round to nearest to match the Renesas-published UART_BAUDRATE_* constants
+   * (e.g. 115200 -> 0x1106 with DLL=0x11=17 and DLF=0x06, not 0x05 from
+   * truncation).
+   */
+  uint32_t clk_per_bit = (uart_clk + (baud_rate / 2)) / baud_rate;
   divisor = clk_per_bit >> 4;
   dlf = clk_per_bit & 0xF;
 
@@ -234,11 +249,9 @@ static void da1470x_setbaud(uintptr_t base,
   cr |= UART_LCR_DLAB;
   putreg32(cr, base + DA1470_UART_LCR_OFFSET);
 
-  /* Set fraction byte of baud rate */
+  /* Set fraction byte of baud rate (DLF is a 4-bit register) */
 
-  cr = getreg32(base + DA1470_UART_DLF_OFFSET);
-  cr = dlf & UART_LCR_WLS_MASK;
-  putreg32(cr, base + DA1470_UART_DLF_OFFSET);
+  putreg32(dlf & 0xF, base + DA1470_UART_DLF_OFFSET);
 
   /* Set low byte of baud rate */
 
@@ -466,6 +479,17 @@ void da1470x_uart_configure(uintptr_t base,
 
   da1470x_uart_enable(base);
 
+  /* Software-reset the UART so we can safely (re)configure it even if
+   * the controller was left in a BUSY state (e.g. from a prior boot-time
+   * lowsetup). On the DesignWare UART, writes to LCR are silently dropped
+   * while USR.BUSY is set, which would prevent DLAB from latching and
+   * cause divisor writes to land in THR — producing wrong baud and
+   * spurious TX bytes.
+   */
+
+  putreg32(UART_SRR_UR | UART_SRR_RFR | UART_SRR_XFR,
+           base + DA1470_UART_SRR_OFFSET);
+
   /* Disable interrupts (IER) */
   putreg32(0, base + DA1470_UART_IER_DLH_OFFSET);
 
@@ -606,14 +630,16 @@ void da1470x_uart_setformat(uintptr_t base,
 
 void arm_lowputc(char ch) {
 #ifdef HAVE_UART_CONSOLE
-  /* Wait until the TX data register is empty */
+  /* Wait until there is space in the TX FIFO. Use USR.TFNF rather than
+   * LSR.THRE: when the buffered driver later enables IER.PTIME
+   * (Programmable THRE Interrupt mode), the LSR.THRE bit can be cleared
+   * by hardware as a side effect of IIR reads, which would make this
+   * poll loop spin forever even though the FIFO has room.
+   */
 
-  while ((getreg32(CONSOLE_BASE + DA1470_UART_LSR_OFFSET) & UART_LSR_THRE) == 0)
+  while ((getreg32(CONSOLE_BASE + DA1470_UART_USR_OFFSET) & UART_USR_TFNF) == 0)
     ;
 
-  /* Then send the character */
-
   putreg32((uint32_t)ch, CONSOLE_BASE + DA1470_UART_RBR_THR_DLL_OFFSET);
-
 #endif
 }

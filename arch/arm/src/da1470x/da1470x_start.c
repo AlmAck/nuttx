@@ -97,17 +97,34 @@ void __start(void)
 
   __asm__ __volatile__ ("\tcpsid  i\n");
 
-  /* Set the vector table base address.  The default vector address is
-   * 0x0000:0000 but if we are executing code that is positioned in SRAM or in
-   * external FLASH, then we may need to reset the interrupt vector so that
-   * it refers to the table in SRAM or in external FLASH.
+  /* Set the vector table base address. On the DA1470x the boot ROM
+   * configures REMAP_ADR0 = OQSPI Flash, so the vector table provided by
+   * the linker (at the start of the image binary) is accessible at
+   * address 0x00000000 via remapping. The .vectors VMA at 0x0F000200
+   * (and its 0x20000200 data-bus alias) is uninitialised RAM — nothing
+   * copies the vectors there. Point NVIC_VECTAB at the remapped flash
+   * location where the vectors actually live.
    */
 
-  putreg32((uint32_t)_vectors, NVIC_VECTAB);
+  putreg32(0x00000000, NVIC_VECTAB);
+
+  __asm__ __volatile__ ("dsb" : : : "memory");
+  __asm__ __volatile__ ("isb" : : : "memory");
 
   /* Configure the UART so that we can get debug output as soon as possible */
 
   da1470x_pwr_init();
+
+  /* Freeze both watchdog control paths. The DA1470x SYS WDT is enabled out
+   * of reset and will reset the chip after ~10s during bring-up. Belt +
+   * suspenders:
+   *   - GPREG.SET_FREEZE_REG bit 3 = FRZ_SYS_WDOG (the "official" path).
+   *   - SYS_WDOG.WATCHDOG_CTRL_REG bit 2 = WDOG_FREEZE_EN (direct enable).
+   */
+
+  putreg32(0x8, 0x50040100);  /* GPREG.SET_FREEZE_REG  <- FRZ_SYS_WDOG */
+  putreg32(getreg32(0x50000704) | 0x4, 0x50000704);  /* SYS_WDOG CTRL.WDOG_FREEZE_EN */
+
   da1470_clockconfig();
   da1470x_lowsetup();
   showprogress('A');
