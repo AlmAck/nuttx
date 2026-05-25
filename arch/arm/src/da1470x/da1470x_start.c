@@ -99,8 +99,16 @@ void __start(void) {
   extern uint32_t _sretention_text[];
   extern uint32_t _eretention_text[];
   extern uint32_t _sram_data_lma[];
-  extern uint32_t _sram_data[];
-  extern uint32_t _eram_data[];
+  extern uint32_t __retention_ram_init_start__[];
+  extern uint32_t __retention_ram_init_end__[];
+  extern uint32_t __retention_ram_zi_start__[];
+  extern uint32_t __retention_ram_zi_end__[];
+  extern uint32_t __shared_section_retained_zi_start__[];
+  extern uint32_t __shared_section_retained_zi_end__[];
+  extern uint32_t __snc_shared_start__[];
+  extern uint32_t __snc_shared_end__[];
+  extern uint32_t _sdata[];
+  extern uint32_t _edata[];
   extern uint32_t _sbss[];
   extern uint32_t _ebss[];
 
@@ -121,7 +129,17 @@ void __start(void) {
    * it refers to the table in SRAM or in external FLASH.
    */
 
-  putreg32((uintptr_t)_svectors, NVIC_VECTAB);
+  uint32_t vectab = (uint32_t)_svectors;
+  if ((vectab & 0xff000000) == 0x0f000000) {
+    vectab += 0x11000000; /* Translate to data bus alias 0x20000000 */
+  }
+
+  putreg32(vectab, NVIC_VECTAB);
+
+  /* Ensure memory writes and vector table configuration have completed */
+
+  __asm__ __volatile__("dsb" : : : "memory");
+  __asm__ __volatile__("isb" : : : "memory");
 
   /* Configure the UART so that we can get debug output as soon as possible */
 
@@ -155,10 +173,41 @@ void __start(void) {
 
   showprogress('B');
 
-  /* Move the consolidated data and retention data sections into RAMS. */
+  /* Initialize retention data section. */
 
-  for (src = (const uint32_t *)_sram_data_lma, dest = (uint32_t *)_sram_data;
-       dest < (uint32_t *)_eram_data;) {
+  for (src = (const uint32_t *)_sram_data_lma,
+      dest = (uint32_t *)__retention_ram_init_start__;
+       dest < (uint32_t *)__retention_ram_init_end__;) {
+    *dest++ = *src++;
+  }
+
+  /* Clear retention zero-init data section. */
+
+  for (dest = (uint32_t *)__retention_ram_zi_start__;
+       dest < (uint32_t *)__retention_ram_zi_end__;) {
+    *dest++ = 0;
+  }
+
+  /* Clear shared retained zero-init data section. */
+
+  for (dest = (uint32_t *)__shared_section_retained_zi_start__;
+       dest < (uint32_t *)__shared_section_retained_zi_end__;) {
+    *dest++ = 0;
+  }
+
+  /* Clear SNC shared zero-init data section. */
+
+  for (dest = (uint32_t *)__snc_shared_start__;
+       dest < (uint32_t *)__snc_shared_end__;) {
+    *dest++ = 0;
+  }
+
+  /* Initialize standard data section. */
+
+  src = (const uint32_t *)((uintptr_t)_sram_data_lma +
+                           ((uintptr_t)__retention_ram_init_end__ -
+                            (uintptr_t)__retention_ram_init_start__));
+  for (dest = (uint32_t *)_sdata; dest < (uint32_t *)_edata;) {
     *dest++ = *src++;
   }
 
@@ -189,6 +238,7 @@ void __start(void) {
 
   da1470x_board_initialize();
   showprogress('F');
+  
 
   /* Then start NuttX */
 

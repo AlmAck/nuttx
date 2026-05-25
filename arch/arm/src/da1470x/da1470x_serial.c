@@ -700,11 +700,11 @@ static void da1470x_send(struct uart_dev_s *dev, int ch) {
 static void da1470x_txint(struct uart_dev_s *dev, bool enable) {
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
 
+  irqstate_t flags = enter_critical_section();
+
   /* Read the current value of the IER_DLH register */
 
   uint16_t ier_dlh_reg = getreg32(priv->uartbase + DA1470_UART_IER_DLH_OFFSET);
-
-  irqstate_t flags = enter_critical_section();
 
   /* Modify the required fields */
 
@@ -712,12 +712,6 @@ static void da1470x_txint(struct uart_dev_s *dev, bool enable) {
     /* Enable the TX interrupt */
 
     ier_dlh_reg |= (UART_IER_ETBEI | UART_IER_PTIME);
-
-    /* Fake a TX interrupt here by just calling uart_xmitchars() with
-     * interrupts disabled (note this may recurse).
-     */
-
-    uart_xmitchars(dev);
   } else {
     /* Disable the TX interrupt */
 
@@ -727,7 +721,16 @@ static void da1470x_txint(struct uart_dev_s *dev, bool enable) {
   /* Write the updated value back to the register */
 
   putreg32(ier_dlh_reg, priv->uartbase + DA1470_UART_IER_DLH_OFFSET);
+
   leave_critical_section(flags);
+
+  if (enable) {
+    /* Fake a TX interrupt here by just calling uart_xmitchars() with
+     * interrupts disabled (note this may recurse).
+     */
+
+    uart_xmitchars(dev);
+  }
 }
 
 /****************************************************************************
@@ -739,11 +742,12 @@ static void da1470x_txint(struct uart_dev_s *dev, bool enable) {
  ****************************************************************************/
 
 static bool da1470x_txready(struct uart_dev_s *dev) {
-  /* struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv; */
+  struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
 
   /* Return true if the transmit FIFO is "not full." */
 
-  return true;
+  return (getreg32(priv->uartbase + DA1470_UART_USR_OFFSET) & UART_USR_TFNF) !=
+         0;
 }
 
 /****************************************************************************
@@ -755,11 +759,12 @@ static bool da1470x_txready(struct uart_dev_s *dev) {
  ****************************************************************************/
 
 static bool da1470x_txempty(struct uart_dev_s *dev) {
-  /* struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv; */
+  struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
 
   /* Return true if the transmit FIFO is "empty." */
 
-  return true;
+  return (getreg32(priv->uartbase + DA1470_UART_USR_OFFSET) & UART_USR_TFE) !=
+         0;
 }
 
 /****************************************************************************

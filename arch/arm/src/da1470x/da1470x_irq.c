@@ -36,8 +36,11 @@
 #include "arm_internal.h"
 #include "chip.h"
 #include "da1470x_irq.h"
+#include "hardware/da1470x_dma.h"
+#include "hardware/da1470x_vad.h"
 #include "nvic.h"
 #include "ram_vectors.h"
+#include <syslog.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -225,11 +228,23 @@ void up_irqinitialize(void) {
   int num_priority_registers;
   int i;
 
+  /* Diagnostic logging for IRQ 45 (VAD / DMA5) */
+
+  syslog(LOG_EMERG,
+         "IRQ45 PRE-CLEAR: DMA5:%08lx VAD3:%08lx VAD4:%08lx NVIC_PEND:%08lx\n",
+         getreg32(DA1470_DMA_DMA5_CTRL), getreg32(DA1470X_VAD_CTRL3),
+         getreg32(DA1470X_VAD_CTRL4),
+         getreg32(ARMV8M_NVIC_BASE + NVIC_IRQ_CLRPEND_OFFSET(45)));
+
   /* Disable all interrupts */
 
   for (i = 0; i < DA1470X_IRQ_NEXTINT; i += 32) {
     putreg32(0xffffffff, NVIC_IRQ_CLEAR(i));
+    putreg32(0xffffffff, NVIC_IRQ_CLRPEND(i));
   }
+
+  syslog(LOG_EMERG, "IRQ45 POST-CLEAR: NVIC_PEND:%08lx\n",
+         getreg32(ARMV8M_NVIC_BASE + NVIC_IRQ_CLRPEND_OFFSET(45)));
 
   /* Make sure that we are using the correct vector table.  The default
    * vector address is 0x0000:0000 but if we are executing code that is
@@ -238,7 +253,15 @@ void up_irqinitialize(void) {
    * external FLASH.
    */
 
-  putreg32((uint32_t)_vectors, NVIC_VECTAB);
+  uint32_t vectab = (uint32_t)_vectors;
+  if ((vectab & 0xff000000) == 0x0f000000) {
+    vectab += 0x11000000; /* Translate to data bus alias 0x20000000 */
+  }
+
+  putreg32(vectab, NVIC_VECTAB);
+
+  __asm__ __volatile__("dsb" : : : "memory");
+  __asm__ __volatile__("isb" : : : "memory");
 
 #ifdef CONFIG_ARCH_RAMVECTORS
   /* If CONFIG_ARCH_RAMVECTORS is defined, then we are using a RAM-based

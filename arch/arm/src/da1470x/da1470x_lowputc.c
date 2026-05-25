@@ -30,13 +30,17 @@
 #include "arm_internal.h"
 #include "hardware/da1470x_crg_snc.h"
 #include "hardware/da1470x_crg_top.h"
+#include "hardware/da1470x_dma.h"
 #include "hardware/da1470x_memorymap.h"
 #include "hardware/da1470x_uart.h"
+#include "hardware/da1470x_vad.h"
 
 #include "da1470x_clockconfig.h"
 #include "da1470x_config.h"
 #include "da1470x_gpio.h"
+#include "da1470x_irq.h"
 #include "da1470x_lowputc.h"
+#include "nvic.h"
 
 #include <arch/board/board.h>
 
@@ -227,13 +231,13 @@ static void da1470x_setbaud(uintptr_t base,
    */
 
   cr = getreg32(base + DA1470_UART_LCR_OFFSET);
-  cr |= UART_LCR_UART_DLAB;
+  cr |= UART_LCR_DLAB;
   putreg32(cr, base + DA1470_UART_LCR_OFFSET);
 
   /* Set fraction byte of baud rate */
 
   cr = getreg32(base + DA1470_UART_DLF_OFFSET);
-  cr = dlf & UART_DLF_UART_DLF;
+  cr = dlf & UART_DLF_MASK;
   putreg32(cr, base + DA1470_UART_DLF_OFFSET);
 
   /* Set low byte of baud rate */
@@ -251,7 +255,7 @@ static void da1470x_setbaud(uintptr_t base,
   /* Reset Divisor Latch Access Bit in LCR register */
 
   cr = getreg32(base + DA1470_UART_LCR_OFFSET);
-  cr &= ~UART_LCR_UART_DLAB;
+  cr &= ~UART_LCR_DLAB;
   putreg32(cr, base + DA1470_UART_LCR_OFFSET);
 }
 #endif
@@ -268,16 +272,16 @@ static void da1470x_setparity(uintptr_t base,
 
   if (config->parity == 1) /* Odd parity */
   {
-    regval |= UART_LCR_UART_PEN;
-    regval &= ~UART_LCR_UART_EPS;
+    regval |= UART_LCR_PEN;
+    regval &= ~UART_LCR_EPS;
   } else if (config->parity == 2) /* Even parity */
   {
-    regval |= UART_LCR_UART_PEN;
-    regval |= UART_LCR_UART_EPS;
+    regval |= UART_LCR_PEN;
+    regval |= UART_LCR_EPS;
   } else /* No parity */
   {
-    regval &= ~UART_LCR_UART_PEN;
-    regval &= ~UART_LCR_UART_EPS;
+    regval &= ~UART_LCR_PEN;
+    regval &= ~UART_LCR_EPS;
   }
 
   putreg32(regval, base + DA1470_UART_LCR_OFFSET);
@@ -314,8 +318,8 @@ static void da1470x_data_bits(uintptr_t base,
 
   /* Set Data Bits (DLS: bits [1:0])  */
 
-  regval &= ~UART_LCR_UART_DLS;              // Clear previous data bits setting
-  regval |= (data_bits & UART_LCR_UART_DLS); // Apply new data bits setting
+  regval &= ~UART_LCR_WLS_MASK;              // Clear previous data bits setting
+  regval |= (data_bits & UART_LCR_WLS_MASK); // Apply new data bits setting
 
   putreg32(regval, base + DA1470_UART_LCR_OFFSET);
 }
@@ -332,9 +336,9 @@ static void da1470x_setstops(uintptr_t base,
   regval = getreg32(base + DA1470_UART_LCR_OFFSET);
 
   if (config->stopbits2 == true) {
-    regval |= UART_LCR_UART_STOP;
+    regval |= UART_LCR_STOP;
   } else {
-    regval &= ~UART_LCR_UART_STOP;
+    regval &= ~UART_LCR_STOP;
   }
 
   putreg32(regval, base + DA1470_UART_LCR_OFFSET);
@@ -392,6 +396,39 @@ void da1470x_lowsetup(void) {
 
 #endif /* HAVE_UART_CONSOLE */
 #endif /* HAVE_UART_DEVICE */
+
+  /* 1. Disable VAD peripheral source and clear its pending interrupt.
+   * This is a "belt and suspenders" guard to prevent IRQ 45 from firing
+   * before the OS has fully initialized the interrupt system.
+   *
+   * Note: The VAD IRQ clearing mechanism requires toggling the sleep mode
+   * to force-clear certain false triggers as per datasheet recommendation.
+   */
+
+  /* Put VAD in standby and sleep */
+
+  putreg32(VAD_CTRL3_VAD_SB | VAD_CTRL3_VAD_SLEEP, DA1470X_VAD_CTRL3);
+
+  /* Force clear IRQ by toggling SLEEP (1 -> 0 -> 1) */
+
+  putreg32(VAD_CTRL3_VAD_SB, DA1470X_VAD_CTRL3);
+  putreg32(VAD_CTRL3_VAD_SB | VAD_CTRL3_VAD_SLEEP, DA1470X_VAD_CTRL3);
+
+  /* Clear the IRQ flag itself */
+
+  putreg32(VAD_CTRL4_VAD_IRQ_FLAG, DA1470X_VAD_CTRL4);
+
+  /* 2. Reset DMA Channel 5 (often associated with VAD or misused as IRQ 45
+   * source) */
+
+  putreg32(0, DA1470_DMA_DMA5_CTRL);
+
+  /* 3. Explicitly disable and clear IRQ 45 (VAD) in NVIC.
+   * This provides an early hammer before even leaving the low-level init.
+   */
+
+  putreg32(1 << (45 % 32), ARMV8M_NVIC_BASE + NVIC_IRQ_CLEAR_OFFSET(45));
+  putreg32(1 << (45 % 32), ARMV8M_NVIC_BASE + NVIC_IRQ_CLRPEND_OFFSET(45));
 }
 
 void da1470x_enable_snc(void) {
@@ -415,9 +452,6 @@ void da1470x_enable_snc(void) {
 #ifdef HAVE_UART_DEVICE
 void da1470x_uart_configure(uintptr_t base,
                             const struct uart_config_s *config) {
-  da1470x_pinset_t rx_pinset;
-  da1470x_pinset_t tx_pinset;
-
   /* Config GPIO pins for uart */
 
   /* Set specific PID function for the pins */
@@ -574,8 +608,7 @@ void arm_lowputc(char ch) {
 #ifdef HAVE_UART_CONSOLE
   /* Wait until the TX data register is empty */
 
-  while ((getreg32(CONSOLE_BASE + DA1470_UART_LSR_OFFSET) &
-          UART_LSR_UART_THRE) == 0)
+  while ((getreg32(CONSOLE_BASE + DA1470_UART_LSR_OFFSET) & UART_LSR_THRE) == 0)
     ;
 
   /* Then send the character */
