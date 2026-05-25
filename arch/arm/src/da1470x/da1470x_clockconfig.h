@@ -143,6 +143,8 @@ static inline void da1470x_switch_sysclk(sys_clk_is_t mode);
 
 // static inline sys_clk_is_t hw_clk_get_sysclk(void);
 
+rchs_speed_t hw_clk_get_rchs_mode(void);
+
 #undef EXTERN
 #if defined(__cplusplus)
 }

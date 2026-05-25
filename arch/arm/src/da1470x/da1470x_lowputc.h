@@ -27,11 +27,11 @@
 
 #include <nuttx/config.h>
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
-#include "da1470x_gpio.h"
 #include "da1470x_config.h"
+#include "da1470x_gpio.h"
 
 /****************************************************************************
  * Public Types
@@ -40,17 +40,16 @@
 #ifdef HAVE_UART_DEVICE
 /* This structure describes the configuration of an UART */
 
-struct uart_config_s
-{
-  uint32_t baud;          /* Configured baud */
-  uint8_t  parity;        /* 0=none, 1=odd, 2=even */
-  uint8_t  bits;          /* Number of bits (5-9) */
-  bool     stopbits2;     /* Configure with 2 stop bits instead of 1 */
+struct uart_config_s {
+  uint32_t baud;  /* Configured baud */
+  uint8_t parity; /* 0=none, 1=odd, 2=even */
+  uint8_t bits;   /* Number of bits (5-9) */
+  bool stopbits2; /* Configure with 2 stop bits instead of 1 */
 #ifdef CONFIG_SERIAL_AUTO_FLOW_CONTROL
-  bool     auto_flow_control;         /* Auto flow control supported */
+  bool auto_flow_control; /* Auto flow control supported */
 #endif
-  da1470x_pinset_t txpin;   /* TX pin */
-  da1470x_pinset_t rxpin;   /* RX pin */
+  da1470x_pinset_t txpin; /* TX pin */
+  da1470x_pinset_t rxpin; /* RX pin */
 };
 #endif
 
@@ -80,8 +79,7 @@ void da1470x_lowsetup(void);
  ****************************************************************************/
 
 #ifdef HAVE_UART_DEVICE
-void da1470x_uart_configure(uintptr_t base,
-                           const struct uart_config_s *config);
+void da1470x_uart_configure(uintptr_t base, const struct uart_config_s *config);
 #endif
 
 /****************************************************************************
@@ -118,13 +116,10 @@ void da1470x_uart_disable();
  ****************************************************************************/
 
 #ifdef HAVE_UART_DEVICE
-void da1470x_uart_setformat(uintptr_t base,
-                           const struct uart_config_s *config);
+void da1470x_uart_setformat(uintptr_t base, const struct uart_config_s *config);
 #endif
 
-
-//TODO move on its own .c file
+// TODO move on its own .c file
 void da1470x_enable_snc(void);
-
 
 #endif /* __ARCH_ARM_SRC_DA1470X_DA1470X_LOWPUTC_H */

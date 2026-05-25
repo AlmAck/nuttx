@@ -237,7 +237,7 @@ static void da1470x_setbaud(uintptr_t base,
   /* Set fraction byte of baud rate */
 
   cr = getreg32(base + DA1470_UART_DLF_OFFSET);
-  cr = dlf & UART_DLF_MASK;
+  cr = dlf & UART_LCR_WLS_MASK;
   putreg32(cr, base + DA1470_UART_DLF_OFFSET);
 
   /* Set low byte of baud rate */

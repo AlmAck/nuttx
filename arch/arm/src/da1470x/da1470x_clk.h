@@ -30,13 +30,12 @@
  * \brief The type of the system clock
  */
 
-typedef enum sys_clk_is_type
-{
-        SYS_CLK_IS_XTAL32M = 0,
-        SYS_CLK_IS_RCHS,
-        SYS_CLK_IS_RCLP,
-        SYS_CLK_IS_PLL,
-        SYS_CLK_IS_INVALID
+typedef enum sys_clk_is_type {
+  SYS_CLK_IS_XTAL32M = 0,
+  SYS_CLK_IS_RCHS,
+  SYS_CLK_IS_RCLP,
+  SYS_CLK_IS_PLL,
+  SYS_CLK_IS_INVALID
 } sys_clk_is_t;
 
 /**
@@ -46,15 +45,15 @@ typedef enum sys_clk_is_type
  *      cm_sys_clk_request/release()
  */
 
-typedef enum sys_clk_type
-{
-        SYSCLK_RCHS_32 = 0,     /*  RCHS 32MHz */
-        SYSCLK_XTAL32M = 2,     /*  32MHz */
-        SYSCLK_RCHS_64 = 4,     /*  RCHS 64MHz */
-        SYSCLK_RCHS_96 = 6,     /*  RCHS 96MHz */
-        SYSCLK_PLL160M = 10,    /*  160MHz */
-        SYSCLK_BOOTER  = 11,    /*  leave clock decision up to the booter (defined by CS content) */
-        SYSCLK_LP      = 255,   /*  not applicable */
+typedef enum sys_clk_type {
+  SYSCLK_RCHS_32 = 0,  /*  RCHS 32MHz */
+  SYSCLK_XTAL32M = 2,  /*  32MHz */
+  SYSCLK_RCHS_64 = 4,  /*  RCHS 64MHz */
+  SYSCLK_RCHS_96 = 6,  /*  RCHS 96MHz */
+  SYSCLK_PLL160M = 10, /*  160MHz */
+  SYSCLK_BOOTER =
+      11, /*  leave clock decision up to the booter (defined by CS content) */
+  SYSCLK_LP = 255, /*  not applicable */
 } sys_clk_t;
 
 /**
@@ -63,37 +62,34 @@ typedef enum sys_clk_type
  * \note Must only be used with functions hw_clk_set/get_rchs_mode()
  */
 
-typedef enum rchs_speed_type
-{
-        RCHS_32 = 0,    /* 32MHz */
-        RCHS_96,        /* 96MHz */
-        RCHS_64,        /* 64MHz */
+typedef enum rchs_speed_type {
+  RCHS_32 = 0, /* 32MHz */
+  RCHS_96,     /* 96MHz */
+  RCHS_64,     /* 64MHz */
 } rchs_speed_t;
 
 /**
  * \brief The CPU clock type (speed)
  */
 
-typedef enum cpu_clk_type
-{
-        CPUCLK_2M   = 2,    /* 2 MHz */
-        CPUCLK_4M   = 4,    /* 4 MHz */
-        CPUCLK_6M   = 6,    /* 6 MHz */
-        CPUCLK_8M   = 8,    /* 8 MHz */
-        CPUCLK_10M  = 10,   /* 10 MHz */
-        CPUCLK_12M  = 12,   /* 12 MHz */
-        CPUCLK_16M  = 16,   /* 16 MHz */
-        CPUCLK_20M  = 20,   /* 20 MHz */
-        CPUCLK_24M  = 24,   /* 24 MHz */
-        CPUCLK_32M  = 32,   /* 32 MHz */
-        CPUCLK_40M  = 40,   /* 40 MHz */
-        CPUCLK_48M  = 48,   /* 48 MHz */
-        CPUCLK_64M  = 64,   /* 64 MHz */
-        CPUCLK_80M  = 80,   /* 80 MHz */
-        CPUCLK_96M  = 96,   /* 96 MHz */
-        CPUCLK_160M = 160   /* 160 MHz */
+typedef enum cpu_clk_type {
+  CPUCLK_2M = 2,    /* 2 MHz */
+  CPUCLK_4M = 4,    /* 4 MHz */
+  CPUCLK_6M = 6,    /* 6 MHz */
+  CPUCLK_8M = 8,    /* 8 MHz */
+  CPUCLK_10M = 10,  /* 10 MHz */
+  CPUCLK_12M = 12,  /* 12 MHz */
+  CPUCLK_16M = 16,  /* 16 MHz */
+  CPUCLK_20M = 20,  /* 20 MHz */
+  CPUCLK_24M = 24,  /* 24 MHz */
+  CPUCLK_32M = 32,  /* 32 MHz */
+  CPUCLK_40M = 40,  /* 40 MHz */
+  CPUCLK_48M = 48,  /* 48 MHz */
+  CPUCLK_64M = 64,  /* 64 MHz */
+  CPUCLK_80M = 80,  /* 80 MHz */
+  CPUCLK_96M = 96,  /* 96 MHz */
+  CPUCLK_160M = 160 /* 160 MHz */
 } cpu_clk_t;
-
 
 /****************************************************************************
  * Public Function Prototypes

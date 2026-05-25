@@ -387,7 +387,7 @@ static void da1470x_detach(struct uart_dev_s *dev) {
 
   /* Disable interrupts */
 
-  putreg32(UART_IIR_FCR, priv->uartbase + DA1470_UART_IIR_FCR_OFFSET);
+  putreg32(0, priv->uartbase + DA1470_UART_IER_DLH_OFFSET);
   up_disable_irq(priv->irq);
 
   /* Detach from the interrupt(s) */
