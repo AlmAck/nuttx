@@ -32,9 +32,14 @@
 
 #include <nuttx/spinlock.h>
 
+#include <nuttx/irq.h>
+#include <arch/irq.h>
+
 #include "arm_internal.h"
 #include "hardware/da1470x_gpio.h"
+#include "hardware/da1470x_wkup.h"
 #include "da1470x_gpio.h"
+#include "da1470x_irq.h"
 
 /****************************************************************************
  * Private Functions
@@ -331,5 +336,195 @@ bool da1470x_gpio_read(da1470x_pinset_t pinset)
   regval = getreg32(offset);
 
   return (regval >> pin) & 1;
+}
+
+/****************************************************************************
+ * GPIO interrupt support (per-port WKUP toggle interrupts)
+ ****************************************************************************/
+
+#define GPIOIRQ_NPINS_PER_PORT  32
+
+struct da1470x_gpioirq_slot_s
+{
+  xcpt_t  handler;
+  void   *arg;
+};
+
+static struct da1470x_gpioirq_slot_s
+  g_gpioirq[DA1470_GPIO_NPORTS][GPIOIRQ_NPINS_PER_PORT];
+
+static int da1470x_gpioirq_dispatch(int port)
+{
+  uint32_t status = getreg32(DA1470_WKUP_STATUS_P(port));
+  uint32_t pending = status;
+  int pin;
+
+  /* Acknowledge all events on this port up front. Writing 1s to
+   * WKUP_CLEAR_Px clears the matching STATUS bits.
+   */
+
+  putreg32(status, DA1470_WKUP_CLEAR_P(port));
+
+  while (pending != 0)
+    {
+      pin = __builtin_ctz(pending);
+      pending &= ~(1u << pin);
+
+      if (g_gpioirq[port][pin].handler != NULL)
+        {
+          g_gpioirq[port][pin].handler(port * 100 + pin, NULL,
+                                       g_gpioirq[port][pin].arg);
+        }
+    }
+
+  return OK;
+}
+
+static int da1470x_gpioirq_isr_p0(int irq, void *ctx, void *arg)
+{
+  UNUSED(irq); UNUSED(ctx); UNUSED(arg);
+  return da1470x_gpioirq_dispatch(0);
+}
+
+static int da1470x_gpioirq_isr_p1(int irq, void *ctx, void *arg)
+{
+  UNUSED(irq); UNUSED(ctx); UNUSED(arg);
+  return da1470x_gpioirq_dispatch(1);
+}
+
+static int da1470x_gpioirq_isr_p2(int irq, void *ctx, void *arg)
+{
+  UNUSED(irq); UNUSED(ctx); UNUSED(arg);
+  return da1470x_gpioirq_dispatch(2);
+}
+
+void da1470x_gpioirq_initialize(void)
+{
+  int p;
+
+  /* Reset all per-port SELECT/POL/STATUS state. */
+
+  for (p = 0; p < DA1470_GPIO_NPORTS; p++)
+    {
+      putreg32(0, DA1470_WKUP_SELECT_P(p));
+      putreg32(0, DA1470_WKUP_POL_P(p));
+      putreg32(0xffffffff, DA1470_WKUP_CLEAR_P(p));
+    }
+
+  /* Attach the three per-port ISRs. The NVIC lines are enabled here
+   * but no pin is selected yet, so no IRQs will fire until something
+   * calls da1470x_gpioirq_attach() + da1470x_gpioirq_enable().
+   */
+
+  irq_attach(DA1470X_IRQ_GPIO_P0, da1470x_gpioirq_isr_p0, NULL);
+  irq_attach(DA1470X_IRQ_GPIO_P1, da1470x_gpioirq_isr_p1, NULL);
+  irq_attach(DA1470X_IRQ_GPIO_P2, da1470x_gpioirq_isr_p2, NULL);
+
+  up_enable_irq(DA1470X_IRQ_GPIO_P0);
+  up_enable_irq(DA1470X_IRQ_GPIO_P1);
+  up_enable_irq(DA1470X_IRQ_GPIO_P2);
+}
+
+int da1470x_gpioirq_attach(da1470x_pinset_t pinset,
+                           enum da1470x_gpio_edge_e edge,
+                           xcpt_t handler, void *arg)
+{
+  unsigned int port = (pinset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
+  unsigned int pin  = GPIO_PIN_DECODE(pinset);
+  uint32_t mask;
+  uint32_t regval;
+  irqstate_t flags;
+
+  if (port >= DA1470_GPIO_NPORTS || pin >= GPIOIRQ_NPINS_PER_PORT)
+    {
+      return -EINVAL;
+    }
+
+  mask = 1u << pin;
+
+  flags = enter_critical_section();
+
+  /* Stage the handler before unmasking. If handler is NULL the caller
+   * is detaching — also disable the source.
+   */
+
+  g_gpioirq[port][pin].handler = handler;
+  g_gpioirq[port][pin].arg     = arg;
+
+  /* Polarity: 0 = rising, 1 = falling. */
+
+  regval = getreg32(DA1470_WKUP_POL_P(port));
+  if (edge == DA1470X_GPIO_EDGE_FALLING)
+    {
+      regval |= mask;
+    }
+  else
+    {
+      regval &= ~mask;
+    }
+  putreg32(regval, DA1470_WKUP_POL_P(port));
+
+  /* Clear any stale event before enabling. */
+
+  putreg32(mask, DA1470_WKUP_CLEAR_P(port));
+
+  /* Update the per-port SELECT mask. */
+
+  regval = getreg32(DA1470_WKUP_SELECT_P(port));
+  if (handler != NULL)
+    {
+      regval |= mask;
+    }
+  else
+    {
+      regval &= ~mask;
+    }
+  putreg32(regval, DA1470_WKUP_SELECT_P(port));
+
+  leave_critical_section(flags);
+  return OK;
+}
+
+void da1470x_gpioirq_enable(da1470x_pinset_t pinset)
+{
+  unsigned int port = (pinset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
+  unsigned int pin  = GPIO_PIN_DECODE(pinset);
+  uint32_t mask;
+  uint32_t regval;
+  irqstate_t flags;
+
+  if (port >= DA1470_GPIO_NPORTS || pin >= GPIOIRQ_NPINS_PER_PORT)
+    {
+      return;
+    }
+
+  mask = 1u << pin;
+
+  flags = enter_critical_section();
+  putreg32(mask, DA1470_WKUP_CLEAR_P(port));
+  regval = getreg32(DA1470_WKUP_SELECT_P(port)) | mask;
+  putreg32(regval, DA1470_WKUP_SELECT_P(port));
+  leave_critical_section(flags);
+}
+
+void da1470x_gpioirq_disable(da1470x_pinset_t pinset)
+{
+  unsigned int port = (pinset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
+  unsigned int pin  = GPIO_PIN_DECODE(pinset);
+  uint32_t mask;
+  uint32_t regval;
+  irqstate_t flags;
+
+  if (port >= DA1470_GPIO_NPORTS || pin >= GPIOIRQ_NPINS_PER_PORT)
+    {
+      return;
+    }
+
+  mask = 1u << pin;
+
+  flags = enter_critical_section();
+  regval = getreg32(DA1470_WKUP_SELECT_P(port)) & ~mask;
+  putreg32(regval, DA1470_WKUP_SELECT_P(port));
+  leave_critical_section(flags);
 }
 

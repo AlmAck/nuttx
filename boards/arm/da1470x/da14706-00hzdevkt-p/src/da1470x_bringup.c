@@ -27,6 +27,8 @@
 #include <sys/types.h>
 #include <syslog.h>
 
+#include "da1470x_gpio.h"
+
 #ifdef CONFIG_USERLED
 #  include <nuttx/leds/userled.h>
 #endif
@@ -52,6 +54,13 @@
 int da1470x_bringup(void)
 {
   int ret;
+
+  /* Initialize the GPIO interrupt subsystem (per-port WKUP toggle IRQs).
+   * No pin sources are enabled here; consumers (touch, TE, buttons) call
+   * da1470x_gpioirq_attach() and da1470x_gpioirq_enable() to opt in.
+   */
+
+  da1470x_gpioirq_initialize();
 
 #ifdef CONFIG_USERLED
   /* Register the LED driver */

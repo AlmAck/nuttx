@@ -26,6 +26,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/irq.h>
 
 #ifndef __ASSEMBLY__
 #  include <stdint.h>
@@ -391,6 +392,37 @@ void da1470x_gpio_cpunet_allow(uint32_t gpio);
 
 void da1470x_gpio_cpunet_allow_all(void);
 #endif
+
+/****************************************************************************
+ * GPIO interrupt support
+ *
+ * The DA1470x routes per-pin GPIO edges through the WKUP block to three
+ * NVIC peripheral interrupts: GPIO_P0/P1/P2 (NVIC lines 14/15/16). A
+ * handler can be registered per (port, pin) pair; the ISR demultiplexes
+ * the WKUP_STATUS_Px register and dispatches.
+ ****************************************************************************/
+
+enum da1470x_gpio_edge_e
+{
+  DA1470X_GPIO_EDGE_RISING = 0,
+  DA1470X_GPIO_EDGE_FALLING,
+};
+
+/* One-time init: clear SELECT/STATUS state and attach per-port ISRs. */
+
+void da1470x_gpioirq_initialize(void);
+
+/* Register a handler for edge events on the pin encoded in pinset
+ * (only the PORT/PIN fields are used). Pass NULL handler to detach.
+ * Returns 0 on success, negative errno on bad port/pin.
+ */
+
+int da1470x_gpioirq_attach(da1470x_pinset_t pinset,
+                           enum da1470x_gpio_edge_e edge,
+                           xcpt_t handler, void *arg);
+
+void da1470x_gpioirq_enable(da1470x_pinset_t pinset);
+void da1470x_gpioirq_disable(da1470x_pinset_t pinset);
 
 #ifdef __cplusplus
 }
