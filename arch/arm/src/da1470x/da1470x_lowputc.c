@@ -40,6 +40,7 @@
 #include "da1470x_gpio.h"
 #include "da1470x_irq.h"
 #include "da1470x_lowputc.h"
+#include "da1470x_pmu.h"
 #include "nvic.h"
 
 #include <arch/board/board.h>
@@ -401,9 +402,11 @@ void da1470x_lowsetup(void) {
 #ifdef HAVE_UART_CONSOLE
   /* Configure the console UART (if any) */
 
-  // Enable PowerDomain snc to use the uart TODO create a proper "class" pm
-  // separately
-  da1470x_enable_snc();
+  /* PD_SNC hosts UART/I2C/SPI on the DA1470x; bring it up before
+   * touching any peripheral inside this domain.
+   */
+
+  da1470x_pd_enable(DA1470X_PD_SNC);
 
   da1470x_uart_configure(CONSOLE_BASE, &g_console_config);
 
@@ -444,15 +447,6 @@ void da1470x_lowsetup(void) {
   putreg32(1 << (45 % 32), ARMV8M_NVIC_BASE + NVIC_IRQ_CLRPEND_OFFSET(45));
 }
 
-void da1470x_enable_snc(void) {
-  // Clear the CRG_TOP_SNC_SLEEP bit in the DA1470_CRG_TOP_PMU_CTRL
-  putreg32(getreg32(DA1470_CRG_TOP_PMU_CTRL) & ~CRG_TOP_SNC_SLEEP,
-           DA1470_CRG_TOP_PMU_CTRL);
-
-  // Wait until the SNC_IS_UP bit in SYS_STAT_REG is set
-  while ((getreg32(DA1470_CRG_TOP_SYS_STAT) & CRG_TOP_SNC_IS_UP) == 0)
-    ;
-}
 
 /****************************************************************************
  * Name: da1470x_uart_configure

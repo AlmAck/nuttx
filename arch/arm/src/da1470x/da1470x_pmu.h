@@ -66,6 +66,26 @@
 // #define CRG_TOP_LDO_V30_OK               (1 << 5)
 
 /****************************************************************************
+ * Power-domain identifiers (used with da1470x_pd_enable/disable).
+ *
+ * The DA1470x has multiple power domains gated independently via the
+ * PMU_CTRL.<x>_SLEEP bits, with readiness signalled by SYS_STAT.<x>_IS_UP.
+ * PD_SYS contains the M33 itself and cannot be powered down at runtime;
+ * PD_MEM is gated together with PD_SYS and has no SLEEP bit.
+ ****************************************************************************/
+
+enum da1470x_pd_e
+{
+  DA1470X_PD_SNC = 0,   /* Sensor Node — UART, I2C, SPI, generic timers */
+  DA1470X_PD_TIM,       /* General-purpose TIMER block */
+  DA1470X_PD_AUD,       /* Audio */
+  DA1470X_PD_GPU,       /* GPU + LCDC + MIPI DSI/DPI */
+  DA1470X_PD_CTRL,      /* Controller (BLE/CMAC peripheral domain) */
+  DA1470X_PD_RAD,       /* Radio (digital part, includes CMAC core) */
+  DA1470X_NPD
+};
+
+/****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
@@ -76,5 +96,12 @@ void da1470x_pwr_init(void);
 void da1470x_pmu_set_1v2_max(void);
 
 void da1470x_pmu_enable_v12_if_needed(void);
+
+/* Power-domain control. Polls SYS_STAT.<x>_IS_UP after un-sleeping a
+ * domain; blocks until the domain is ready.
+ */
+
+void da1470x_pd_enable(enum da1470x_pd_e pd);
+void da1470x_pd_disable(enum da1470x_pd_e pd);
 
 #endif /* __ARCH_ARM_SRC_DA1470X_DA1470X_PMU_H */

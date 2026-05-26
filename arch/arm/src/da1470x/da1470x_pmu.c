@@ -102,3 +102,59 @@ void da1470x_pmu_enable_v12_if_needed(void)
       /* Spin until 1.2V rail stabilizes */
     }
 }
+
+/****************************************************************************
+ * Power-domain control
+ *
+ * Each entry maps a logical domain to its PMU_CTRL.<x>_SLEEP control bit
+ * and the corresponding SYS_STAT.<x>_IS_UP readiness bit.
+ ****************************************************************************/
+
+struct da1470x_pd_s
+{
+  uint32_t sleep_mask;
+  uint32_t up_mask;
+};
+
+static const struct da1470x_pd_s g_pd_table[DA1470X_NPD] =
+{
+  [DA1470X_PD_SNC]  = { CRG_TOP_SNC_SLEEP,   CRG_TOP_SNC_IS_UP  },
+  [DA1470X_PD_TIM]  = { CRG_TOP_TIM_SLEEP,   CRG_TOP_TIM_IS_UP  },
+  [DA1470X_PD_AUD]  = { CRG_TOP_AUD_SLEEP,   CRG_TOP_AUD_IS_UP  },
+  [DA1470X_PD_GPU]  = { CRG_TOP_GPU_SLEEP,   CRG_TOP_GPU_IS_UP  },
+  [DA1470X_PD_CTRL] = { CRG_TOP_CTRL_SLEEP,  CRG_TOP_CTRL_IS_UP },
+  [DA1470X_PD_RAD]  = { CRG_TOP_RADIO_SLEEP, CRG_TOP_RAD_IS_UP  },
+};
+
+void da1470x_pd_enable(enum da1470x_pd_e pd)
+{
+  if ((unsigned)pd >= DA1470X_NPD)
+    {
+      return;
+    }
+
+  /* Clear the SLEEP bit (== request the domain to be powered up). */
+
+  putreg32(getreg32(DA1470_CRG_TOP_PMU_CTRL) & ~g_pd_table[pd].sleep_mask,
+           DA1470_CRG_TOP_PMU_CTRL);
+
+  /* Wait until the IS_UP bit asserts. */
+
+  while ((getreg32(DA1470_CRG_TOP_SYS_STAT) & g_pd_table[pd].up_mask) == 0)
+    ;
+}
+
+void da1470x_pd_disable(enum da1470x_pd_e pd)
+{
+  if ((unsigned)pd >= DA1470X_NPD)
+    {
+      return;
+    }
+
+  /* Set the SLEEP bit to power the domain down. No wait — the domain
+   * will go down asynchronously and IS_UP will deassert.
+   */
+
+  putreg32(getreg32(DA1470_CRG_TOP_PMU_CTRL) | g_pd_table[pd].sleep_mask,
+           DA1470_CRG_TOP_PMU_CTRL);
+}
