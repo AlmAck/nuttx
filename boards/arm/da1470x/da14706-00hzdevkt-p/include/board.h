@@ -38,7 +38,10 @@
 
 /* Clocking *****************************************************************/
 
-#define BOARD_SYSTICK_CLOCK         (64000000)
+/* Sysclk is set to RCHS_96 (96 MHz) by da1470_clockconfig(); SysTick
+ * runs off the CPU clock, so this must match.
+ */
+#define BOARD_SYSTICK_CLOCK         (96000000)
 
 /* LED definitions **********************************************************/
 

@@ -706,12 +706,17 @@ static void da1470x_txint(struct uart_dev_s *dev, bool enable) {
   /* Modify the required fields */
 
   if (enable) {
-    /* Enable the TX interrupt */
+    /* Enable the TX interrupt. Do NOT set PTIME (Programmable THRE
+     * Interrupt Mode): with PTIME=1 the THRE interrupt re-asserts the
+     * moment the FIFO drains below threshold and stays asserted while
+     * empty, generating an IRQ storm whenever xmit.buffer is empty
+     * because the IIR's THRE indication only clears by writing data --
+     * not by reading IIR. Plain ETBEI fires once when THR transitions
+     * to empty, which is what NuttX's uart_xmitchars expects.
+     */
 
-    ier_dlh_reg |= (UART_IER_ETBEI | UART_IER_PTIME);
+    ier_dlh_reg |= UART_IER_ETBEI;
   } else {
-    /* Disable the TX interrupt */
-
     ier_dlh_reg &= ~(UART_IER_ETBEI | UART_IER_PTIME);
   }
 

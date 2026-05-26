@@ -255,13 +255,21 @@ static inline void da1470_amba_enableperipherals(void) {
   uint32_t cr;
   cr = getreg32(DA1470_CRG_TOP_CLK_AMBA);
 
-  // TODO extend with a configurable divider
+  /* HCLK_DIV (bits [2:0]) selects the AHB/processor clock divider; reset
+   * value on the DA1470x is 0b010 = /4. To run the M33 at full sysclk
+   * we must clear the existing HCLK_DIV/PCLK_DIV fields before OR-ing
+   * the new value -- the original `cr |= (MASK & DIV1)` was a no-op
+   * because DIV1 = 0 and OR with 0 doesn't clear anything. Same for
+   * PCLK_DIV (bits [4:3]).
+   *
+   * Without this fix, M33 runs at sysclk/4 (24 MHz @ RCHS_96), which
+   * makes SysTick tick 4x slower than BOARD_SYSTICK_CLOCK assumes.
+   */
 
-  // set divider, The AMBA High Speed Bus divider
-  cr |= (CLK_AMBA_REG_HCLK_DIV_MASK & CLK_AMBA_REG_HCLK_DIV1);
-
-  // set divider, The AMBA Peripheral Bus divider
-  cr |= (CLK_AMBA_REG_PCLK_DIV_MASK & CLK_AMBA_REG_HCLK_DIV1);
+  cr &= ~(CRG_TOP_HCLK_DIV_MASK | CRG_TOP_PCLK_DIV_MASK);
+  /* HCLK_DIV1 = 0 and PCLK_DIV1 = 0 — both fields end up zero, which
+   * means divide-by-1 on both AHB and APB.
+   */
 
   putreg32(cr, DA1470_CRG_TOP_CLK_AMBA);
 }
