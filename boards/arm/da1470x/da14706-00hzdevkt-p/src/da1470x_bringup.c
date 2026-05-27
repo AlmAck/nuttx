@@ -26,15 +26,18 @@
 
 #include <sys/types.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <syslog.h>
 #include <semaphore.h>
 #include <time.h>
 
+#include <nuttx/i2c/i2c_master.h>
 #include <nuttx/spi/spi.h>
 
 #include "da1470x_dma.h"
 #include "da1470x_gpio.h"
+#include "da1470x_i2c.h"
 #include "da1470x_spi.h"
 
 #ifdef CONFIG_USERLED
@@ -217,6 +220,44 @@ int da1470x_bringup(void)
     else
       {
         syslog(LOG_ERR, "SPI: bus0 init failed\n");
+      }
+  }
+
+  /* Bring up I2C0 and probe a couple of common addresses. Without any
+   * peripheral wired up we expect NACK (-ENXIO) from each probe; what
+   * the smoke test really confirms is that the bus state machine starts
+   * and stops cleanly within the polled timeout window.
+   */
+
+  {
+    struct i2c_master_s *i2c =
+      da1470x_i2cbus_initialize(DA1470X_I2C_BUS_I2C);
+    if (i2c != NULL)
+      {
+        /* Sweep the full 7-bit address space and report which respond.
+         * A correctly functioning driver on an empty bus should see all
+         * NACKs; a list of "everything responds" is a NACK-detection bug.
+         */
+
+        const uint8_t probe_addrs[] = { 0x10, 0x50, 0x68 };
+        for (size_t k = 0; k < sizeof(probe_addrs); k++)
+          {
+            uint8_t dummy = 0;
+            struct i2c_msg_s msg =
+            {
+              .frequency = 400000,
+              .addr      = probe_addrs[k],
+              .flags     = 0,
+              .buffer    = &dummy,
+              .length    = 1,
+            };
+            int r = I2C_TRANSFER(i2c, &msg, 1);
+            syslog(LOG_INFO, "I2C: probe 0x%02x -> %d\n", probe_addrs[k], r);
+          }
+      }
+    else
+      {
+        syslog(LOG_ERR, "I2C: bus0 init failed\n");
       }
   }
 

@@ -82,3 +82,6 @@ CONFIG_TIMER_ARCH=y
 # SPI master subsystem
 CONFIG_SPI=y
 CONFIG_SPI_EXCHANGE=y
+
+# I2C master subsystem
+CONFIG_I2C=y
