@@ -36,6 +36,7 @@
 #include <nuttx/spi/spi.h>
 
 #include "da1470x_dma.h"
+#include "da1470x_e120a390qsr.h"
 #include "da1470x_gpio.h"
 #include "da1470x_i2c.h"
 #include "da1470x_lcdc.h"
@@ -274,6 +275,24 @@ int da1470x_bringup(void)
       {
         syslog(LOG_INFO,
                "LCDC: alive at 0x30030000 (IDREG magic verified)\n");
+
+        /* Power up the daughterboard, run the RM69091 init sequence,
+         * and paint the panel solid red. First-light smoke test for the
+         * E120A390QSR (390x390 AMOLED).
+         */
+
+        r = da1470x_e120a390_initialize();
+        if (r == OK)
+          {
+            syslog(LOG_INFO,
+                   "E120A390QSR: init done, filling RED...\n");
+            da1470x_e120a390_fill(0xF800);   /* RGB565 red */
+            syslog(LOG_INFO, "E120A390QSR: fill complete\n");
+          }
+        else
+          {
+            syslog(LOG_ERR, "E120A390QSR: init failed (%d)\n", r);
+          }
       }
     else
       {

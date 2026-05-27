@@ -96,4 +96,21 @@ void da1470x_lcdc_qspi_send_cmd(uint8_t qspi_prefix, uint8_t dcs_cmd);
 
 void da1470x_lcdc_qspi_send_data(uint8_t data);
 
+/****************************************************************************
+ * Name: da1470x_lcdc_qspi_configure
+ *
+ * Description:
+ *   One-time LCDC configuration for a quad-SPI panel:
+ *     - LCDC_DBIB_CFG: QUAD_SPI_EN=1, DBIB_INTERFACE_EN=1, CSX behavior,
+ *       SPI clock polarity/phase
+ *     - LCDC_CLKCTRL_REG: set CLK_DIV to clk_div (1 = full source clock,
+ *       2 = half, etc.). The LCDC source clock on DA1470x DivN is 32 MHz;
+ *       div=1 -> 32 MHz SCLK, which is comfortably under the RM69091's
+ *       50 MHz max.
+ *   The caller is responsible for setting up GPIO pinmux first and for
+ *   calling da1470x_lcdc_set_iface_serial() to flip the pad-mux.
+ ****************************************************************************/
+
+void da1470x_lcdc_qspi_configure(uint8_t clk_div);
+
 #endif /* __ARCH_ARM_SRC_DA1470X_DA1470X_LCDC_H */

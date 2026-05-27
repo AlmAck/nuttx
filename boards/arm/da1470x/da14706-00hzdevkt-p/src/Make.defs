@@ -20,7 +20,7 @@
 
 include $(TOPDIR)/Make.defs
 
-CSRCS = da1470x_boot.c da1470x_bringup.c
+CSRCS = da1470x_boot.c da1470x_bringup.c da1470x_e120a390qsr.c
 
 ifeq ($(CONFIG_BOARDCTL),y)
 CSRCS += da1470x_appinit.c

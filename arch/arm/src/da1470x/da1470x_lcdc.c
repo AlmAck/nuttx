@@ -162,3 +162,34 @@ void da1470x_lcdc_qspi_send_data(uint8_t data)
 
   da1470x_lcdc_dbib_push(LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS | data);
 }
+
+void da1470x_lcdc_qspi_configure(uint8_t clk_div)
+{
+  /* DBIB_CFG: enable the DBIB interface block + put it in quad-SPI mode.
+   * INTERFACE_WIDTH selects the wire count for the data lanes; for
+   * quad-SPI we leave the field at 0 since QUAD_SPI_EN takes priority.
+   * SPI_CLK_POLARITY / SPI_CLK_PHASE are both 0 for the RM69091
+   * (mode-0-style). DBIB_CSX_CFG_EN with CSX_CFG=0 leaves CS asserted
+   * across multi-byte transfers, which is what serial-mode QSPI wants.
+   */
+
+  uint32_t cfg = LCDC_DBIB_CFG_INTERFACE_EN
+               | LCDC_DBIB_CFG_QUAD_SPI_EN
+               | LCDC_DBIB_CFG_CSX_CFG_EN;
+  putreg32(cfg, DA1470_LCDC_DBIB_CFG);
+
+  /* CLKCTRL: set the LCDC interface clock divider. SCLK_out = src / div.
+   * Source = CRG_SYS DivN = 32 MHz; div=1 -> 32 MHz SCLK.
+   */
+
+  if (clk_div == 0)
+    {
+      clk_div = 1;
+    }
+
+  uint32_t clkctrl = getreg32(DA1470_LCDC_CLKCTRL);
+  clkctrl &= ~LCDC_CLKCTRL_CLK_DIV_MASK;
+  clkctrl |= ((uint32_t)clk_div << LCDC_CLKCTRL_CLK_DIV_SHIFT)
+             & LCDC_CLKCTRL_CLK_DIV_MASK;
+  putreg32(clkctrl, DA1470_LCDC_CLKCTRL);
+}

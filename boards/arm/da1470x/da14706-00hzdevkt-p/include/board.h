@@ -118,5 +118,29 @@
 
 #define GPIO_TEST_OUTPUT (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PULLDOWN | GPIO_VALUE_ONE | GPIO_PORT0 | GPIO_PIN(12))
 
+/* LCDC / E120A390QSR display pins ******************************************/
+
+/* Daughterboard "da1470x-sb-E120A390QSR" hard-straps the panel into QSPI
+ * mode (R45 pulls IM1 high, R46 pulls IM0 low). The LCDC peripheral
+ * pad-mux is hardwired -- these MCU pins are not remappable.
+ *
+ * SCLK/SD0..SD3/CSX are programmed as plain GPIO at the GPIO controller
+ * (PID 0, no pull, OUTPUT). The LCDC steals them by writing
+ * LCDC_GPIO_REG.GPIO_OUTPUT_MODE = IF_SPI and OUTPUT_EN = 1, after which
+ * the LCDC itself drives the pads.
+ *
+ * RST and DCDC_EN are pure GPIO outputs driven by the panel driver.
+ */
+
+#define BOARD_LCDC_SCLK_PIN (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(14))
+#define BOARD_LCDC_SD0_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(15))
+#define BOARD_LCDC_SD1_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(16))
+#define BOARD_LCDC_SD3_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(17))
+#define BOARD_LCDC_CSX_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(18))
+#define BOARD_LCDC_SD2_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(22))
+#define BOARD_LCDC_TE_PIN   (GPIO_INPUT  | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(10))
+
+#define BOARD_LCDC_RST_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(23))
+#define BOARD_LCDC_DCDC_PIN (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT1 | GPIO_PIN(7))
 
 #endif /* __BOARDS_ARM_DA1470X_DA14706_00HZDEVKT_P_INCLUDE_BOARD_H */
