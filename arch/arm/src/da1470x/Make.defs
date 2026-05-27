@@ -29,7 +29,7 @@ CHIP_ASRCS  =
 CHIP_CSRCS  = da1470x_allocateheap.c da1470x_clk.c da1470x_clockconfig.c
 CHIP_CSRCS += da1470x_gpio.c da1470x_irq.c da1470x_lowputc.c
 CHIP_CSRCS += da1470x_start.c da1470x_systick.c da1470x_serial.c
-CHIP_CSRCS += da1470x_pmu.c da1470x_dma.c
+CHIP_CSRCS += da1470x_pmu.c da1470x_dma.c da1470x_spi.c
 
 
 #ifeq ($(CONFIG_DA1470_UART),y)

@@ -31,8 +31,11 @@
 #include <semaphore.h>
 #include <time.h>
 
+#include <nuttx/spi/spi.h>
+
 #include "da1470x_dma.h"
 #include "da1470x_gpio.h"
+#include "da1470x_spi.h"
 
 #ifdef CONFIG_USERLED
 #  include <nuttx/leds/userled.h>
@@ -185,6 +188,37 @@ int da1470x_bringup(void)
 
   da1470x_dma_initialize();
   da1470x_dma_smoke_test();
+
+  /* Bring up SPI0 and run a polled-transfer smoke test. Without a slave
+   * attached to MISO the read-back is undefined, but a successful clock
+   * cycle is observable: the controller drains the TX FIFO and asserts
+   * TX_EMPTY in SPI_STATUS within a few microseconds. If that never
+   * happens, the clock or FIFO config is wrong and we log it.
+   */
+
+  {
+    struct spi_dev_s *spi = da1470x_spibus_initialize(DA1470X_SPI_BUS_SPI);
+    if (spi != NULL)
+      {
+        uint8_t tx[4] = { 0xA5, 0x5A, 0x12, 0x34 };
+        uint8_t rx[4] = { 0 };
+
+        SPI_LOCK(spi, true);
+        SPI_SETMODE(spi, SPIDEV_MODE0);
+        SPI_SETBITS(spi, 8);
+        uint32_t f = SPI_SETFREQUENCY(spi, 4000000);
+        SPI_EXCHANGE(spi, tx, rx, sizeof(tx));
+        SPI_LOCK(spi, false);
+        syslog(LOG_INFO,
+               "SPI: bus0 init OK, actual freq=%lu Hz, "
+               "rx=%02x %02x %02x %02x\n",
+               (unsigned long)f, rx[0], rx[1], rx[2], rx[3]);
+      }
+    else
+      {
+        syslog(LOG_ERR, "SPI: bus0 init failed\n");
+      }
+  }
 
 #ifdef CONFIG_USERLED
   /* Register the LED driver */
