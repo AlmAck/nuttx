@@ -35,19 +35,11 @@
 
 #include "arm_internal.h"
 #include "da1470x_dma.h"
+#include "da1470x_irq.h"
+#include "da1470x_pmu.h"
 #include "hardware/da1470x_dma.h"
 
-/* Pre-processor Definitions ************************************************/
-
-#ifndef OK
-#define OK 0
-#endif
-
-#ifdef CONFIG_DEBUG_DMA_ERROR
-#define dmaerr(format, ...) _err(format, ##__VA_ARGS__)
-#else
-#define dmaerr(format, ...)
-#endif
+/* `dmaerr` and `OK` come from <debug.h> / <errno.h> respectively. */
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -136,6 +128,47 @@ static int da1470x_dma_interrupt(int irq, void *context, void *arg) {
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: da1470x_dma_initialize
+ ****************************************************************************/
+
+void da1470x_dma_initialize(void) {
+  static bool initialized = false;
+  int i;
+
+  if (initialized) {
+    return;
+  }
+
+  /* DMA controller lives in PD_SNC -- bring the domain up so register
+   * writes stick. lowsetup() already does this for the console UART,
+   * but da1470x_dma_initialize() may also be called from a board
+   * bring-up path that runs before any UART, so be defensive.
+   */
+
+  da1470x_pd_enable(DA1470X_PD_SNC);
+
+  /* Put every channel in a known-stopped state and clear any latched
+   * interrupt status.
+   */
+
+  for (i = 0; i < DA1470X_DMA_NCHANNELS; i++) {
+    putreg32(0, g_dmach[i].base + DA1470_DMA_DMA0_CTRL_OFFSET);
+  }
+  putreg32(0xff, DA1470_DMA_DMA_CLEAR_INT);
+  putreg32(0, DA1470_DMA_DMA_INT_MASK);
+
+  /* Attach the shared DMA interrupt now (used to be done lazily on the
+   * first da1470x_dma_start, which raced if two callers started at the
+   * same time).
+   */
+
+  irq_attach(DA1470X_IRQ_DMA, da1470x_dma_interrupt, NULL);
+  up_enable_irq(DA1470X_IRQ_DMA);
+
+  initialized = true;
+}
 
 /****************************************************************************
  * Name: da1470x_dmach_alloc
@@ -276,15 +309,6 @@ int da1470x_dma_setup(DMA_HANDLE handle,
 
 int da1470x_dma_start(DMA_HANDLE handle) {
   struct da1470x_dmach_s *dmachan = (struct da1470x_dmach_s *)handle;
-
-  /* Attach interrupt if not already attached */
-
-  static bool irq_attached = false;
-  if (!irq_attached) {
-    irq_attach(DA1470X_IRQ_DMA, da1470x_dma_interrupt, NULL);
-    up_enable_irq(DA1470X_IRQ_DMA);
-    irq_attached = true;
-  }
 
   /* Enable interrupt for this channel */
 

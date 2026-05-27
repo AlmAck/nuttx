@@ -121,6 +121,19 @@ extern "C" {
  *
  ****************************************************************************/
 
+/****************************************************************************
+ * Name: da1470x_dma_initialize
+ *
+ * Description:
+ *   One-time DMA controller initialization. Brings up the PD_SNC power
+ *   domain that hosts the DMA block, clears all channels into a safe
+ *   state, and attaches the shared DMA NVIC interrupt. Safe to call
+ *   more than once.
+ *
+ ****************************************************************************/
+
+void da1470x_dma_initialize(void);
+
 DMA_HANDLE da1470x_dmach_alloc(void);
 
 /****************************************************************************
