@@ -78,3 +78,87 @@ int da1470x_lcdc_initialize(void)
 
   return OK;
 }
+
+/****************************************************************************
+ * Pad-mux + flow control
+ ****************************************************************************/
+
+void da1470x_lcdc_set_iface_serial(bool si_on_so)
+{
+  uint32_t regval = getreg32(DA1470_LCDC_GPIO);
+
+  /* Replace OUTPUT_MODE field with "Serial", set OUTPUT_EN so the LCDC
+   * actually drives the pads, and optionally share SI on SO.
+   */
+
+  regval &= ~LCDC_GPIO_REG_GPIO_OUTPUT_MODE_MASK;
+  regval |= LCDC_GPIO_REG_IF_SPI | LCDC_GPIO_REG_GPIO_OUTPUT_EN;
+
+  if (si_on_so)
+    {
+      regval |= LCDC_GPIO_REG_GPIO_SPI_SI_ON_SD_PAD;
+    }
+  else
+    {
+      regval &= ~LCDC_GPIO_REG_GPIO_SPI_SI_ON_SD_PAD;
+    }
+
+  putreg32(regval, DA1470_LCDC_GPIO);
+}
+
+void da1470x_lcdc_set_hold(bool hold)
+{
+  uint32_t regval = getreg32(DA1470_LCDC_CLKCTRL);
+
+  if (hold)
+    {
+      regval |= LCDC_CLKCTRL_DMA_HOLD;
+    }
+  else
+    {
+      regval &= ~LCDC_CLKCTRL_DMA_HOLD;
+    }
+
+  putreg32(regval, DA1470_LCDC_CLKCTRL);
+}
+
+/* Push one 32-bit DBIB_CMD_REG entry, backing off if the on-chip FIFO is
+ * full. The FIFO is small (8 entries in the SDK); for init sequences
+ * with DMA_HOLD asserted up front this almost never blocks.
+ */
+
+static void da1470x_lcdc_dbib_push(uint32_t value)
+{
+  while ((getreg32(DA1470_LCDC_STATUS) & LCDC_STATUS_DBIB_CMD_FIFO_FULL) != 0)
+    ;
+
+  putreg32(value, DA1470_LCDC_DBIB_CMD);
+}
+
+void da1470x_lcdc_qspi_send_cmd(uint8_t qspi_prefix, uint8_t dcs_cmd)
+{
+  /* First entry: the QSPI write-prefix byte (e.g. 0x02 for RM69091).
+   * DBIB_CMD_SEND=1 says "this is the leading command byte of a new
+   * transaction"; QSPI_SERIAL_CMD_TRANS=1 says "serial framing".
+   */
+
+  da1470x_lcdc_dbib_push(LCDC_DBIB_CMD_DBIB_CMD_SEND
+                        | LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS
+                        | (qspi_prefix & 0xFFu));
+
+  /* Second entry: the actual DCS command byte, framed in 24 bits. The
+   * Raydium RM69091 expects a 24-bit address field after the write
+   * prefix, with the command byte at bits[15:8] and the rest zero.
+   */
+
+  da1470x_lcdc_dbib_push(LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS
+                        | LCDC_DBIB_CMD_CMD_WIDTH_24
+                        | (((uint32_t)dcs_cmd) << 8));
+}
+
+void da1470x_lcdc_qspi_send_data(uint8_t data)
+{
+  /* DBIB_CMD_SEND=0 (parameter, not new command), serial framing. */
+
+  da1470x_lcdc_dbib_push(LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS | data);
+}

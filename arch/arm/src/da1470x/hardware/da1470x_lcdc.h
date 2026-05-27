@@ -69,6 +69,8 @@
 #define DA1470_LCDC_IDREG                   (DA1470_LCDC_BASE + DA1470_LCDC_IDREG_OFFSET)
 #define DA1470_LCDC_STATUS                  (DA1470_LCDC_BASE + DA1470_LCDC_STATUS_OFFSET)
 #define DA1470_LCDC_INTERRUPT               (DA1470_LCDC_BASE + DA1470_LCDC_INTERRUPT_OFFSET)
+#define DA1470_LCDC_CLKCTRL                 (DA1470_LCDC_BASE + DA1470_LCDC_CLKCTRL_OFFSET)
+#define DA1470_LCDC_GPIO                    (DA1470_LCDC_BASE + DA1470_LCDC_GPIO_OFFSET)
 
 /* Magic value at LCDC_IDREG that confirms the block is alive and the
  * power domain / clock are up.
@@ -110,9 +112,32 @@
 #define LCDC_DBIB_CMD_DBIB_CMD_SEND         (1U << 30)
 #define LCDC_DBIB_CMD_CMD_WIDTH_SHIFT       28
 #define LCDC_DBIB_CMD_CMD_WIDTH_MASK        (0x3U << 28)
+#define LCDC_DBIB_CMD_CMD_WIDTH_8           (0U << 28)
+#define LCDC_DBIB_CMD_CMD_WIDTH_16          (1U << 28)
+#define LCDC_DBIB_CMD_CMD_WIDTH_24          (2U << 28)
+#define LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS (1U << 27)
 #define LCDC_DBIB_CMD_RD_MODE_EN            (1U << 26)
 #define LCDC_DBIB_CMD_ST_INT_CMD_TYPE       (1U << 24)
-#define LCDC_DBIB_CMD_DBIB_CMD_VAL_MASK     0xFFU
+#define LCDC_DBIB_CMD_DBIB_CMD_VAL_SHIFT    0
+#define LCDC_DBIB_CMD_DBIB_CMD_VAL_MASK     0x00FFFFFFU  /* 24-bit payload */
+
+/* LCDC_CLKCTRL_REG bits ****************************************************/
+
+#define LCDC_CLKCTRL_DMA_HOLD               (1U << 8)
+#define LCDC_CLKCTRL_CLK_DIV_SHIFT          0
+#define LCDC_CLKCTRL_CLK_DIV_MASK           (0xFFU << 0)
+
+/* LCDC_GPIO_REG bits (LCDC's own pad-mux) **********************************/
+
+#define LCDC_GPIO_REG_TE_INV                (1U << 1)
+#define LCDC_GPIO_REG_GPIO_OUTPUT_EN        (1U << 2)
+#define LCDC_GPIO_REG_GPIO_OUTPUT_MODE_SHIFT 3
+#define LCDC_GPIO_REG_GPIO_OUTPUT_MODE_MASK (0x3U << 3)
+#define LCDC_GPIO_REG_IF_JDI                (0U << 3)
+#define LCDC_GPIO_REG_IF_DPI                (1U << 3)
+#define LCDC_GPIO_REG_IF_DBIB               (2U << 3)
+#define LCDC_GPIO_REG_IF_SPI                (3U << 3)
+#define LCDC_GPIO_REG_GPIO_SPI_SI_ON_SD_PAD (1U << 5)
 
 /* LCDC_STATUS_REG bits *****************************************************/
 
