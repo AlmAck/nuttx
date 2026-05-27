@@ -38,6 +38,7 @@
 #include "da1470x_dma.h"
 #include "da1470x_gpio.h"
 #include "da1470x_i2c.h"
+#include "da1470x_lcdc.h"
 #include "da1470x_spi.h"
 
 #ifdef CONFIG_USERLED
@@ -258,6 +259,25 @@ int da1470x_bringup(void)
     else
       {
         syslog(LOG_ERR, "I2C: bus0 init failed\n");
+      }
+  }
+
+  /* Bring up the LCDC block and verify it responds. With nothing else
+   * configured yet, this only proves PD_GPU + CRG_SYS.LCD_ENABLE are
+   * correct and the controller block is alive at 0x30030000. Panel-
+   * specific mode programming comes in a later step.
+   */
+
+  {
+    int r = da1470x_lcdc_initialize();
+    if (r == OK)
+      {
+        syslog(LOG_INFO,
+               "LCDC: alive at 0x30030000 (IDREG magic verified)\n");
+      }
+    else
+      {
+        syslog(LOG_ERR, "LCDC: init failed (%d)\n", r);
       }
   }
 
