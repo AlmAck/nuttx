@@ -39,11 +39,91 @@
 #  include <nuttx/timers/rtc.h>
 #endif
 
+#ifdef CONFIG_DA1470X_OQSPI_MTD
+#  include <nuttx/mtd/mtd.h>
+#  ifdef CONFIG_FS_NXFFS
+#    include <nuttx/fs/nxffs.h>
+#  endif
+#endif
+
 #include "da1470x_gpio.h"
 #include "da1470x_dma.h"
 #include "da1470x_rtc.h"
 #include "da1470x_pdc.h"
+#include "da1470x_oqspi.h"
 #include "da14706-00hzdevkt-p.h"
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: da1470x_flash_initialize
+ *
+ * Description:
+ *   Carve the data partition out of the boot flash and expose it as
+ *   /dev/mtd0 (character), /dev/mtdblock0 (FTL) and, when NXFFS is
+ *   enabled, mount it.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_DA1470X_OQSPI_MTD
+static int da1470x_flash_initialize(void)
+{
+  struct mtd_dev_s *mtd;
+  struct mtd_dev_s *part;
+  off_t firstblock;
+  off_t nblocks;
+  int ret;
+
+  mtd = da1470x_oqspi_initialize();
+  if (mtd == NULL)
+    {
+      return -ENODEV;
+    }
+
+  firstblock = CONFIG_DA1470X_OQSPI_MTD_OFFSET / DA1470X_OQSPI_PAGE_SIZE;
+  nblocks    = CONFIG_DA1470X_OQSPI_MTD_SIZE / DA1470X_OQSPI_PAGE_SIZE;
+
+  part = mtd_partition(mtd, firstblock, nblocks);
+  if (part == NULL)
+    {
+      return -ENOMEM;
+    }
+
+  ret = register_mtddriver("/dev/mtd0", part, 0755, NULL);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to register /dev/mtd0: %d\n", ret);
+    }
+
+  ret = ftl_initialize(0, part);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to initialize FTL: %d\n", ret);
+      return ret;
+    }
+
+#ifdef CONFIG_FS_NXFFS
+  ret = nxffs_initialize(part);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "NXFFS initialization failed: %d\n", ret);
+      return ret;
+    }
+
+  ret = nx_mount(NULL, CONFIG_DA14706_OQSPI_MOUNTPOINT, "nxffs", 0, NULL);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to mount NXFFS at %s: %d\n",
+             CONFIG_DA14706_OQSPI_MOUNTPOINT, ret);
+      return ret;
+    }
+#endif
+
+  return OK;
+}
+#endif
 
 /****************************************************************************
  * Public Functions
@@ -124,6 +204,14 @@ int da1470x_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "Failed to initialize I2C: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_DA1470X_OQSPI_MTD
+  ret = da1470x_flash_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to initialize the flash partition: %d\n", ret);
     }
 #endif
 

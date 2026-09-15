@@ -219,6 +219,7 @@ config DA1470X_OQSPI_MTD
 	default n
 	select MTD
 	select MTD_BYTE_WRITE
+	select MTD_PARTITION
 	---help---
 		Expose the boot flash behind the OQSPI controller as an MTD
 		device.  Program and erase run from RAM with interrupts masked
