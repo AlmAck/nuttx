@@ -35,8 +35,13 @@
 #  include <nuttx/leds/userled.h>
 #endif
 
+#ifdef CONFIG_RTC_DRIVER
+#  include <nuttx/timers/rtc.h>
+#endif
+
 #include "da1470x_gpio.h"
 #include "da1470x_dma.h"
+#include "da1470x_rtc.h"
 #include "da14706-00hzdevkt-p.h"
 
 /****************************************************************************
@@ -85,6 +90,14 @@ int da1470x_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "Failed to initialize user LEDs: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_RTC_DRIVER
+  ret = rtc_initialize(0, da1470x_rtc_lowerhalf());
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to register /dev/rtc0: %d\n", ret);
     }
 #endif
 
