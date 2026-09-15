@@ -42,6 +42,7 @@
 #include "da1470x_gpio.h"
 #include "da1470x_dma.h"
 #include "da1470x_rtc.h"
+#include "da1470x_pdc.h"
 #include "da14706-00hzdevkt-p.h"
 
 /****************************************************************************
@@ -99,6 +100,15 @@ int da1470x_bringup(void)
     {
       syslog(LOG_ERR, "Failed to register /dev/rtc0: %d\n", ret);
     }
+#endif
+
+#ifdef CONFIG_DA1470X_PDC
+  /* Wake-up sources for the low-power states: RTC alarm and button K1 */
+
+  da1470x_pdc_add(DA1470X_PDC_TRIG_PERIPHERAL, DA1470X_PDC_PERIPH_RTC_ALARM,
+                  DA1470X_PDC_MASTER_CM33, DA1470X_PDC_FLAG_EN_XTAL);
+  da1470x_pdc_add(DA1470X_PDC_TRIG_P1_GPIO, GPIO_PIN_DECODE(GPIO_BUTTON1),
+                  DA1470X_PDC_MASTER_CM33, DA1470X_PDC_FLAG_EN_XTAL);
 #endif
 
 #ifdef CONFIG_DA1470X_SPI

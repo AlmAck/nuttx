@@ -98,6 +98,7 @@ static void da1470x_idlepm(void)
         {
           case PM_NORMAL:
           case PM_IDLE:
+            da1470x_pm_normal();
             break;
 
           case PM_STANDBY:
