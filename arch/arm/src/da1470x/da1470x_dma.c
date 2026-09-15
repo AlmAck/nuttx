@@ -35,50 +35,39 @@
 
 #include "arm_internal.h"
 #include "da1470x_dma.h"
-#include "da1470x_irq.h"
 #include "da1470x_pmu.h"
 #include "hardware/da1470x_dma.h"
-
-/* `dmaerr` and `OK` come from <debug.h> / <errno.h> respectively. */
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#define DA1470X_DMA_NCHANNELS 8
 
 /****************************************************************************
  * Private Types
  ****************************************************************************/
 
-struct da1470x_dmach_s {
-  uint8_t chan;            /* Channel number (0-7) */
-  bool used;               /* True if channel is allocated */
-  uintptr_t base;          /* Base address of channel registers */
-  dma_callback_t callback; /* User callback */
-  void *arg;               /* User argument */
+struct da1470x_dmach_s
+{
+  uint8_t        chan;      /* Channel number (0-7) */
+  bool           used;      /* True if channel is allocated */
+  uintptr_t      base;      /* Base address of channel registers */
+  dma_callback_t callback;  /* User callback */
+  void          *arg;       /* User argument */
 };
-
-/****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
-
-static int da1470x_dma_interrupt(int irq, void *context, void *arg);
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-static struct da1470x_dmach_s g_dmach[DA1470X_DMA_NCHANNELS] = {
-    {.chan = 0, .base = DA1470_DMA_BASE + 0x00},
-    {.chan = 1, .base = DA1470_DMA_BASE + 0x20},
-    {.chan = 2, .base = DA1470_DMA_BASE + 0x40},
-    {.chan = 3, .base = DA1470_DMA_BASE + 0x60},
-    {.chan = 4, .base = DA1470_DMA_BASE + 0x80},
-    {.chan = 5, .base = DA1470_DMA_BASE + 0xA0},
-    {.chan = 6, .base = DA1470_DMA_BASE + 0xC0},
-    {.chan = 7, .base = DA1470_DMA_BASE + 0xE0},
+static struct da1470x_dmach_s g_dmach[DA1470X_DMA_NCHANNELS] =
+{
+  { .chan = 0, .base = DA1470X_DMA_CHAN_BASE(0) },
+  { .chan = 1, .base = DA1470X_DMA_CHAN_BASE(1) },
+  { .chan = 2, .base = DA1470X_DMA_CHAN_BASE(2) },
+  { .chan = 3, .base = DA1470X_DMA_CHAN_BASE(3) },
+  { .chan = 4, .base = DA1470X_DMA_CHAN_BASE(4) },
+  { .chan = 5, .base = DA1470X_DMA_CHAN_BASE(5) },
+  { .chan = 6, .base = DA1470X_DMA_CHAN_BASE(6) },
+  { .chan = 7, .base = DA1470X_DMA_CHAN_BASE(7) },
 };
+
+static bool g_dma_initialized;
 
 /****************************************************************************
  * Private Functions
@@ -86,41 +75,41 @@ static struct da1470x_dmach_s g_dmach[DA1470X_DMA_NCHANNELS] = {
 
 /****************************************************************************
  * Name: da1470x_dma_interrupt
+ *
+ * Description:
+ *   Shared interrupt of all eight channels.  Bits 0-7 of INT_STATUS flag
+ *   completion, bits 8-15 flag a bus error on the same channel.
+ *
  ****************************************************************************/
 
-static int da1470x_dma_interrupt(int irq, void *context, void *arg) {
+static int da1470x_dma_interrupt(int irq, void *context, void *arg)
+{
   uint32_t status;
   int i;
 
-  /* Read interrupt status */
+  status = getreg32(DA1470X_DMA_INT_STATUS);
 
-  status = getreg32(DA1470_DMA_DMA_INT_STATUS);
+  for (i = 0; i < DA1470X_DMA_NCHANNELS; i++)
+    {
+      if ((status & (1u << i)) != 0)
+        {
+          struct da1470x_dmach_s *dmach = &g_dmach[i];
+          int result = OK;
 
-  /* Process each channel */
+          if ((status & (1u << (i + 8))) != 0)
+            {
+              result = -EIO;
+              dmaerr("DMA channel %d bus error\n", i);
+            }
 
-  for (i = 0; i < DA1470X_DMA_NCHANNELS; i++) {
-    if (status & (1 << i)) {
-      struct da1470x_dmach_s *dmachan = &g_dmach[i];
-      int result = OK;
+          putreg32(1u << i, DA1470X_DMA_CLEAR_INT);
 
-      /* Check for bus error */
-
-      if (status & (1 << (i + 8))) {
-        result = -EIO;
-        dmaerr("DMA channel %d bus error detected\n", i);
-      }
-
-      /* Clear interrupt */
-
-      putreg32(1 << i, DA1470_DMA_DMA_CLEAR_INT);
-
-      /* Invoke callback */
-
-      if (dmachan->callback) {
-        dmachan->callback((DMA_HANDLE)dmachan, dmachan->arg, result);
-      }
+          if (dmach->callback != NULL)
+            {
+              dmach->callback((DMA_HANDLE)dmach, dmach->arg, result);
+            }
+        }
     }
-  }
 
   return OK;
 }
@@ -133,65 +122,67 @@ static int da1470x_dma_interrupt(int irq, void *context, void *arg) {
  * Name: da1470x_dma_initialize
  ****************************************************************************/
 
-void da1470x_dma_initialize(void) {
-  static bool initialized = false;
+void da1470x_dma_initialize(void)
+{
   int i;
 
-  if (initialized) {
-    return;
-  }
+  if (g_dma_initialized)
+    {
+      return;
+    }
 
-  /* DMA controller lives in PD_SNC -- bring the domain up so register
-   * writes stick. lowsetup() already does this for the console UART,
-   * but da1470x_dma_initialize() may also be called from a board
-   * bring-up path that runs before any UART, so be defensive.
-   */
+  /* The DMA controller lives in PD_SNC */
 
   da1470x_pd_enable(DA1470X_PD_SNC);
 
-  /* Put every channel in a known-stopped state and clear any latched
-   * interrupt status.
-   */
+  for (i = 0; i < DA1470X_DMA_NCHANNELS; i++)
+    {
+      putreg32(0, g_dmach[i].base + DA1470X_DMA_CTRL_OFFSET);
+    }
 
-  for (i = 0; i < DA1470X_DMA_NCHANNELS; i++) {
-    putreg32(0, g_dmach[i].base + DA1470_DMA_DMA0_CTRL_OFFSET);
-  }
-  putreg32(0xff, DA1470_DMA_DMA_CLEAR_INT);
-  putreg32(0, DA1470_DMA_DMA_INT_MASK);
-
-  /* Attach the shared DMA interrupt now (used to be done lazily on the
-   * first da1470x_dma_start, which raced if two callers started at the
-   * same time).
-   */
+  putreg32(0xff, DA1470X_DMA_CLEAR_INT);
+  putreg32(0, DA1470X_DMA_INT_MASK);
 
   irq_attach(DA1470X_IRQ_DMA, da1470x_dma_interrupt, NULL);
   up_enable_irq(DA1470X_IRQ_DMA);
 
-  initialized = true;
+  g_dma_initialized = true;
 }
 
 /****************************************************************************
  * Name: da1470x_dmach_alloc
  ****************************************************************************/
 
-DMA_HANDLE da1470x_dmach_alloc(void) {
+DMA_HANDLE da1470x_dmach_alloc(int chan)
+{
   irqstate_t flags;
+  int first = 0;
+  int last  = DA1470X_DMA_NCHANNELS;
   int i;
+
+  if (chan != DA1470X_DMA_ANY_CHANNEL)
+    {
+      if (chan < 0 || chan >= DA1470X_DMA_NCHANNELS)
+        {
+          return NULL;
+        }
+
+      first = chan;
+      last  = chan + 1;
+    }
 
   flags = enter_critical_section();
 
-  for (i = 0; i < DA1470X_DMA_NCHANNELS; i++) {
-    if (!g_dmach[i].used) {
-      g_dmach[i].used = true;
-
-      /* Initialize the channel in a safe state */
-
-      putreg32(0, g_dmach[i].base + DA1470_DMA_DMA0_CTRL_OFFSET);
-
-      leave_critical_section(flags);
-      return (DMA_HANDLE)&g_dmach[i];
+  for (i = first; i < last; i++)
+    {
+      if (!g_dmach[i].used)
+        {
+          g_dmach[i].used = true;
+          putreg32(0, g_dmach[i].base + DA1470X_DMA_CTRL_OFFSET);
+          leave_critical_section(flags);
+          return (DMA_HANDLE)&g_dmach[i];
+        }
     }
-  }
 
   leave_critical_section(flags);
   return NULL;
@@ -201,21 +192,21 @@ DMA_HANDLE da1470x_dmach_alloc(void) {
  * Name: da1470x_dmach_free
  ****************************************************************************/
 
-void da1470x_dmach_free(DMA_HANDLE handle) {
-  struct da1470x_dmach_s *dmachan = (struct da1470x_dmach_s *)handle;
+void da1470x_dmach_free(DMA_HANDLE handle)
+{
+  struct da1470x_dmach_s *dmach = (struct da1470x_dmach_s *)handle;
   irqstate_t flags;
 
-  DEBUGASSERT(dmachan != NULL && dmachan->used);
+  DEBUGASSERT(dmach != NULL && dmach->used);
 
   flags = enter_critical_section();
 
-  /* Stop DMA and disable interrupts for this channel */
+  putreg32(0, dmach->base + DA1470X_DMA_CTRL_OFFSET);
+  putreg32(1u << dmach->chan, DA1470X_DMA_RESET_INT_MASK);
 
-  putreg32(0, dmachan->base + DA1470_DMA_DMA0_CTRL_OFFSET);
-  modreg32(0, 1 << dmachan->chan, DA1470_DMA_DMA_INT_MASK);
-
-  dmachan->used = false;
-  dmachan->callback = NULL;
+  dmach->used     = false;
+  dmach->callback = NULL;
+  dmach->arg      = NULL;
 
   leave_critical_section(flags);
 }
@@ -226,80 +217,78 @@ void da1470x_dmach_free(DMA_HANDLE handle) {
 
 int da1470x_dma_setup(DMA_HANDLE handle,
                       const struct da1470x_dma_config_s *config,
-                      dma_callback_t callback, void *arg) {
-  struct da1470x_dmach_s *dmachan = (struct da1470x_dmach_s *)handle;
+                      dma_callback_t callback, void *arg)
+{
+  struct da1470x_dmach_s *dmach = (struct da1470x_dmach_s *)handle;
   uint32_t ctrl = 0;
 
-  DEBUGASSERT(dmachan != NULL && config != NULL);
+  DEBUGASSERT(dmach != NULL && config != NULL);
 
-  dmachan->callback = callback;
-  dmachan->arg = arg;
+  dmach->callback = callback;
+  dmach->arg      = arg;
 
-  /* Set addresses and length */
+  putreg32(config->src,     dmach->base + DA1470X_DMA_A_START_OFFSET);
+  putreg32(config->dest,    dmach->base + DA1470X_DMA_B_START_OFFSET);
+  putreg32(config->len,     dmach->base + DA1470X_DMA_LEN_OFFSET);
+  putreg32(config->int_len, dmach->base + DA1470X_DMA_INT_OFFSET);
 
-  putreg32(config->src, dmachan->base + DA1470_DMA_DMA0_A_START_OFFSET);
-  putreg32(config->dest, dmachan->base + DA1470_DMA_DMA0_B_START_OFFSET);
-  putreg32(config->len, dmachan->base + DA1470_DMA_DMA0_LEN_OFFSET);
-  putreg32(config->int_len, dmachan->base + DA1470_DMA_DMA0_INT_OFFSET);
+  if (config->ainc)
+    {
+      ctrl |= DMA_DMA0_CTRL_AINC;
+    }
 
-  /* Configure CTRL register */
+  if (config->binc)
+    {
+      ctrl |= DMA_DMA0_CTRL_BINC;
+    }
 
-  if (config->ainc) {
-    ctrl |= DMA_DMA0_CTRL_AINC;
-  }
+  if (config->circular)
+    {
+      ctrl |= DMA_DMA0_CTRL_CIRCULAR;
+    }
 
-  if (config->binc) {
-    ctrl |= DMA_DMA0_CTRL_BINC;
-  }
+  if (config->idle)
+    {
+      ctrl |= DMA_DMA0_CTRL_IDLE;
+    }
 
-  if (config->circular) {
-    ctrl |= DMA_DMA0_CTRL_CIRCULAR;
-  }
+  if (config->init)
+    {
+      /* Memory initialisation: AINC must be 0 and BINC must be 1 */
 
-  if (config->idle) {
-    ctrl |= DMA_DMA0_CTRL_DMA_IDLE;
-  }
+      ctrl |= DMA_DMA0_CTRL_INIT | DMA_DMA0_CTRL_BINC;
+      ctrl &= ~DMA_DMA0_CTRL_AINC;
+    }
 
-  if (config->init) {
-    ctrl |= DMA_DMA0_CTRL_DMA_INIT;
+  if (config->req_sense)
+    {
+      ctrl |= DMA_DMA0_CTRL_REQ_SENSE;
+    }
 
-    /* Per datasheet: AINC must be 0 and BINC must be 1 for DMA_INIT */
+  if (config->bus_err_detect)
+    {
+      ctrl |= DMA_DMA0_CTRL_BUS_ERROR_DETECT;
+    }
 
-    ctrl &= ~DMA_DMA0_CTRL_AINC;
-    ctrl |= DMA_DMA0_CTRL_BINC;
-  }
+  if (config->exclusive_access)
+    {
+      ctrl |= DMA_DMA0_CTRL_EXCLUSIVE_ACCESS;
+    }
 
-  if (config->req_sense) {
-    ctrl |= DMA_DMA0_CTRL_REQ_SENSE;
-  }
+  if (config->dreq)
+    {
+      int pair = dmach->chan / 2;
 
-  if (config->bus_err_detect) {
-    ctrl |= DMA_DMA0_CTRL_BUS_ERROR_DETECT;
-  }
+      ctrl |= DMA_DMA0_CTRL_DREQ_MODE;
+      modifyreg32(DA1470X_DMA_REQ_MUX, DMA_REQ_MUX_MASK(pair),
+                  (config->peripheral & 0xf) << DMA_REQ_MUX_SHIFT(pair));
+    }
 
-  if (config->exclusive_access) {
-    ctrl |= DMA_DMA0_CTRL_DMA_EXCLUSIVE_ACCESS;
-  }
+  ctrl |= DMA_DMA0_CTRL_BW(config->bw);
+  ctrl |= DMA_DMA0_CTRL_BURST_MODE(config->burst);
+  ctrl |= DMA_DMA0_CTRL_PRIO(config->prio);
 
-  if (config->dreq) {
-    ctrl |= DMA_DMA0_CTRL_DREQ_MODE;
-
-    /* Configure MUX for peripheral request */
-
-    uint32_t mux_mask = 0xf << (4 * (dmachan->chan / 2));
-    uint32_t mux_val = (config->peripheral & 0xf) << (4 * (dmachan->chan / 2));
-
-    modreg32(mux_val, mux_mask, DA1470_DMA_DMA_REQ_MUX);
-  }
-
-  ctrl |= (config->bw << DMA_DMA0_CTRL_BW_POS) & DMA_DMA0_CTRL_BW_MASK;
-  ctrl |= (config->burst << DMA_DMA0_CTRL_BURST_MODE_POS) &
-          DMA_DMA0_CTRL_BURST_MODE_MASK;
-  ctrl |= (config->prio << DMA_DMA0_CTRL_DMA_PRIO_POS) &
-          DMA_DMA0_CTRL_DMA_PRIO_MASK;
-
-  putreg32(ctrl, dmachan->base + DA1470_DMA_DMA0_CTRL_OFFSET);
-
+  putreg32(ctrl, dmach->base + DA1470X_DMA_CTRL_OFFSET);
   return OK;
 }
 
@@ -307,18 +296,15 @@ int da1470x_dma_setup(DMA_HANDLE handle,
  * Name: da1470x_dma_start
  ****************************************************************************/
 
-int da1470x_dma_start(DMA_HANDLE handle) {
-  struct da1470x_dmach_s *dmachan = (struct da1470x_dmach_s *)handle;
+int da1470x_dma_start(DMA_HANDLE handle)
+{
+  struct da1470x_dmach_s *dmach = (struct da1470x_dmach_s *)handle;
 
-  /* Enable interrupt for this channel */
+  DEBUGASSERT(dmach != NULL);
 
-  modreg32(1 << dmachan->chan, 1 << dmachan->chan, DA1470_DMA_DMA_INT_MASK);
-
-  /* Turn on DMA */
-
-  modreg32(DMA_DMA0_CTRL_DMA_ON, DMA_DMA0_CTRL_DMA_ON,
-           dmachan->base + DA1470_DMA_DMA0_CTRL_OFFSET);
-
+  putreg32(1u << dmach->chan, DA1470X_DMA_CLEAR_INT);
+  putreg32(1u << dmach->chan, DA1470X_DMA_SET_INT_MASK);
+  modifyreg32(dmach->base + DA1470X_DMA_CTRL_OFFSET, 0, DMA_DMA0_CTRL_ON);
   return OK;
 }
 
@@ -326,18 +312,14 @@ int da1470x_dma_start(DMA_HANDLE handle) {
  * Name: da1470x_dma_stop
  ****************************************************************************/
 
-int da1470x_dma_stop(DMA_HANDLE handle) {
-  struct da1470x_dmach_s *dmachan = (struct da1470x_dmach_s *)handle;
+int da1470x_dma_stop(DMA_HANDLE handle)
+{
+  struct da1470x_dmach_s *dmach = (struct da1470x_dmach_s *)handle;
 
-  /* Turn off DMA */
+  DEBUGASSERT(dmach != NULL);
 
-  modreg32(0, DMA_DMA0_CTRL_DMA_ON,
-           dmachan->base + DA1470_DMA_DMA0_CTRL_OFFSET);
-
-  /* Disable interrupt for this channel */
-
-  modreg32(0, 1 << dmachan->chan, DA1470_DMA_DMA_INT_MASK);
-
+  modifyreg32(dmach->base + DA1470X_DMA_CTRL_OFFSET, DMA_DMA0_CTRL_ON, 0);
+  putreg32(1u << dmach->chan, DA1470X_DMA_RESET_INT_MASK);
   return OK;
 }
 
@@ -345,10 +327,27 @@ int da1470x_dma_stop(DMA_HANDLE handle) {
  * Name: da1470x_dma_get_residue
  ****************************************************************************/
 
-uint16_t da1470x_dma_get_residue(DMA_HANDLE handle) {
-  struct da1470x_dmach_s *dmachan = (struct da1470x_dmach_s *)handle;
-  uint16_t len = getreg32(dmachan->base + DA1470_DMA_DMA0_LEN_OFFSET);
-  uint16_t idx = getreg32(dmachan->base + DA1470_DMA_DMA0_IDX_OFFSET);
+uint16_t da1470x_dma_get_residue(DMA_HANDLE handle)
+{
+  struct da1470x_dmach_s *dmach = (struct da1470x_dmach_s *)handle;
+  uint16_t len;
+  uint16_t idx;
 
+  DEBUGASSERT(dmach != NULL);
+
+  len = getreg32(dmach->base + DA1470X_DMA_LEN_OFFSET);
+  idx = getreg32(dmach->base + DA1470X_DMA_IDX_OFFSET);
   return len - idx;
+}
+
+/****************************************************************************
+ * Name: da1470x_dma_channel
+ ****************************************************************************/
+
+int da1470x_dma_channel(DMA_HANDLE handle)
+{
+  struct da1470x_dmach_s *dmach = (struct da1470x_dmach_s *)handle;
+
+  DEBUGASSERT(dmach != NULL);
+  return dmach->chan;
 }

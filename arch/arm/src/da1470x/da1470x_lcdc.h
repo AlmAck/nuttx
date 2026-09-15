@@ -113,4 +113,60 @@ void da1470x_lcdc_qspi_send_data(uint8_t data);
 
 void da1470x_lcdc_qspi_configure(uint8_t clk_div);
 
+/****************************************************************************
+ * Name: da1470x_lcdc_set_resolution
+ *
+ * Description:
+ *   Program the LCDC display-timing registers (RESXY / FRONTPORCHXY /
+ *   BLANKINGXY / BACKPORCHXY / STARTXY) for a serial-output panel with
+ *   no real timing requirements. Mirrors hw_lcdc_set_lcd_timing() in the
+ *   SDK using the documented MIN_* values (fpx=1, blx=2, bpx=1, fpy=1,
+ *   bly=1, bpy=1). Active area is full-screen, origin (0,0).
+ ****************************************************************************/
+void da1470x_lcdc_set_resolution(uint16_t resx, uint16_t resy);
+
+/****************************************************************************
+ * Name: da1470x_lcdc_set_layer0
+ *
+ * Description:
+ *   Program Layer 0 (the only layer the panel driver uses) to fetch
+ *   pixels from a linear framebuffer:
+ *     - LAYER0_BASEADDR = baseaddr (must be 4-byte aligned)
+ *     - LAYER0_STARTXY  = (0, 0)
+ *     - LAYER0_SIZEXY   = (resx, resy)
+ *     - LAYER0_RESXY    = (resx, resy)
+ *     - LAYER0_STRIDE   = stride (bytes/line, 4-byte aligned)
+ *     - LAYER0_MODE     = L0_EN | alpha=0xFF | color_mode
+ *
+ *   color_mode is one of LCDC_OCM_8RGB565 / LCDC_OCM_8RGB888.
+ ****************************************************************************/
+void da1470x_lcdc_set_layer0(uintptr_t baseaddr, uint16_t resx, uint16_t resy,
+                             uint16_t stride, uint8_t color_mode);
+
+/****************************************************************************
+ * Name: da1470x_lcdc_qspi_send_frame_cmd
+ *
+ * Description:
+ *   Send the QSPI write-memory framing command (SSQ prefix + DCS cmd) that
+ *   tells the LCDC the next data phase will be pixel data streamed from
+ *   Layer 0 over quad lanes. For the RM69091 the SSQ prefix is 0x32 and
+ *   the DCS command is HW_LCDC_MIPI_DCS_WRITE_MEMORY_START (0x2C).
+ *
+ *   Caller is expected to da1470x_lcdc_set_hold(true) before, and to
+ *   trigger da1470x_lcdc_send_one_frame() afterwards.
+ ****************************************************************************/
+void da1470x_lcdc_qspi_send_frame_cmd(uint8_t ssq_prefix, uint8_t dcs_cmd);
+
+/****************************************************************************
+ * Name: da1470x_lcdc_send_one_frame
+ *
+ * Description:
+ *   Trigger a single LCDC frame: release DMA_HOLD, force CSX low so the
+ *   SSQ frame command and pixel data stay in one CSn transaction, then
+ *   set LCDC_MODE.SFRAME_UPD which kicks off the DMA fetch from Layer 0
+ *   and the QSPI quad-data emission. Polls LCDC_STATUS.FRAME_END for up
+ *   to ~250 ms and returns OK on completion, -ETIMEDOUT otherwise.
+ ****************************************************************************/
+int da1470x_lcdc_send_one_frame(void);
+
 #endif /* __ARCH_ARM_SRC_DA1470X_DA1470X_LCDC_H */

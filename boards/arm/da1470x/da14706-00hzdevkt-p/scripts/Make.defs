@@ -22,7 +22,7 @@ include $(TOPDIR)/.config
 include $(TOPDIR)/tools/Config.mk
 include $(TOPDIR)/arch/arm/src/armv8-m/Toolchain.defs
 
-ifeq ($(CONFIG_ARCH_CHIP_DA1470_CPUAPP),y)
+ifeq ($(CONFIG_ARCH_CHIP_DA1470X_CPUAPP),y)
 LDSCRIPT = flash_app.ld
 endif
 

@@ -3,37 +3,68 @@
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to you under the Apache License, Version
- * 2.0 (the "License"); you may not use this file except in compliance
- * with the License.
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_DA1470X_DA1470X_I2C_H
 #define __ARCH_ARM_SRC_DA1470X_DA1470X_I2C_H
 
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
 #include <nuttx/config.h>
 #include <nuttx/i2c/i2c_master.h>
 
-/* Bus numbering: 0 = I2C, 1 = I2C2, 2 = I2C3. All three live in PD_SNC. */
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
 
-#define DA1470X_I2C_BUS_I2C    0
-#define DA1470X_I2C_BUS_I2C2   1
-#define DA1470X_I2C_BUS_I2C3   2
+#undef EXTERN
+#if defined(__cplusplus)
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
 
 /****************************************************************************
  * Name: da1470x_i2cbus_initialize
  *
  * Description:
- *   Bring up an I2C master controller and return its NuttX i2c_master_s.
- *   The controller is configured as 7-bit-address master in Fast-mode
- *   (~400 kHz). Pin mux is the board's responsibility.
+ *   Initialize the selected I2C bus (0, 1 or 2) and return its master
+ *   structure.  The board must configure the SCL/SDA pins first.
  *
- * Returned Value:
- *   Non-NULL i2c_master_s on success; NULL on bad bus index.
  ****************************************************************************/
 
 struct i2c_master_s *da1470x_i2cbus_initialize(int bus);
+
+/****************************************************************************
+ * Name: da1470x_i2cbus_uninitialize
+ *
+ * Description:
+ *   Release the bus and stop its clock.
+ *
+ ****************************************************************************/
+
+int da1470x_i2cbus_uninitialize(struct i2c_master_s *dev);
+
+#undef EXTERN
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* __ARCH_ARM_SRC_DA1470X_DA1470X_I2C_H */

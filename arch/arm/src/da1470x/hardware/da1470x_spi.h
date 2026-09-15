@@ -1,96 +1,185 @@
 /****************************************************************************
  * arch/arm/src/da1470x/hardware/da1470x_spi.h
  *
- * SPI controller register definitions for DA1470x.
- *
- * The DA1470x has three SPI controllers (SPI, SPI2, SPI3). SPI/SPI2 live
- * in PD_SNC at 0x5002_0300 / 0x5002_0400; SPI3 lives in the SYS domain
- * at 0x5100_0200. The register layouts are identical so this header
- * defines a single set of offsets.
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to you under the Apache License, Version
- * 2.0 (the "License"); you may not use this file except in compliance
- * with the License.
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
+
+/* Generated from the Renesas CMSIS device header DA1470x-00.h (SDK
+ * 10.2.6.49).  Do not edit by hand; regenerate with tools/genhdr.py.
+ */
 
 #ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_SPI_H
 #define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_SPI_H
 
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
 #include <nuttx/config.h>
+#include "da1470x_memorymap.h"
 
-#include "hardware/da1470x_memorymap.h"
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
 
-/* Register offsets *********************************************************/
+/* Register Offsets *********************************************************/
 
-#define DA1470_SPI_CTRL_OFFSET           0x0000  /* SPI control register */
-#define DA1470_SPI_CONFIG_OFFSET         0x0004  /* SPI config register */
-#define DA1470_SPI_CLOCK_OFFSET          0x0008  /* Clock divider */
-#define DA1470_SPI_FIFO_CONFIG_OFFSET    0x000C  /* FIFO threshold levels */
-#define DA1470_SPI_IRQ_MASK_OFFSET       0x0010  /* IRQ mask */
-#define DA1470_SPI_STATUS_OFFSET         0x0014  /* Status */
-#define DA1470_SPI_FIFO_STATUS_OFFSET    0x0018  /* FIFO status */
-#define DA1470_SPI_FIFO_READ_OFFSET      0x001C  /* RX FIFO read port */
-#define DA1470_SPI_FIFO_WRITE_OFFSET     0x0020  /* TX FIFO write port */
-#define DA1470_SPI_CS_CONFIG_OFFSET      0x0024  /* CS line selection */
-#define DA1470_SPI_TXBUFFER_FORCE_OFFSET 0x002C  /* TX buffer force value */
+#define DA1470X_SPI_CTRL_OFFSET 0x0000           /* Spi control register */
+#define DA1470X_SPI_CONFIG_OFFSET 0x0004         /* Spi control register */
+#define DA1470X_SPI_CLOCK_OFFSET 0x0008          /* Spi clock register */
+#define DA1470X_SPI_FIFO_CONFIG_OFFSET 0x000c    /* Spi fifo configuration register */
+#define DA1470X_SPI_IRQ_MASK_OFFSET 0x0010       /* Spi interrupt mask register */
+#define DA1470X_SPI_STATUS_OFFSET 0x0014         /* Spi status register */
+#define DA1470X_SPI_FIFO_STATUS_OFFSET 0x0018    /* SPI RX/TX fifo status register */
+#define DA1470X_SPI_FIFO_READ_OFFSET 0x001c      /* Spi RX fifo read register */
+#define DA1470X_SPI_FIFO_WRITE_OFFSET 0x0020     /* Spi TX fifo wtite register */
+#define DA1470X_SPI_CS_CONFIG_OFFSET 0x0024      /* Spi cs configuration register */
+#define DA1470X_SPI_TXBUFFER_FORCE_OFFSET 0x002c /* SPI TX buffer force low value */
 
-/* SPI_CTRL_REG bits ********************************************************/
+/* Register Addresses *******************************************************/
 
-#define SPI_CTRL_SPI_EN                  (1U << 0)  /* Enable controller */
-#define SPI_CTRL_TX_EN                   (1U << 1)  /* Enable TX path */
-#define SPI_CTRL_RX_EN                   (1U << 2)  /* Enable RX path */
-#define SPI_CTRL_FIFO_RESET              (1U << 5)  /* Reset RX+TX FIFOs */
-#define SPI_CTRL_CAPTURE_AT_NEXT_EDGE    (1U << 6)  /* MSTR: capture next edge */
-#define SPI_CTRL_SWAP_BYTES              (1U << 7)  /* Byte-swap on 16/32b */
+#define DA1470X_SPI0_CTRL (DA1470X_SPI0_BASE + DA1470X_SPI_CTRL_OFFSET)
+#define DA1470X_SPI0_CONFIG (DA1470X_SPI0_BASE + DA1470X_SPI_CONFIG_OFFSET)
+#define DA1470X_SPI0_CLOCK (DA1470X_SPI0_BASE + DA1470X_SPI_CLOCK_OFFSET)
+#define DA1470X_SPI0_FIFO_CONFIG (DA1470X_SPI0_BASE + DA1470X_SPI_FIFO_CONFIG_OFFSET)
+#define DA1470X_SPI0_IRQ_MASK (DA1470X_SPI0_BASE + DA1470X_SPI_IRQ_MASK_OFFSET)
+#define DA1470X_SPI0_STATUS (DA1470X_SPI0_BASE + DA1470X_SPI_STATUS_OFFSET)
+#define DA1470X_SPI0_FIFO_STATUS (DA1470X_SPI0_BASE + DA1470X_SPI_FIFO_STATUS_OFFSET)
+#define DA1470X_SPI0_FIFO_READ (DA1470X_SPI0_BASE + DA1470X_SPI_FIFO_READ_OFFSET)
+#define DA1470X_SPI0_FIFO_WRITE (DA1470X_SPI0_BASE + DA1470X_SPI_FIFO_WRITE_OFFSET)
+#define DA1470X_SPI0_CS_CONFIG (DA1470X_SPI0_BASE + DA1470X_SPI_CS_CONFIG_OFFSET)
+#define DA1470X_SPI0_TXBUFFER_FORCE (DA1470X_SPI0_BASE + DA1470X_SPI_TXBUFFER_FORCE_OFFSET)
 
-/* SPI_CONFIG_REG bits ******************************************************/
+#define DA1470X_SPI1_CTRL (DA1470X_SPI1_BASE + DA1470X_SPI_CTRL_OFFSET)
+#define DA1470X_SPI1_CONFIG (DA1470X_SPI1_BASE + DA1470X_SPI_CONFIG_OFFSET)
+#define DA1470X_SPI1_CLOCK (DA1470X_SPI1_BASE + DA1470X_SPI_CLOCK_OFFSET)
+#define DA1470X_SPI1_FIFO_CONFIG (DA1470X_SPI1_BASE + DA1470X_SPI_FIFO_CONFIG_OFFSET)
+#define DA1470X_SPI1_IRQ_MASK (DA1470X_SPI1_BASE + DA1470X_SPI_IRQ_MASK_OFFSET)
+#define DA1470X_SPI1_STATUS (DA1470X_SPI1_BASE + DA1470X_SPI_STATUS_OFFSET)
+#define DA1470X_SPI1_FIFO_STATUS (DA1470X_SPI1_BASE + DA1470X_SPI_FIFO_STATUS_OFFSET)
+#define DA1470X_SPI1_FIFO_READ (DA1470X_SPI1_BASE + DA1470X_SPI_FIFO_READ_OFFSET)
+#define DA1470X_SPI1_FIFO_WRITE (DA1470X_SPI1_BASE + DA1470X_SPI_FIFO_WRITE_OFFSET)
+#define DA1470X_SPI1_CS_CONFIG (DA1470X_SPI1_BASE + DA1470X_SPI_CS_CONFIG_OFFSET)
+#define DA1470X_SPI1_TXBUFFER_FORCE (DA1470X_SPI1_BASE + DA1470X_SPI_TXBUFFER_FORCE_OFFSET)
 
-#define SPI_CONFIG_MODE_SHIFT            0          /* CPOL/CPHA: 0..3 */
-#define SPI_CONFIG_MODE_MASK             (0x3U << 0)
-#define SPI_CONFIG_WORD_LENGTH_SHIFT     2          /* Word length minus 1 */
-#define SPI_CONFIG_WORD_LENGTH_MASK      (0x1fU << 2)
-#define SPI_CONFIG_SLAVE_EN              (1U << 7)  /* 1 = slave mode */
+#define DA1470X_SPI2_CTRL (DA1470X_SPI2_BASE + DA1470X_SPI_CTRL_OFFSET)
+#define DA1470X_SPI2_CONFIG (DA1470X_SPI2_BASE + DA1470X_SPI_CONFIG_OFFSET)
+#define DA1470X_SPI2_CLOCK (DA1470X_SPI2_BASE + DA1470X_SPI_CLOCK_OFFSET)
+#define DA1470X_SPI2_FIFO_CONFIG (DA1470X_SPI2_BASE + DA1470X_SPI_FIFO_CONFIG_OFFSET)
+#define DA1470X_SPI2_IRQ_MASK (DA1470X_SPI2_BASE + DA1470X_SPI_IRQ_MASK_OFFSET)
+#define DA1470X_SPI2_STATUS (DA1470X_SPI2_BASE + DA1470X_SPI_STATUS_OFFSET)
+#define DA1470X_SPI2_FIFO_STATUS (DA1470X_SPI2_BASE + DA1470X_SPI_FIFO_STATUS_OFFSET)
+#define DA1470X_SPI2_FIFO_READ (DA1470X_SPI2_BASE + DA1470X_SPI_FIFO_READ_OFFSET)
+#define DA1470X_SPI2_FIFO_WRITE (DA1470X_SPI2_BASE + DA1470X_SPI_FIFO_WRITE_OFFSET)
+#define DA1470X_SPI2_CS_CONFIG (DA1470X_SPI2_BASE + DA1470X_SPI_CS_CONFIG_OFFSET)
+#define DA1470X_SPI2_TXBUFFER_FORCE (DA1470X_SPI2_BASE + DA1470X_SPI_TXBUFFER_FORCE_OFFSET)
 
-#define SPI_CONFIG_WORDLEN(bits)         (((bits) - 1) << SPI_CONFIG_WORD_LENGTH_SHIFT)
+/* Register Bit-field Definitions *******************************************/
 
-/* SPI_CLOCK_REG bits *******************************************************/
+/* CTRL register */
 
-#define SPI_CLOCK_DIV_MASK               0x7FU      /* SCLK = SPI_CLK / (2*(div+1)) */
+#define SPI_CTRL_EN (1 << 0)                   /* Bit 0 */
+#define SPI_CTRL_TX_EN (1 << 1)                /* Bit 1 */
+#define SPI_CTRL_RX_EN (1 << 2)                /* Bit 2 */
+#define SPI_CTRL_DMA_TX_EN (1 << 3)            /* Bit 3 */
+#define SPI_CTRL_DMA_RX_EN (1 << 4)            /* Bit 4 */
+#define SPI_CTRL_FIFO_RESET (1 << 5)           /* Bit 5 */
+#define SPI_CTRL_CAPTURE_AT_NEXT_EDGE (1 << 6) /* Bit 6 */
+#define SPI_CTRL_SWAP_BYTES (1 << 7)           /* Bit 7 */
 
-/* SPI_FIFO_CONFIG_REG bits *************************************************/
+/* CONFIG register */
 
-#define SPI_FIFO_CONFIG_TX_TL_SHIFT      0
-#define SPI_FIFO_CONFIG_TX_TL_MASK       (0xFFU << 0)
-#define SPI_FIFO_CONFIG_RX_TL_SHIFT      8
-#define SPI_FIFO_CONFIG_RX_TL_MASK       (0xFFU << 8)
+#define SPI_CONFIG_MODE_SHIFT (0)        /* Bits 0-1 */
+#define SPI_CONFIG_MODE_MASK (0x3 << SPI_CONFIG_MODE_SHIFT)
+#  define SPI_CONFIG_MODE(n) ((uint32_t)(n) << SPI_CONFIG_MODE_SHIFT)
+#define SPI_CONFIG_WORD_LENGTH_SHIFT (2) /* Bits 2-6 */
+#define SPI_CONFIG_WORD_LENGTH_MASK (0x1f << SPI_CONFIG_WORD_LENGTH_SHIFT)
+#  define SPI_CONFIG_WORD_LENGTH(n) ((uint32_t)(n) << SPI_CONFIG_WORD_LENGTH_SHIFT)
+#define SPI_CONFIG_SLAVE_EN (1 << 7)     /* Bit 7 */
 
-/* SPI_STATUS_REG bits ******************************************************/
+/* CLOCK register */
 
-#define SPI_STATUS_TX_EMPTY              (1U << 0)
-#define SPI_STATUS_RX_FULL               (1U << 1)
+#define SPI_CLOCK_CLK_DIV_SHIFT (0) /* Bits 0-6 */
+#define SPI_CLOCK_CLK_DIV_MASK (0x7f << SPI_CLOCK_CLK_DIV_SHIFT)
+#  define SPI_CLOCK_CLK_DIV(n) ((uint32_t)(n) << SPI_CLOCK_CLK_DIV_SHIFT)
 
-/* SPI_FIFO_STATUS_REG bits *************************************************/
+/* FIFO_CONFIG register */
 
-#define SPI_FIFO_STATUS_RX_LEVEL_SHIFT   0
-#define SPI_FIFO_STATUS_RX_LEVEL_MASK    (0x3FU << 0)
-#define SPI_FIFO_STATUS_TX_LEVEL_SHIFT   6
-#define SPI_FIFO_STATUS_TX_LEVEL_MASK    (0x3FU << 6)
-#define SPI_FIFO_STATUS_RX_EMPTY         (1U << 12)
-#define SPI_FIFO_STATUS_TX_FULL          (1U << 13)
-#define SPI_FIFO_STATUS_RX_FIFO_OVFL     (1U << 14)
-#define SPI_FIFO_STATUS_TRANSACTION_ACTIVE (1U << 15)
+#define SPI_FIFO_CONFIG_TX_TL_SHIFT (0) /* Bits 0-7 */
+#define SPI_FIFO_CONFIG_TX_TL_MASK (0xff << SPI_FIFO_CONFIG_TX_TL_SHIFT)
+#  define SPI_FIFO_CONFIG_TX_TL(n) ((uint32_t)(n) << SPI_FIFO_CONFIG_TX_TL_SHIFT)
+#define SPI_FIFO_CONFIG_RX_TL_SHIFT (8) /* Bits 8-15 */
+#define SPI_FIFO_CONFIG_RX_TL_MASK (0xff << SPI_FIFO_CONFIG_RX_TL_SHIFT)
+#  define SPI_FIFO_CONFIG_RX_TL(n) ((uint32_t)(n) << SPI_FIFO_CONFIG_RX_TL_SHIFT)
 
-/* SPI_CS_CONFIG_REG bits ***************************************************/
+/* IRQ_MASK register */
 
-#define SPI_CS_CONFIG_SELECT_SHIFT       0
-#define SPI_CS_CONFIG_SELECT_MASK        (0x7U << 0)
-#define SPI_CS_CONFIG_NONE               0
-#define SPI_CS_CONFIG_CS0                1
-#define SPI_CS_CONFIG_CS1                2
-#define SPI_CS_CONFIG_GPIO               7   /* CS driven by GPIO from caller */
+#define SPI_IRQ_MASK_IRQ_MASK_TX_EMPTY (1 << 0) /* Bit 0 */
+#define SPI_IRQ_MASK_IRQ_MASK_RX_FULL (1 << 1)  /* Bit 1 */
+
+/* STATUS register */
+
+#define SPI_STATUS_STATUS_TX_EMPTY (1 << 0) /* Bit 0 */
+#define SPI_STATUS_STATUS_RX_FULL (1 << 1)  /* Bit 1 */
+
+/* FIFO_STATUS register */
+
+#define SPI_FIFO_STATUS_RX_FIFO_LEVEL_SHIFT (0)      /* Bits 0-5 */
+#define SPI_FIFO_STATUS_RX_FIFO_LEVEL_MASK (0x3f << SPI_FIFO_STATUS_RX_FIFO_LEVEL_SHIFT)
+#  define SPI_FIFO_STATUS_RX_FIFO_LEVEL(n) ((uint32_t)(n) << SPI_FIFO_STATUS_RX_FIFO_LEVEL_SHIFT)
+#define SPI_FIFO_STATUS_TX_FIFO_LEVEL_SHIFT (6)      /* Bits 6-11 */
+#define SPI_FIFO_STATUS_TX_FIFO_LEVEL_MASK (0x3f << SPI_FIFO_STATUS_TX_FIFO_LEVEL_SHIFT)
+#  define SPI_FIFO_STATUS_TX_FIFO_LEVEL(n) ((uint32_t)(n) << SPI_FIFO_STATUS_TX_FIFO_LEVEL_SHIFT)
+#define SPI_FIFO_STATUS_STATUS_RX_EMPTY (1 << 12)    /* Bit 12 */
+#define SPI_FIFO_STATUS_STATUS_TX_FULL (1 << 13)     /* Bit 13 */
+#define SPI_FIFO_STATUS_RX_FIFO_OVFL (1 << 14)       /* Bit 14 */
+#define SPI_FIFO_STATUS_TRANSACTION_ACTIVE (1 << 15) /* Bit 15 */
+
+/* FIFO_READ register */
+
+#define SPI_FIFO_READ_FIFO_READ_SHIFT (0) /* Bits 0-31 */
+#define SPI_FIFO_READ_FIFO_READ_MASK (0xffffffff << SPI_FIFO_READ_FIFO_READ_SHIFT)
+#  define SPI_FIFO_READ_FIFO_READ(n) ((uint32_t)(n) << SPI_FIFO_READ_FIFO_READ_SHIFT)
+
+/* FIFO_WRITE register */
+
+#define SPI_FIFO_WRITE_FIFO_WRITE_SHIFT (0) /* Bits 0-31 */
+#define SPI_FIFO_WRITE_FIFO_WRITE_MASK (0xffffffff << SPI_FIFO_WRITE_FIFO_WRITE_SHIFT)
+#  define SPI_FIFO_WRITE_FIFO_WRITE(n) ((uint32_t)(n) << SPI_FIFO_WRITE_FIFO_WRITE_SHIFT)
+
+/* CS_CONFIG register */
+
+#define SPI_CS_CONFIG_CS_SELECT_SHIFT (0) /* Bits 0-2 */
+#define SPI_CS_CONFIG_CS_SELECT_MASK (0x7 << SPI_CS_CONFIG_CS_SELECT_SHIFT)
+#  define SPI_CS_CONFIG_CS_SELECT(n) ((uint32_t)(n) << SPI_CS_CONFIG_CS_SELECT_SHIFT)
+
+/* TXBUFFER_FORCE register */
+
+#define SPI_TXBUFFER_FORCE_TXBUFFER_FORCE_SHIFT (0) /* Bits 0-31 */
+#define SPI_TXBUFFER_FORCE_TXBUFFER_FORCE_MASK (0xffffffff << SPI_TXBUFFER_FORCE_TXBUFFER_FORCE_SHIFT)
+#  define SPI_TXBUFFER_FORCE_TXBUFFER_FORCE(n) ((uint32_t)(n) << SPI_TXBUFFER_FORCE_TXBUFFER_FORCE_SHIFT)
+
+/* Helpers ******************************************************************/
+
+#define SPI_CONFIG_WORDLEN(bits) (((bits) - 1) << SPI_CONFIG_WORD_LENGTH_SHIFT)
+#define SPI_CS_CONFIG_NONE 0
+#define SPI_CS_CONFIG_CS0 1
+#define SPI_CS_CONFIG_CS1 2
+#define SPI_CS_CONFIG_GPIO 7
+#define DA1470X_SPI_FIFO_DEPTH 32
 
 #endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_SPI_H */

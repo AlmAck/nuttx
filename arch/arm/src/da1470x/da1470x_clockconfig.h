@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_DA1470_CLOCKCONFIG_H
-#define __ARCH_ARM_SRC_DA1470_CLOCKCONFIG_H
+#ifndef __ARCH_ARM_SRC_DA1470X_DA1470X_CLOCKCONFIG_H
+#define __ARCH_ARM_SRC_DA1470X_DA1470X_CLOCKCONFIG_H
 
 /****************************************************************************
  * Included Files
@@ -27,128 +27,147 @@
 
 #include <nuttx/config.h>
 
-#include "arm_internal.h"
-#include "chip.h"
-#include "da1470x_clk.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifndef __ASSEMBLY__
+/* DIVN is the fixed 32 MHz clock feeding UART/SPI/I2C/LCDC/timers.  It is
+ * derived from whichever system clock is running (XTAL32M directly,
+ * RCHS/2 or /3, PLL/5) and is therefore constant.
+ */
 
-#undef EXTERN
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-extern "C"
-{
+#define DA1470X_DIVN_CLK_FREQ     32000000
+#define DA1470X_XTAL32M_FREQ      32000000
+#define DA1470X_RCHS_32_FREQ      32000000
+#define DA1470X_RCHS_64_FREQ      64000000
+#define DA1470X_RCHS_96_FREQ      96000000
+#define DA1470X_RCLP_SLOW_FREQ    32000
+#define DA1470X_RCLP_FAST_FREQ    512000
+#define DA1470X_XTAL32K_FREQ      32768
+
+/* Boot-time system clock frequency as selected by Kconfig */
+
+#if defined(CONFIG_DA1470X_CLOCK_XTAL32M_SRC)
+#  define DA1470X_SYSCLK_FREQ     DA1470X_XTAL32M_FREQ
+#elif defined(CONFIG_DA1470X_CLOCK_HFCLK_SRC_RCHS_64)
+#  define DA1470X_SYSCLK_FREQ     DA1470X_RCHS_64_FREQ
+#elif defined(CONFIG_DA1470X_CLOCK_HFCLK_SRC_RCHS_96)
+#  define DA1470X_SYSCLK_FREQ     DA1470X_RCHS_96_FREQ
 #else
-#define EXTERN extern
+#  define DA1470X_SYSCLK_FREQ     DA1470X_RCHS_32_FREQ
 #endif
 
 /****************************************************************************
- * Inline Functions
+ * Public Types
  ****************************************************************************/
+
+enum da1470x_sysclk_e
+{
+  DA1470X_SYSCLK_RCHS_32 = 0,   /* Internal RC, 32 MHz */
+  DA1470X_SYSCLK_RCHS_64,       /* Internal RC, 64 MHz */
+  DA1470X_SYSCLK_RCHS_96,       /* Internal RC, 96 MHz */
+  DA1470X_SYSCLK_XTAL32M,       /* External crystal, 32 MHz */
+  DA1470X_SYSCLK_RCLP           /* Low power RC (sleep only) */
+};
+
+enum da1470x_lpclk_e
+{
+  DA1470X_LPCLK_RCLP = 0,       /* Internal low power RC */
+  DA1470X_LPCLK_RCX,            /* Internal RCX */
+  DA1470X_LPCLK_XTAL32K,        /* External 32.768 kHz crystal */
+  DA1470X_LPCLK_EXTERNAL        /* External clock on GPIO */
+};
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Name: da1470_clockconfig
+ * Name: da1470x_clockconfig
  *
  * Description:
- *   Called to establish the clock settings for the DA1470 microcontroller.
- *   This function (by default) will reset most everything, enable the PLL,
- *   and enable peripheral clocking for all peripherals enabled in the
- *   NuttX configuration file.
- *
- *   If CONFIG_ARCH_BOARD_DA1470_CUSTOM_CLOCKCONFIG is defined, then
- *   clocking will be enabled by an externally provided, board-specific
- *   function called stm32_board_clockconfig().
- *
- * Input Parameters:
- *   None
- *
- * Returned Value:
- *   None
+ *   Establish the boot clock configuration selected by Kconfig: enable the
+ *   requested high-frequency source, switch the system clock to it, set
+ *   the AMBA dividers to /1 and start the low-power clock.
  *
  ****************************************************************************/
 
-void da1470_clockconfig(void);
+void da1470x_clockconfig(void);
 
 /****************************************************************************
- * Name: stm32_board_clockconfig
+ * Name: da1470x_set_sysclk
  *
  * Description:
- *   Any STM32U5 board may replace the "standard" board clock configuration
- *   logic with its own, custom clock configuration logic.
+ *   Switch the system clock to the requested source, enabling it first if
+ *   needed.  Returns OK or a negated errno.
  *
  ****************************************************************************/
 
-#ifdef CONFIG_ARCH_BOARD_DA1470_CUSTOM_CLOCKCONFIG
-void da1470_board_clockconfig(void);
-#endif
+int da1470x_set_sysclk(enum da1470x_sysclk_e clk);
 
 /****************************************************************************
- * Name: da1470_stdclockconfig
+ * Name: da1470x_get_sysclk
  *
  * Description:
- *   The standard logic to configure the clocks based on settings in board.h.
- *   Applicable if no custom clock config is provided.
+ *   Return the current system (CPU) clock frequency in Hz.
  *
  ****************************************************************************/
 
-#ifndef CONFIG_ARCH_BOARD_DA1470_CUSTOM_CLOCKCONFIG
-static void da1470_stdclockconfig(void);
-#endif
+uint32_t da1470x_get_sysclk(void);
 
 /****************************************************************************
- * Name: da1470_clockenable
+ * Name: da1470x_get_sysclk_src
  *
  * Description:
- *   Re-enable the clock and restore the clock settings based on settings in
- *   board.h.  This function is only available to support low-power modes of
- *   operation:  When re-awakening from deep-sleep modes, it is necessary to
- *   re-enable/re-start the PLL
- *
- *   This function performs a subset of the operations performed by
- *   da1470_clockenable():  It does not reset any devices, and it does not
- *   reset the currently enabled peripheral clocks.
- *
- *   If CONFIG_ARCH_BOARD_DA1470_CUSTOM_CLOCKCONFIG is defined, then
- *   clocking will be enabled by an externally provided, board-specific
- *   function called da1470_board_clockconfig().
- *
- * Input Parameters:
- *   None
- *
- * Returned Value:
- *   None
+ *   Return the currently selected system clock source.
  *
  ****************************************************************************/
 
-#ifdef CONFIG_PM
-void da1470_clockenable(void);
-#endif
+enum da1470x_sysclk_e da1470x_get_sysclk_src(void);
 
-static inline void set_hclk_div(uint32_t div);
-static inline void set_pclk_div(uint32_t div);
-static inline void da1470_amba_enableperipherals(void);
+/****************************************************************************
+ * Name: da1470x_get_divn_clk
+ *
+ * Description:
+ *   Return the DIVN peripheral clock frequency in Hz (always 32 MHz).
+ *
+ ****************************************************************************/
 
-static void da1470x_switch_to_rchs(rchs_speed_t mode);
-void da1470x_set_sysclk(sys_clk_t type);
+uint32_t da1470x_get_divn_clk(void);
 
-static inline void da1470x_switch_sysclk(sys_clk_is_t mode);
+/****************************************************************************
+ * Name: da1470x_get_lpclk
+ *
+ * Description:
+ *   Return the nominal low-power clock frequency in Hz.
+ *
+ ****************************************************************************/
 
-// static inline sys_clk_is_t hw_clk_get_sysclk(void);
+uint32_t da1470x_get_lpclk(void);
 
-rchs_speed_t hw_clk_get_rchs_mode(void);
+/****************************************************************************
+ * Name: da1470x_xtal32m_enable / da1470x_xtal32m_disable
+ *
+ * Description:
+ *   Start (and wait for) or stop the 32 MHz crystal oscillator.
+ *
+ ****************************************************************************/
 
-#undef EXTERN
-#if defined(__cplusplus)
-}
-#endif
+int  da1470x_xtal32m_enable(void);
+void da1470x_xtal32m_disable(void);
 
-#endif /* __ASSEMBLY__ */
-#endif /* __ARCH_ARM_SRC_DA1470_CLOCKCONFIG_H */
+/****************************************************************************
+ * Name: da1470x_rchs_disable
+ *
+ * Description:
+ *   Stop the high-speed RC oscillator.  Only allowed when the system clock
+ *   runs from XTAL32M.
+ *
+ ****************************************************************************/
+
+void da1470x_rchs_disable(void);
+
+#endif /* __ARCH_ARM_SRC_DA1470X_DA1470X_CLOCKCONFIG_H */

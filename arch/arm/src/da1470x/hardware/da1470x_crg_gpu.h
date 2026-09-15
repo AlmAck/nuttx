@@ -18,8 +18,12 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470X_CRG_GPU_H
-#define __DA1470X_CRG_GPU_H
+/* Generated from the Renesas CMSIS device header DA1470x-00.h (SDK
+ * 10.2.6.49).  Do not edit by hand; regenerate with tools/genhdr.py.
+ */
+
+#ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_GPU_H
+#define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_GPU_H
 
 /****************************************************************************
  * Included Files
@@ -32,24 +36,18 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Register offsets *********************************************************/
+/* Register Offsets *********************************************************/
 
-#define DA1470_CRG_GPU_CLK_GPU_OFFSET         0x0004 /* Control register for clocks in PD_GPU */
+#define DA1470X_CRG_GPU_CLK_GPU_OFFSET 0x0004 /* Control register for clocks in PD_GPU */
 
-/* Register addresses *******************************************************/
+/* Register Addresses *******************************************************/
 
-#define DA1470_CRG_GPU_BASE                   0x51001000 /* CRG_GPU registers */
+#define DA1470X_CRG_GPU_CLK_GPU (DA1470X_CRG_GPU_BASE + DA1470X_CRG_GPU_CLK_GPU_OFFSET)
 
-#define DA1470_CRG_GPU_CLK_GPU                (DA1470_CRG_GPU_BASE + DA1470_CRG_GPU_CLK_GPU_OFFSET) /* Control register for clocks in PD_GPU */
+/* Register Bit-field Definitions *******************************************/
 
-/* Register bit definitions *************************************************/
+/* CLK_GPU register */
 
+#define CRG_GPU_CLK_GPU_GPU_ENABLE (1 << 0) /* Bit 0 */
 
-/* CLK_GPU Register */
-
-#define CRG_GPU_MIPI_D_PHY_EN                 (1U << 3) /* No description available. */
-#define CRG_GPU_MIPI_PHY_EN                   (1U << 2) /* No description available. */
-#define CRG_GPU_MIPI_DSI_EN                   (1U << 1) /* No description available. */
-#define CRG_GPU_GPU_ENABLE                    (1U << 0) /* No description available. */
-
-#endif /* __DA1470X_CRG_GPU_H */
+#endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_GPU_H */

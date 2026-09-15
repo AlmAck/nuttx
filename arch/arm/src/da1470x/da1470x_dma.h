@@ -26,48 +26,58 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "hardware/da1470x_dma.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* DMA bus width */
+/* Bus width */
 
-#define DA1470X_DMA_BW_8 0  /* 8-bit */
-#define DA1470X_DMA_BW_16 1 /* 16-bit */
-#define DA1470X_DMA_BW_32 2 /* 32-bit */
+#define DA1470X_DMA_BW_8          0
+#define DA1470X_DMA_BW_16         1
+#define DA1470X_DMA_BW_32         2
 
-/* DMA burst mode */
+/* Burst mode */
 
-#define DA1470X_DMA_BURST_1 0 /* 1 transfer */
-#define DA1470X_DMA_BURST_4 1 /* 4 transfers */
-#define DA1470X_DMA_BURST_8 2 /* 8 transfers */
+#define DA1470X_DMA_BURST_1       0
+#define DA1470X_DMA_BURST_4       1
+#define DA1470X_DMA_BURST_8       2
 
-/* DMA priority */
+/* Priority */
 
-#define DA1470X_DMA_PRIO_0 0 /* Lowest */
-#define DA1470X_DMA_PRIO_7 7 /* Highest */
+#define DA1470X_DMA_PRIO_LOWEST   0
+#define DA1470X_DMA_PRIO_HIGHEST  7
 
-/* DMA peripheral IDs */
+/* Peripheral request sources (DMA_REQ_MUX encodings).  Peripheral
+ * channels come in pairs: the even channel is RX (peripheral to memory)
+ * and the odd channel is TX (memory to peripheral) for the same source.
+ */
 
-#define DA1470X_DMA_PERIPH_SPI 0x0
-#define DA1470X_DMA_PERIPH_SPI2 0x1
-#define DA1470X_DMA_PERIPH_UART 0x2
-#define DA1470X_DMA_PERIPH_UART2 0x3
-#define DA1470X_DMA_PERIPH_I2C 0x4
-#define DA1470X_DMA_PERIPH_I2C2 0x5
-#define DA1470X_DMA_PERIPH_USB 0x6
-#define DA1470X_DMA_PERIPH_UART3 0x7
-#define DA1470X_DMA_PERIPH_PCM 0x8
-#define DA1470X_DMA_PERIPH_SRC 0x9
-#define DA1470X_DMA_PERIPH_SPI3 0xa
-#define DA1470X_DMA_PERIPH_I2C3 0xb
-#define DA1470X_DMA_PERIPH_ADC 0xc
-#define DA1470X_DMA_PERIPH_SRC2 0xd
-#define DA1470X_DMA_PERIPH_I3C 0xe
-#define DA1470X_DMA_PERIPH_NONE 0xf
+#define DA1470X_DMA_PERIPH_SPI0   DMA_REQ_MUX_SPI
+#define DA1470X_DMA_PERIPH_SPI1   DMA_REQ_MUX_SPI2
+#define DA1470X_DMA_PERIPH_UART0  DMA_REQ_MUX_UART
+#define DA1470X_DMA_PERIPH_UART1  DMA_REQ_MUX_UART2
+#define DA1470X_DMA_PERIPH_I2C0   DMA_REQ_MUX_I2C
+#define DA1470X_DMA_PERIPH_I2C1   DMA_REQ_MUX_I2C2
+#define DA1470X_DMA_PERIPH_USB    DMA_REQ_MUX_USB
+#define DA1470X_DMA_PERIPH_UART2  DMA_REQ_MUX_UART3
+#define DA1470X_DMA_PERIPH_PCM    DMA_REQ_MUX_PCM
+#define DA1470X_DMA_PERIPH_SRC    DMA_REQ_MUX_SRC
+#define DA1470X_DMA_PERIPH_SPI2   DMA_REQ_MUX_SPI3
+#define DA1470X_DMA_PERIPH_I2C2   DMA_REQ_MUX_I2C3
+#define DA1470X_DMA_PERIPH_GPADC  DMA_REQ_MUX_GPADC
+#define DA1470X_DMA_PERIPH_SRC2   DMA_REQ_MUX_SRC2
+#define DA1470X_DMA_PERIPH_I3C    DMA_REQ_MUX_I3C
+#define DA1470X_DMA_PERIPH_NONE   DMA_REQ_MUX_NONE
+
+/* Channel allocation hints */
+
+#define DA1470X_DMA_ANY_CHANNEL   (-1)
 
 /****************************************************************************
  * Public Types
@@ -76,72 +86,64 @@
 typedef void *DMA_HANDLE;
 typedef void (*dma_callback_t)(DMA_HANDLE handle, void *arg, int result);
 
-struct da1470x_dma_config_s {
+struct da1470x_dma_config_s
+{
   uintptr_t src;         /* Source address */
   uintptr_t dest;        /* Destination address */
-  uint16_t len;          /* Transfer length */
-  uint16_t int_len;      /* Interrupt length */
-  uint8_t bw;            /* Bus width (DA1470X_DMA_BW_*) */
-  uint8_t burst;         /* Burst mode (DA1470X_DMA_BURST_*) */
-  uint8_t prio;          /* Priority (0-7) */
-  bool ainc;             /* Source address increment */
-  bool binc;             /* Destination address increment */
-  bool circular;         /* Circular mode */
-  bool dreq;             /* HW triggered (true) or software (false) */
-  uint8_t peripheral;    /* Peripheral ID (if dreq is true) */
-  bool idle;             /* Non-blocking mode (can be interrupted) */
-  bool init;             /* Memory initialization mode */
-  bool req_sense;        /* Edge-sensitive request (true) or level (false) */
-  bool bus_err_detect;   /* Enable bus error detection */
-  bool exclusive_access; /* Enable exclusive access (do not de-assert bus
-                            request) */
+  uint16_t  len;         /* Transfer length in bus-width units */
+  uint16_t  int_len;     /* Interrupt after this many transfers */
+  uint8_t   bw;          /* Bus width (DA1470X_DMA_BW_*) */
+  uint8_t   burst;       /* Burst mode (DA1470X_DMA_BURST_*) */
+  uint8_t   prio;        /* Priority 0..7 */
+  uint8_t   peripheral;  /* Request source when dreq is true */
+  bool      ainc;        /* Increment source address */
+  bool      binc;        /* Increment destination address */
+  bool      circular;    /* Circular mode */
+  bool      dreq;        /* Peripheral (true) or software (false) trigger */
+  bool      idle;        /* Interruptible transfer */
+  bool      init;        /* Memory fill: source is a constant */
+  bool      req_sense;   /* Edge (true) or level (false) request sense */
+  bool      bus_err_detect;
+  bool      exclusive_access;
 };
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
-
-#undef EXTERN
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-extern "C" {
-#else
-#define EXTERN extern
-#endif
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
-/****************************************************************************
- * Name: da1470x_dmach_alloc
- *
- * Description:
- *   Allocate a DMA channel.
- *
- ****************************************************************************/
+#undef EXTERN
+#if defined(__cplusplus)
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
 
 /****************************************************************************
  * Name: da1470x_dma_initialize
  *
  * Description:
- *   One-time DMA controller initialization. Brings up the PD_SNC power
- *   domain that hosts the DMA block, clears all channels into a safe
- *   state, and attaches the shared DMA NVIC interrupt. Safe to call
+ *   Initialize the DMA controller and attach its interrupt.  Safe to call
  *   more than once.
  *
  ****************************************************************************/
 
 void da1470x_dma_initialize(void);
 
-DMA_HANDLE da1470x_dmach_alloc(void);
+/****************************************************************************
+ * Name: da1470x_dmach_alloc
+ *
+ * Description:
+ *   Allocate a DMA channel.  chan is a specific channel number or
+ *   DA1470X_DMA_ANY_CHANNEL.  Returns NULL if none is available.
+ *
+ ****************************************************************************/
+
+DMA_HANDLE da1470x_dmach_alloc(int chan);
 
 /****************************************************************************
  * Name: da1470x_dmach_free
- *
- * Description:
- *   Release a DMA channel.
- *
  ****************************************************************************/
 
 void da1470x_dmach_free(DMA_HANDLE handle);
@@ -150,7 +152,8 @@ void da1470x_dmach_free(DMA_HANDLE handle);
  * Name: da1470x_dma_setup
  *
  * Description:
- *   Configure a DMA channel for a transfer.
+ *   Program a channel for a transfer described by config.  The callback is
+ *   invoked from interrupt context with result OK or -EIO.
  *
  ****************************************************************************/
 
@@ -159,34 +162,31 @@ int da1470x_dma_setup(DMA_HANDLE handle,
                       dma_callback_t callback, void *arg);
 
 /****************************************************************************
- * Name: da1470x_dma_start
- *
- * Description:
- *   Start the DMA transfer.
- *
+ * Name: da1470x_dma_start / da1470x_dma_stop
  ****************************************************************************/
 
 int da1470x_dma_start(DMA_HANDLE handle);
-
-/****************************************************************************
- * Name: da1470x_dma_stop
- *
- * Description:
- *   Stop the DMA transfer.
- *
- ****************************************************************************/
-
 int da1470x_dma_stop(DMA_HANDLE handle);
 
 /****************************************************************************
  * Name: da1470x_dma_get_residue
  *
  * Description:
- *   Return the number of remaining items.
+ *   Number of transfers remaining on the channel.
  *
  ****************************************************************************/
 
 uint16_t da1470x_dma_get_residue(DMA_HANDLE handle);
+
+/****************************************************************************
+ * Name: da1470x_dma_channel
+ *
+ * Description:
+ *   Return the channel number of a handle.
+ *
+ ****************************************************************************/
+
+int da1470x_dma_channel(DMA_HANDLE handle);
 
 #undef EXTERN
 #if defined(__cplusplus)

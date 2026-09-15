@@ -3,296 +3,357 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
-comment "DA1470 Configuration Options"
-
-# DA1470 Families
+comment "DA1470X Configuration Options"
 
 choice
-	prompt "DA1470 Chip Selection"
+	prompt "DA1470X Chip Selection"
 	default ARCH_CHIP_DA14706
 	depends on ARCH_CHIP_DA1470X
 
 config ARCH_CHIP_DA14706
 	bool "DA14706"
-	select DA1470_CPUAPP_MEM_FLASH_1024
-	select DA1470_CPUAPP_MEM_RAM_512
-	#select DA1470_CPUSNC_MEM_FLASH_256
-	#select DA1470_CPUSNC_MEM_RAM_64
+	select DA1470X_CPUAPP_MEM_RAM_1536
+	select DA1470X_CPUAPP_MEM_FLASH_8192
 
-endchoice # DA1470 Chip Selection
+endchoice # DA1470X Chip Selection
 
-config DA1470_APPCORE
+config DA1470X_APPCORE
 	bool
 	default n
-	#select ARM_HAVE_DSP
-	#select ARCH_HAVE_FPU
-	select DA1470_HAVE_UART0
-
-config DA1470_SNCCORE
-	bool
-	default n
+	select DA1470X_HAVE_UART0
+	select DA1470X_HAVE_UART1
+	select DA1470X_HAVE_UART2
+	select DA1470X_HAVE_SPI0
+	select DA1470X_HAVE_SPI1
+	select DA1470X_HAVE_SPI2
+	select DA1470X_HAVE_I2C0
+	select DA1470X_HAVE_I2C1
+	select DA1470X_HAVE_I2C2
 
 choice
-	prompt "DA1470 Core Selection"
-	default ARCH_CHIP_DA1470_CPUAPP
+	prompt "DA1470X Core Selection"
+	default ARCH_CHIP_DA1470X_CPUAPP
 	depends on ARCH_CHIP_DA14706
 
-config ARCH_CHIP_DA1470_CPUAPP
-	bool "DA1470 App core"
-	select DA1470_APPCORE
+config ARCH_CHIP_DA1470X_CPUAPP
+	bool "DA1470X application core (Cortex-M33)"
+	select DA1470X_APPCORE
 
-config ARCH_CHIP_DA1470_CPUSNC
-	bool "DA1470 Sensor Node Controller"
-	select DA1470_SNCCORE
+endchoice # DA1470X Core Selection
 
-endchoice # Core Selection
-
-# RAM size for the app core
-
-config DA1470_CPUAPP_MEM_RAM_512
+config DA1470X_CPUAPP_MEM_RAM_1536
 	bool
 	default n
 
-config DA1470_CPUAPP_MEM_RAM_SIZE
+config DA1470X_CPUAPP_MEM_RAM_SIZE
 	hex
-	default 0x080000 if DA1470_CPUAPP_MEM_RAM_512
+	default 0x180000 if DA1470X_CPUAPP_MEM_RAM_1536
 
-# # RAM size for the snc core
-
-# config DA1470_CPUSNC_MEM_RAM_64
-# 	bool
-# 	default n
-
-# config DA1470_CPUSNC_MEM_RAM_SIZE
-# 	hex
-# 	default 0x008000 if DA1470_CPUSNC_MEM_RAM_64
-
-# FLASH size for the app core
-
-config DA1470_CPUAPP_MEM_FLASH_1024
+config DA1470X_CPUAPP_MEM_FLASH_8192
 	bool
 	default n
 
-config DA1470_CPUAPP_MEM_FLASH_SIZE
+config DA1470X_CPUAPP_MEM_FLASH_SIZE
 	hex
-	default 0x100000 if DA1470_CPUAPP_MEM_FLASH_1024
+	default 0x800000 if DA1470X_CPUAPP_MEM_FLASH_8192
 
-# # FLASH size for the net core
+# Peripheral availability (hidden)
 
-# config DA1470_CPUSNC_MEM_FLASH_256
-# 	bool
-# 	default n
-
-# config DA1470_CPUSNC_MEM_FLASH_SIZE
-# 	hex
-# 	default 0x040000 if DA1470_CPUSNC_MEM_FLASH_256
-
-# if NRF53_APPCORE
-
-# config DA1470_SNC_BOOT
-# 	bool "nRF53 Net core configuration"
-# 	default y
-
-# if DA1470_SNC_BOOT
-
-# config DA1470_SNC_POWER_ON_BOOT
-# 	bool "nRF53 Power Net core on App core boot"
-# 	default y
-
-# config DA1470_SNC_GPIO_ALLOW_ALL
-# 	bool "nRF53 allow all GPIO for Net core"
-# 	default y
-
-# endif # DA1470_SNC_BOOT
-
-# endif # NRF53_APPCORE
-
-
-# Peripheral support
-
-# call UART0 as convenience, even if is originally called UART from renesas
-config DA1470_HAVE_UART0
+config DA1470X_HAVE_UART0
 	bool
 	default n
 
-config DA1470_HAVE_UART1
+config DA1470X_HAVE_UART1
 	bool
 	default n
 
-config DA1470_HAVE_UART2
+config DA1470X_HAVE_UART2
 	bool
 	default n
 
-# Peripheral Selection
-
-config DA1470_UART
+config DA1470X_HAVE_SPI0
 	bool
 	default n
 
-menu "DA1470 Peripheral Selection"
-
-config DA1470_UART0
-	bool "UART0"
+config DA1470X_HAVE_SPI1
+	bool
 	default n
+
+config DA1470X_HAVE_SPI2
+	bool
+	default n
+
+config DA1470X_HAVE_I2C0
+	bool
+	default n
+
+config DA1470X_HAVE_I2C1
+	bool
+	default n
+
+config DA1470X_HAVE_I2C2
+	bool
+	default n
+
+config DA1470X_UART
+	bool
+	default n
+
+config DA1470X_SPI
+	bool
+	default n
+
+config DA1470X_I2C
+	bool
+	default n
+
+menu "DA1470X Peripheral Selection"
+
+config DA1470X_UART0
+	bool "UART0 (datasheet UART)"
+	default n
+	depends on DA1470X_HAVE_UART0
 	select UART0_SERIALDRIVER
-	select DA1470_UART
+	select DA1470X_UART
 
-config DA1470_UART1
-	bool "UART1"
+config DA1470X_UART1
+	bool "UART1 (datasheet UART2, RTS/CTS capable)"
 	default n
-	depends on DA1470_HAVE_UART1
+	depends on DA1470X_HAVE_UART1
 	select UART1_SERIALDRIVER
-	select DA1470_UART
+	select DA1470X_UART
 
-config DA1470_UART2
-	bool "UART2"
+config DA1470X_UART2
+	bool "UART2 (datasheet UART3, RTS/CTS capable)"
 	default n
-	depends on DA1470_HAVE_UART2
+	depends on DA1470X_HAVE_UART2
 	select UART2_SERIALDRIVER
-	select DA1470_UART
+	select DA1470X_UART
 
-endmenu # da1470 Peripheral Selection
+config DA1470X_SPI0
+	bool "SPI0 (datasheet SPI)"
+	default n
+	depends on DA1470X_HAVE_SPI0
+	select DA1470X_SPI
 
+config DA1470X_SPI1
+	bool "SPI1 (datasheet SPI2)"
+	default n
+	depends on DA1470X_HAVE_SPI1
+	select DA1470X_SPI
 
-# choice
-# 	prompt "System Timer Source"
-# 	default NRF53_SYSTIMER_SYSTICK
-# 	---help---
-# 		Choose which hardware resource will drive NuttX
-# 		system time
+config DA1470X_SPI2
+	bool "SPI2 (datasheet SPI3, PD_SYS)"
+	default n
+	depends on DA1470X_HAVE_SPI2
+	select DA1470X_SPI
 
-# config NRF53_SYSTIMER_SYSTICK
-# 	bool "SysTick"
-# 	select TIMER_ARCH
-# 	select TIMER
-# 	select ARMV8M_SYSTICK
-# 	---help---
-# 		Use ARM SysTick. It can be used for tickless and
-# 		non-tickless mode.
+config DA1470X_I2C0
+	bool "I2C0 (datasheet I2C)"
+	default n
+	depends on DA1470X_HAVE_I2C0
+	select DA1470X_I2C
 
-# 		NOTE: nrf53 implementation of WFE/WFI involves is
-# 		incompatible with SysTick. This means that if
-# 		you choose this option, WFE/WFI will not be used
-# 		in idle loop.
+config DA1470X_I2C1
+	bool "I2C1 (datasheet I2C2)"
+	default n
+	depends on DA1470X_HAVE_I2C1
+	select DA1470X_I2C
 
-# config NRF53_SYSTIMER_RTC
-# 	bool "RTC"
-# 	select NRF53_RTC
-# 	select SCHED_TICKLESS
-# 	select SCHED_TICKLESS_ALARM
-# 	select NRF53_USE_LFCLK
-# 	---help---
-# 		Use RTC timer in tickless mode.
+config DA1470X_I2C2
+	bool "I2C2 (datasheet I2C3)"
+	default n
+	depends on DA1470X_HAVE_I2C2
+	select DA1470X_I2C
 
-# endchoice # System Timer Source
+config DA1470X_DMA
+	bool "DMA controller"
+	default n
+	---help---
+		Enable the 8-channel general purpose DMA controller driver.
 
-# if NRF53_SYSTIMER_RTC
+config DA1470X_GPIO_IRQ
+	bool "GPIO interrupts (via wake-up controller)"
+	default n
+	---help---
+		Route GPIO edge events through the WKUP block to the three
+		per-port NVIC interrupts and dispatch them per pin.
 
-# config NRF53_SYSTIMER_RTC_INSTANCE
-# 	int "RTC timer instance"
-# 	default 0 if !NRF53_SOFTDEVICE_CONTROLLER
-# 	default 1 if NRF53_SOFTDEVICE_CONTROLLER
-# 	range 0 1
-# 	---help---
-# 		Which RTC instance to use to drive the system timer
+config DA1470X_RTC
+	bool "RTC"
+	default n
+	select RTC
+	select RTC_DATETIME
+	select RTC_ALARM
+	select RTC_DRIVER
+	---help---
+		Real-time clock with calendar and alarm, exposed as /dev/rtc0.
 
-# endif # NRF53_SYSTIMER_RTC
+config DA1470X_PDC
+	bool "Power Domain Controller (PDC)"
+	default n
+	---help---
+		Driver for the PDC lookup table that wakes the M33 from sleep on
+		RTC, timer, GPIO or radio events.
 
-# endmenu # System Timer
+config DA1470X_PM
+	bool "Power management (CONFIG_PM lower half)"
+	default n
+	depends on DA1470X_PDC
+	select PM
+	---help---
+		Implement the NuttX PM states on the DA1470x: IDLE = WFI,
+		STANDBY = clock-gated sleep with all RAM retained and PD_SYS
+		kept alive.
 
-# endif # NRF53_SOFTDEVICE_CONTROLLER
+config DA1470X_PM_EXTENDED_SLEEP
+	bool "Extended sleep (PD_SYS off) for PM_SLEEP"
+	default n
+	depends on DA1470X_PM
+	---help---
+		Save the core context and let the PMU switch PD_SYS off for the
+		PM_SLEEP state, resuming through the reset vector.  Experimental.
 
+config DA1470X_OQSPI_MTD
+	bool "OQSPI flash controller MTD driver"
+	default n
+	select MTD
+	select MTD_BYTE_WRITE
+	---help---
+		Expose the boot flash behind the OQSPI controller as an MTD
+		device.  Program and erase run from RAM with interrupts masked
+		because the code executes in place from the same flash.
 
+config DA1470X_OQSPI_MTD_OFFSET
+	hex "Offset of the MTD partition in flash"
+	default 0x400000
+	depends on DA1470X_OQSPI_MTD
+
+config DA1470X_OQSPI_MTD_SIZE
+	hex "Size of the MTD partition"
+	default 0x400000
+	depends on DA1470X_OQSPI_MTD
+
+config DA1470X_LCDC
+	bool "LCD controller (framebuffer)"
+	default n
+	select VIDEO_FB
+	select FB_UPDATE
+	---help---
+		Display controller driver exposed through /dev/fb0.
+
+config DA1470X_LCDC_TE
+	bool "Synchronise frame updates to the panel tearing-effect line"
+	default n
+	depends on DA1470X_LCDC
+
+config DA1470X_GPU
+	bool "GPU (D/AVE 2D) driver"
+	default n
+	---help---
+		Native register-level driver for the 2D graphics accelerator,
+		exposed as /dev/gpu0.
+
+config DA1470X_BLE
+	bool "Bluetooth LE (CMAC controller + HCI transport)"
+	default n
+	depends on DA1470X_PDC && DA1470X_CLOCK_XTAL32M_SRC
+	select WIRELESS_BLUETOOTH
+	select NET_BLUETOOTH
+	select NETDEVICES
+	---help---
+		Load the CMAC controller firmware and register a NuttX HCI
+		driver over the CPUAPP/CMAC mailbox.
+
+config DA1470X_CMAC_FW_PATH
+	string "Path of the CMAC firmware binary"
+	default "../Renesas_SDK-10.2.6.49/cmac_fw.bin"
+	depends on DA1470X_BLE
+
+config DA1470X_PWMLED
+	bool "PWM LED driver block"
+	default n
+
+config DA1470X_WDOG_FREEZE
+	bool "Freeze the system watchdog at boot"
+	default y
+	---help---
+		The SYS watchdog is running out of reset and would reset the
+		chip after about 10 seconds.  Freeze it until a watchdog driver
+		takes over.
+
+config DA1470X_DMA_SMOKETEST
+	bool "Run a memory-to-memory DMA smoke test at bring-up"
+	default n
+	depends on DA1470X_DMA
+
+endmenu # DA1470X Peripheral Selection
 
 menu "High Frequency Clock (HFCLK) Configuration"
 
 choice
 	prompt "Select HFCLK Source"
-	default DA1470_CLOCK_XTAL32M_SRC
+	default DA1470X_CLOCK_XTAL32M_SRC
+
+config DA1470X_CLOCK_XTAL32M_SRC
+	bool "XTAL32M (external 32 MHz crystal)"
 	---help---
-		Enable initialization of the High Frequency Clock (HFCLK) in the Renesas DA1470x series.
-		The HFCLK is crucial for the operation of various high-speed peripherals and core functionalities.
-		This option initializes the HFCLK crystal oscillator, switching to the external
-		32 MHz oscillator if it is available and properly configured. When enabled, the system will
-		wait until the external oscillator stabilizes and is ready before proceeding with the boot process.
-		Proper configuration of HFCLK ensures optimal performance and power efficiency for the microcontroller.
+		Start the 32 MHz crystal oscillator and run the system clock
+		from it.  Required for the radio and for accurate peripheral
+		timing.
 
-
-	config DA1470_CLOCK_XTAL32M_SRC
-		bool "XTAL32M RCX Source"
-		---help---
-			Selects the external 32 MHz crystal oscillator (XTAL32M) as the source for the High Frequency Clock (HFCLK).
-
-	config DA1470_CLOCK_RCHS_SRC
-		bool "RCHS RCX Source"
-		---help---
-			Selects the internal High-Speed RC oscillator (RCHS) as the source for the High Frequency Clock (HFCLK).
+config DA1470X_CLOCK_RCHS_SRC
+	bool "RCHS (internal high-speed RC oscillator)"
 
 endchoice
 
-if DA1470_CLOCK_RCHS_SRC
-	config DA1470_CLOCK_HFCLK_SRC_RCHS_32
-		bool "RCHS_32 MHz"
-		---help---
-			Selects the 32 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
+if DA1470X_CLOCK_RCHS_SRC
 
-	config DA1470_CLOCK_HFCLK_SRC_RCHS_64
-		bool "RCHS_64 MHz"
-		---help---
-			Selects the 64 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
+choice
+	prompt "RCHS frequency"
+	default DA1470X_CLOCK_HFCLK_SRC_RCHS_32
 
-	config DA1470_CLOCK_HFCLK_SRC_RCHS_96
-		bool "RCHS_96 MHz"
-		---help---
-			Selects the 96 MHz variant of the internal High-Speed RC oscillator (RCHS) as the source for HFCLK.
-endif
+config DA1470X_CLOCK_HFCLK_SRC_RCHS_32
+	bool "32 MHz"
+
+config DA1470X_CLOCK_HFCLK_SRC_RCHS_64
+	bool "64 MHz"
+
+config DA1470X_CLOCK_HFCLK_SRC_RCHS_96
+	bool "96 MHz"
+
+endchoice
+
+endif # DA1470X_CLOCK_RCHS_SRC
 
 endmenu
 
-
-
 menu "Low Power Clock (LFCLK) Configuration"
 
-config DA1470_USE_LFCLK
-    bool "Enable Low Power Clock (LFCLK)"
-    default y
-    ---help---
-      Enable the Low Power Clock (LFCLK) in the DA1470 series. This will allow
-      the system to select and configure one of the available low-power clock
-      sources: RCLP, RCX, XTAL32K or External Clock.
+config DA1470X_USE_LFCLK
+	bool "Enable Low Power Clock (LFCLK)"
+	default y
 
-if DA1470_USE_LFCLK
+if DA1470X_USE_LFCLK
 
 choice
-    prompt "Select LFCLK Source"
-    default DA1470_CLOCK_LPCLK_SRC_RCLP
-    ---help---
-      Select the clock source to use as the low power clock (LFCLK). The options
-      include RCLP, RCX, XTAL32K, or an external clock source.
+	prompt "Select LFCLK Source"
+	default DA1470X_CLOCK_LPCLK_SRC_RCLP
 
-config DA1470_CLOCK_LPCLK_SRC_RCLP
-    bool "RCLP (Internal Low Power Clock)"
-    ---help---
-      Select RCLP (Internal Low Power Clock) as the LFCLK source.
+config DA1470X_CLOCK_LPCLK_SRC_RCLP
+	bool "RCLP (internal 32 kHz RC, inaccurate)"
 
-config DA1470_CLOCK_LPCLK_SRC_RCX
-    bool "RCX (Internal 32kHz Clock)"
-    ---help---
-      Select RCX (Internal 32kHz Clock) as the LFCLK source.
+config DA1470X_CLOCK_LPCLK_SRC_RCX
+	bool "RCX (internal 32 kHz RC, calibrated)"
 
-config DA1470_CLOCK_LPCLK_SRC_XTAL32K
-    bool "XTAL32K (External 32kHz Crystal)"
-    ---help---
-      Select XTAL32K (External 32kHz Crystal) as the LFCLK source.
+config DA1470X_CLOCK_LPCLK_SRC_XTAL32K
+	bool "XTAL32K (external 32.768 kHz crystal)"
 
-config DA1470_CLOCK_LPCLK_SRC_EXTERNAL
-    bool "External Clock"
-    ---help---
-      Select an external clock source as the LFCLK. This option assumes the clock
-      is configured and supplied externally.
+config DA1470X_CLOCK_LPCLK_SRC_EXTERNAL
+	bool "External clock on a GPIO"
 
 endchoice
 
-endif # DA1470_USE_LFCLK
+endif # DA1470X_USE_LFCLK
 
 endmenu

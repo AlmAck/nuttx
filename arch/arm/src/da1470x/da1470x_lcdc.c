@@ -108,6 +108,22 @@ void da1470x_lcdc_set_iface_serial(bool si_on_so)
 
 void da1470x_lcdc_set_hold(bool hold)
 {
+  /* This is the "batch the upcoming pushes before they start clocking
+   * out" knob used by the panel driver around short DCS init bursts.
+   *
+   * The DA1470x has two bits that could plausibly serve this role:
+   *   - CLKCTRL.DMA_HOLD  : stalls the LCDC pixel DMA pump
+   *   - DBIB_CFG.CMD_DATA_AS_HEADER : binds cmd+data into one CS-low
+   *     transaction at the DBIB output
+   *
+   * Setting CMD_DATA_AS_HEADER stalls the cmd FIFO from draining until
+   * SFRAME_UPD fires, which deadlocks DCS init. For init commands we
+   * write CLKCTRL.DMA_HOLD instead: it doesn't affect the cmd FIFO, so
+   * the panel sees DCS sequences as the LCDC pumps them through DBIB.
+   * For the per-frame transaction (RAMWR + pixel data) we set
+   * CMD_DATA_AS_HEADER directly inside da1470x_lcdc_send_one_frame().
+   */
+
   uint32_t regval = getreg32(DA1470_LCDC_CLKCTRL);
 
   if (hold)
@@ -165,18 +181,39 @@ void da1470x_lcdc_qspi_send_data(uint8_t data)
 
 void da1470x_lcdc_qspi_configure(uint8_t clk_div)
 {
-  /* DBIB_CFG: enable the DBIB interface block + put it in quad-SPI mode.
-   * INTERFACE_WIDTH selects the wire count for the data lanes; for
-   * quad-SPI we leave the field at 0 since QUAD_SPI_EN takes priority.
-   * SPI_CLK_POLARITY / SPI_CLK_PHASE are both 0 for the RM69091
-   * (mode-0-style). DBIB_CSX_CFG_EN with CSX_CFG=0 leaves CS asserted
-   * across multi-byte transfers, which is what serial-mode QSPI wants.
+  /* DBIB_CFG matches the SDK's PHY_CFG_DEFAULT | DBI_EN | SPI4 | QSPI |
+   * SPIDC_DQSPI configuration for HW_LCDC_PHY_QUAD_SPI:
+   *   - INTERFACE_EN  : turn the DBIB block on
+   *   - RESX_OUT_EN   : pass RESX through
+   *   - TE_DISABLE    : TE pin not in use yet
+   *   - SPI4_EN       : 4-wire SPI framing (active during cmd phase)
+   *   - QUAD_SPI_EN   : quad-data emission during pixel phase
+   *   - SPI_DC_AS_SPI_SD1 : SPI_DC pad doubles as SD1 for quad mode
+   *   - INTERFACE_WIDTH = 5 : DBI width = "Quad SPI"
+   *   - CSX_CFG_EN with CSX_CFG=0 : CS stays low for multi-byte bursts
+   * SPI_CLK_POLARITY / SPI_CLK_PHASE are both 0 (mode-0) for the
+   * RM69091.
    */
 
   uint32_t cfg = LCDC_DBIB_CFG_INTERFACE_EN
+               | LCDC_DBIB_CFG_RESX_OUT_EN
+               | LCDC_DBIB_CFG_TE_DISABLE
+               | LCDC_DBIB_CFG_SPI4_EN
                | LCDC_DBIB_CFG_QUAD_SPI_EN
-               | LCDC_DBIB_CFG_CSX_CFG_EN;
+               | LCDC_DBIB_CFG_SPI_DC_AS_SPI_SD1
+               | LCDC_DBIB_CFG_INTERFACE_WIDTH_QSPI;
+  /* CSX_CFG_EN is NOT set here: leaving it 0 lets the LCDC toggle CSX
+   * naturally between DCS init commands. send_one_frame() sets it just
+   * before SFRAME_UPD so the SSQ cmd + pixel burst share one CS-low
+   * transaction, then we clear it again after the frame.
+   */
   putreg32(cfg, DA1470_LCDC_DBIB_CFG);
+
+  /* LCDC_MODE: enable underrun-prevention; no continuous mode yet (we
+   * trigger frames one-shot via SFRAME_UPD in send_one_frame()).
+   */
+
+  putreg32(LCDC_MODE_UNDERRUN_PREVENTION_EN, DA1470_LCDC_MODE);
 
   /* CLKCTRL: set the LCDC interface clock divider. SCLK_out = src / div.
    * Source = CRG_SYS DivN = 32 MHz; div=1 -> 32 MHz SCLK.
@@ -192,4 +229,123 @@ void da1470x_lcdc_qspi_configure(uint8_t clk_div)
   clkctrl |= ((uint32_t)clk_div << LCDC_CLKCTRL_CLK_DIV_SHIFT)
              & LCDC_CLKCTRL_CLK_DIV_MASK;
   putreg32(clkctrl, DA1470_LCDC_CLKCTRL);
+}
+
+/****************************************************************************
+ * Display timing + Layer0 + one-shot frame trigger
+ ****************************************************************************/
+
+void da1470x_lcdc_set_resolution(uint16_t resx, uint16_t resy)
+{
+  /* Minimum porch / blanking values from the SDK for serial PHYs:
+   *   fpx=1, blx=2, bpx=1, fpy=1, bly=1, bpy=1
+   * The SDK programs cumulative coordinates:
+   *   FPORCH  = (resx + fpx,    resy + fpy)
+   *   BLANK   = (FPORCH + blx,  FPORCH + bly)
+   *   BPORCH  = (BLANK  + bpx,  BLANK  + bpy)
+   *   STARTXY = (FPORCH,        FPORCH - 1)
+   */
+
+  uint16_t fpx = resx + 1;
+  uint16_t blx = fpx + 2;
+  uint16_t bpx = blx + 1;
+  uint16_t fpy = resy + 1;
+  uint16_t bly = fpy + 1;
+  uint16_t bpy = bly + 1;
+
+  putreg32(LCDC_XY_PACK(resx, resy), DA1470_LCDC_RESXY);
+  putreg32(LCDC_XY_PACK(fpx,  fpy),  DA1470_LCDC_FRONTPORCHXY);
+  putreg32(LCDC_XY_PACK(blx,  bly),  DA1470_LCDC_BLANKINGXY);
+  putreg32(LCDC_XY_PACK(bpx,  bpy),  DA1470_LCDC_BACKPORCHXY);
+  putreg32(LCDC_XY_PACK(fpx,  fpy - 1), DA1470_LCDC_STARTXY);
+}
+
+void da1470x_lcdc_set_layer0(uintptr_t baseaddr, uint16_t resx, uint16_t resy,
+                             uint16_t stride, uint8_t color_mode)
+{
+  putreg32((uint32_t)baseaddr,        DA1470_LCDC_LAYER0_BASEADDR);
+  putreg32(LCDC_XY_PACK(0, 0),        DA1470_LCDC_LAYER0_STARTXY);
+  putreg32(LCDC_XY_PACK(resx, resy),  DA1470_LCDC_LAYER0_SIZEXY);
+  putreg32(LCDC_XY_PACK(resx, resy),  DA1470_LCDC_LAYER0_RESXY);
+  putreg32((uint32_t)stride,          DA1470_LCDC_LAYER0_STRIDE);
+
+  uint32_t mode = LCDC_LAYER0_MODE_L0_EN
+                | (0xFFU << LCDC_LAYER0_MODE_L0_ALPHA_SHIFT)
+                | (color_mode & LCDC_LAYER0_MODE_L0_COLOR_MODE_MASK);
+  putreg32(mode, DA1470_LCDC_LAYER0_MODE);
+}
+
+void da1470x_lcdc_qspi_send_frame_cmd(uint8_t ssq_prefix, uint8_t dcs_cmd)
+{
+  /* Same encoding as a normal QSPI cmd, but with the SSQ prefix (0x32 for
+   * the RM69091) — the LCDC keeps cmd+addr serial and the data phase that
+   * follows from Layer0 goes out on all 4 lanes.
+   */
+
+  da1470x_lcdc_dbib_push(LCDC_DBIB_CMD_DBIB_CMD_SEND
+                        | LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS
+                        | (ssq_prefix & 0xFFu));
+
+  da1470x_lcdc_dbib_push(LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS
+                        | LCDC_DBIB_CMD_CMD_WIDTH_24
+                        | (((uint32_t)dcs_cmd) << 8));
+}
+
+int da1470x_lcdc_send_one_frame(void)
+{
+  /* For the per-frame transaction we want:
+   *   - CMD_DATA_AS_HEADER (a.k.a. SDK "SPI_HOLD") set so the SSQ RAMWR
+   *     command and the pixel data from Layer 0 ship as one bound
+   *     burst at the DBIB output.
+   *   - CSX_CFG_EN with CSX_CFG=0 to force CSX low for that whole
+   *     burst.
+   * Both are added in a single read-modify-write so the LCDC sees a
+   * consistent config before SFRAME_UPD goes out.
+   */
+
+  uint32_t cfg = getreg32(DA1470_LCDC_DBIB_CFG);
+  cfg |= LCDC_DBIB_CFG_CMD_DATA_AS_HEADER
+       | LCDC_DBIB_CFG_CSX_CFG_EN;
+  cfg &= ~LCDC_DBIB_CFG_CSX_CFG;
+  putreg32(cfg, DA1470_LCDC_DBIB_CFG);
+
+  /* Trigger the single-frame engine via SFRAME_UPD. The LCDC drains
+   * the cmd FIFO (SSQ frame cmd) and immediately follows with the
+   * Layer 0 pixel stream over quad lanes, all in one CS-low burst.
+   */
+
+  uint32_t mode = getreg32(DA1470_LCDC_MODE);
+  putreg32(mode | LCDC_MODE_SFRAME_UPD, DA1470_LCDC_MODE);
+
+  /* Poll FRAME_END. At 32 MHz SCLK / quad lanes, a 390x390 RGB565 frame
+   * is ~150 KB pixel data / 16 MB/s ≈ 10 ms; allow generous headroom.
+   */
+
+  const int max_poll = 250000;          /* µs */
+  int waited = 0;
+  int ret = OK;
+  while ((getreg32(DA1470_LCDC_STATUS) & LCDC_STATUS_FRAME_END) == 0)
+    {
+      up_udelay(100);
+      waited += 100;
+      if (waited >= max_poll)
+        {
+          lcderr("LCDC: frame timed out (status=0x%08lx)\n",
+                 (unsigned long)getreg32(DA1470_LCDC_STATUS));
+          ret = -ETIMEDOUT;
+          break;
+        }
+    }
+
+  /* Release CS and undo the cmd/data binding so the panel doesn't keep
+   * latching whatever the LCDC clocks out next. Without this, CSX stays
+   * forced low and SCLK keeps running, so the RM69091 interprets any
+   * subsequent traffic as more pixel data and its display RAM fills
+   * with garbage frame-after-frame (visible as snow that brightens and
+   * eventually warms the panel).
+   */
+
+  UNUSED(cfg);
+
+  return ret;
 }

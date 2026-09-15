@@ -26,6 +26,7 @@
 
 #include <sys/types.h>
 #include <stdint.h>
+#include <string.h>
 #include <assert.h>
 #include <debug.h>
 
@@ -34,57 +35,26 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/userspace.h>
 
+#include <arch/board/board.h>
+
 #include "arm_internal.h"
 #include "hardware/da1470x_memorymap.h"
-
-#include <arch/board/board.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Configuration ************************************************************/
-
-/* .bss and .data is always positioned in internal SRAM.  The remaining SRAM
- * after the static .bss, .data, and IDLE stack allocations are always added
- * to the heap.
+/* The heap spans CONFIG_RAM_START..CONFIG_RAM_END, both of which must lie
+ * inside the 1.5 MiB SYSRAM.
  */
 
-/* DA1470x on-chip SRAM: 1.5 MB starting at DA1470X_SRAM_BASE */
-
-#define DA1470X_SRAM_SIZE    (1536 * 1024)
-#define DA1470X_SRAM_END     (DA1470X_SRAM_BASE + DA1470X_SRAM_SIZE)
-
-#ifndef CONFIG_RAM_START
-#  define CONFIG_RAM_START  DA1470X_SRAM_BASE
-#endif
-
-#ifndef CONFIG_RAM_SIZE
-#  define CONFIG_RAM_SIZE   DA1470X_SRAM_SIZE
-#endif
-
 #ifndef CONFIG_RAM_END
-#  define CONFIG_RAM_END    (CONFIG_RAM_START + CONFIG_RAM_SIZE)
+#  define CONFIG_RAM_END (CONFIG_RAM_START + CONFIG_RAM_SIZE)
 #endif
 
-/* Now check that [CONFIG_RAM_START, CONFIG_RAM_END) is fully inside SRAM */
-
-#if (CONFIG_RAM_START < DA1470X_SRAM_BASE) \
- || ((CONFIG_RAM_START + CONFIG_RAM_SIZE) > DA1470X_SRAM_END)
-#  warning                                                           \
-    "CONFIG_RAM_START/END lie outside on-chip SRAM—"                \
-    " resetting to full SRAM"
-#  undef   CONFIG_RAM_START
-#  define  CONFIG_RAM_START  DA1470X_SRAM_BASE
-#  undef   CONFIG_RAM_SIZE
-#  define  CONFIG_RAM_SIZE   DA1470X_SRAM_SIZE
-#  undef   CONFIG_RAM_END
-#  define  CONFIG_RAM_END    DA1470X_SRAM_END
+#if CONFIG_RAM_START < DA1470X_SRAM_BASE || CONFIG_RAM_END > DA1470X_SRAM_END
+#  error "CONFIG_RAM_START/CONFIG_RAM_SIZE lie outside the DA1470x SYSRAM"
 #endif
-
-/****************************************************************************
- * Private Data
- ****************************************************************************/
 
 /****************************************************************************
  * Private Functions
@@ -108,62 +78,38 @@ static inline void up_heap_color(void *start, size_t size)
 #endif
 
 /****************************************************************************
- * Public Functions
+ * Public Data
  ****************************************************************************/
 
 /* _sbss is the start of the BSS region (see the linker script) _ebss is the
- * end of the BSS region (see the linker script). The idle task stack starts
- * at the end of BSS and is of size CONFIG_IDLETHREAD_STACKSIZE.  The IDLE
- * thread is the thread that the system boots on and, eventually, becomes the
- * idle, do nothing task that runs only when there is nothing else to run.
- * The heap continues from there until the configured end of memory.
+ * end of the BSS regions (see the linker script). The idle task stack
+ * starts at the end of BSS and is of size CONFIG_IDLETHREAD_STACKSIZE.  The
+ * IDLE thread is the thread that the system boots on and, eventually,
+ * becomes the idle, do nothing task that runs only when there is nothing
+ * else to run.  The heap continues from there until the end of memory.
  * g_idle_topstack is the beginning of this heap region (not necessarily
  * aligned).
  */
 
 const uintptr_t g_idle_topstack = (uintptr_t)_ebss +
-    CONFIG_IDLETHREAD_STACKSIZE;
+                                  CONFIG_IDLETHREAD_STACKSIZE;
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_allocate_heap/up_allocate_kheap
+ * Name: up_allocate_heap
  *
  * Description:
  *   This function will be called to dynamically set aside the heap region.
  *
- *   - For the normal "flat" build, this function returns the size of the
- *     single heap.
- *   - For the protected build (CONFIG_BUILD_PROTECTED=y) with both kernel-
- *     and user-space heaps (CONFIG_MM_KERNEL_HEAP=y), this function
- *     provides the size of the unprotected, user-space heap.
- *   - For the kernel build (CONFIG_BUILD_KERNEL=y), this function provides
- *     the size of the protected, kernel-space heap.
+ *   For the kernel build (CONFIG_BUILD_PROTECTED=y) with both kernel- and
+ *   user-space heaps (CONFIG_MM_KERNEL_HEAP=y), this function provides the
+ *   size of the unprotected, user-space heap.
  *
  *   If a protected kernel-space heap is provided, the kernel heap must be
- *   allocated by an analogous up_allocate_kheap(). A custom version of this
- *   file is needed if memory protection of the kernel heap is required.
- *
- *   The following memory map is assumed for the flat build:
- *
- *     .data region.  Size determined at link time.
- *     .bss  region  Size determined at link time.
- *     IDLE thread stack.  Size determined by CONFIG_IDLETHREAD_STACKSIZE.
- *     Heap.  Extends to the end of SRAM.
- *
- *   The following memory map is assumed for the kernel build:
- *
- *     Kernel .data region.  Size determined at link time.
- *     Kernel .bss  region  Size determined at link time.
- *     Kernel IDLE thread stack.  Size determined by
- *     CONFIG_IDLETHREAD_STACKSIZE.
- *     Padding for alignment
- *     User .data region.  Size determined at link time.
- *     User .bss region  Size determined at link time.
- *     Kernel heap.  Size determined by CONFIG_MM_KERNEL_HEAPSIZE.
- *     User heap.  Extends to the end of SRAM.
+ *   allocated (and protected) by an analogous up_allocate_kheap().
  *
  ****************************************************************************/
 
@@ -180,7 +126,7 @@ void up_allocate_heap(void **heap_start, size_t *heap_size)
    */
 
   uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend +
-                               CONFIG_MM_KERNEL_HEAPSIZE;
+                    CONFIG_MM_KERNEL_HEAPSIZE;
   size_t    usize = CONFIG_RAM_END - ubase;
 
   DEBUGASSERT(ubase < (uintptr_t)CONFIG_RAM_END);
@@ -208,28 +154,19 @@ void up_allocate_heap(void **heap_start, size_t *heap_size)
  * Name: up_allocate_kheap
  *
  * Description:
- *   For the kernel build (CONFIG_BUILD_PROTECTED/KERNEL=y) with both kernel-
- *   and user-space heaps (CONFIG_MM_KERNEL_HEAP=y), this function allocates
- *   the kernel-space heap.  A custom version of this function is needed if
- *   memory protection of the kernel heap is required.
+ *   For the kernel build (CONFIG_BUILD_PROTECTED=y) with both kernel- and
+ *   user-space heaps (CONFIG_MM_KERNEL_HEAP=y), this function allocates
+ *   (and protects) the kernel-space heap.
  *
  ****************************************************************************/
 
 #if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
 void up_allocate_kheap(void **heap_start, size_t *heap_size)
 {
-  /* Get the unaligned size and position of the user-space heap.
-   * This heap begins after the user-space .bss section at an offset
-   * of CONFIG_MM_KERNEL_HEAPSIZE (subject to alignment).
-   */
-
   uintptr_t ubase = (uintptr_t)USERSPACE->us_bssend +
-                               CONFIG_MM_KERNEL_HEAPSIZE;
-  DEBUGASSERT(ubase < (uintptr_t)CONFIG_RAM_END);
+                    CONFIG_MM_KERNEL_HEAPSIZE;
 
-  /* Return the kernel heap settings (i.e., the part of the heap region
-   * that was not dedicated to the user heap).
-   */
+  DEBUGASSERT(ubase < (uintptr_t)CONFIG_RAM_END);
 
   *heap_start = (void *)USERSPACE->us_bssend;
   *heap_size  = ubase - (uintptr_t)USERSPACE->us_bssend;
@@ -248,5 +185,11 @@ void up_allocate_kheap(void **heap_start, size_t *heap_size)
 #if CONFIG_MM_REGIONS > 1
 void arm_addregion(void)
 {
+#ifndef CONFIG_DA1470X_BLE
+  /* RAM8 (shared) and RAM9 are free when the radio is not in use */
+
+  kmm_addregion((void *)DA1470X_SRAM8_BASE,
+                DA1470X_SRAM10_BASE - DA1470X_SRAM8_BASE);
+#endif
 }
-#endif /* CONFIG_MM_REGIONS > 1 */
+#endif

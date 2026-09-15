@@ -29,43 +29,28 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
-#include <arch/board/board.h>
-
 #include <nuttx/timers/arch_timer.h>
+
 #include "systick.h"
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
+#include "da1470x_clockconfig.h"
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Function:  up_timer_initialize
+ * Name: up_timer_initialize
  *
  * Description:
- *   This function is called during start-up to initialize
- *   the timer interrupt.
+ *   This function is called during start-up to initialize the system
+ *   timer interrupt.  SysTick runs from the CPU clock, whose frequency is
+ *   read back from the clock controller so that any Kconfig clock choice
+ *   yields correct system time.
  *
  ****************************************************************************/
 
 void up_timer_initialize(void)
 {
-  /* Use SysTick to drive system timer. coreclk=true selects the CPU
-   * clock as the SysTick source (with CLKSOURCE bit); BOARD_SYSTICK_CLOCK
-   * must match the actual sysclk frequency programmed in
-   * da1470_clockconfig() or system time will be wrong proportionally.
-   *
-   * Requires CONFIG_ARMV8M_SYSTICK=y (provides systick_initialize) and
-   * CONFIG_TIMER=y + CONFIG_TIMER_ARCH=y (provides up_timer_set_lowerhalf
-   * and the TIMER_START hookup that flips the ENABLE bit).
-   */
-
-  up_timer_set_lowerhalf(systick_initialize(true, BOARD_SYSTICK_CLOCK, -1));
+  up_timer_set_lowerhalf(systick_initialize(true, da1470x_get_sysclk(),
+                                            -1));
 }

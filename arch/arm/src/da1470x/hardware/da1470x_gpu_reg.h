@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/nrf53/common/src/nrf53_timer.c
+ * arch/arm/src/da1470x/hardware/da1470x_gpu_reg.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,38 +18,37 @@
  *
  ****************************************************************************/
 
+/* Generated from the Renesas CMSIS device header DA1470x-00.h (SDK
+ * 10.2.6.49).  Do not edit by hand; regenerate with tools/genhdr.py.
+ */
+
+#ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_GPU_REG_H
+#define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_GPU_REG_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
-#include <nuttx/timers/timer.h>
-
-#include "nrf53_tim_lowerhalf.h"
+#include "da1470x_memorymap.h"
 
 /****************************************************************************
- * Public Functions
+ * Pre-processor Definitions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: nrf53_timer_driver_setup
- *
- * Description:
- *   Configure the timer driver.
- *
- * Input Parameters:
- *   devpath - The full path to the timer device.  This should be of the
- *             form /dev/timer0
- *   timer   - The timer's number.
- *
- * Returned Value:
- *   Zero (OK) is returned on success; A negated errno value is returned
- *   to indicate the nature of any failure.
- *
- ****************************************************************************/
+/* Register Offsets *********************************************************/
 
-int nrf53_timer_driver_setup(const char *devpath, int timer)
-{
-  return nrf53_timer_initialize(devpath, timer);
-}
+#define DA1470X_GPU_REG_GPU_CTRL_OFFSET 0x0000 /* GPU_CTRL_REG */
+
+/* Register Addresses *******************************************************/
+
+#define DA1470X_GPU_REG_GPU_CTRL (DA1470X_GPU_REG_BASE + DA1470X_GPU_REG_GPU_CTRL_OFFSET)
+
+/* Register Bit-field Definitions *******************************************/
+
+/* GPU_CTRL register */
+
+#define GPU_REG_GPU_CTRL_GPU_EN (1 << 0) /* Bit 0 */
+#define GPU_REG_GPU_CTRL_PWRS_B (1 << 6) /* Bit 6 */
+
+#endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_GPU_REG_H */

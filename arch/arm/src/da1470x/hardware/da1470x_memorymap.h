@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470_MEMORYMAP_H
-#define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470_MEMORYMAP_H
+#ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_MEMORYMAP_H
+#define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_MEMORYMAP_H
 
 /****************************************************************************
  * Included Files
@@ -27,12 +27,10 @@
 
 #include <nuttx/config.h>
 
-#if defined(CONFIG_ARCH_CHIP_DA1470_CPUAPP)
+#if defined(CONFIG_ARCH_CHIP_DA1470X_CPUAPP)
 #  include "hardware/da1470x_memorymap_cpuapp.h"
-#elif defined(CONFIG_ARCH_CHIP_DA1470_CPUSNC)
-#  include "hardware/nrf53_memorymap_cpusnc.h"
 #else
-#  error "Unsupported DA1470 CPU"
+#  error "Only the DA1470x CPUAPP (Cortex-M33) core is supported"
 #endif
 
-#endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470_MEMORYMAP_H */
+#endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_MEMORYMAP_H */

@@ -18,6 +18,10 @@
  *
  ****************************************************************************/
 
+/* Generated from the Renesas CMSIS device header DA1470x-00.h (SDK
+ * 10.2.6.49).  Do not edit by hand; regenerate with tools/genhdr.py.
+ */
+
 #ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_VAD_H
 #define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_VAD_H
 
@@ -25,40 +29,77 @@
  * Included Files
  ****************************************************************************/
 
-#include "hardware/da1470x_memorymap.h"
 #include <nuttx/config.h>
+#include "da1470x_memorymap.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Register offsets *********************************************************/
+/* Register Offsets *********************************************************/
 
-#define DA1470X_VAD_CTRL0_OFFSET 0x0000 /* VAD Control Register 0 */
-#define DA1470X_VAD_CTRL1_OFFSET 0x0004 /* VAD Control Register 1 */
-#define DA1470X_VAD_CTRL2_OFFSET 0x0008 /* VAD Control Register 2 */
-#define DA1470X_VAD_CTRL3_OFFSET 0x000C /* VAD Control Register 3 */
-#define DA1470X_VAD_CTRL4_OFFSET 0x0010 /* VAD Control Register 4 */
+#define DA1470X_VAD_CTRL0_OFFSET 0x0000  /* VAD Control Register 0 */
+#define DA1470X_VAD_CTRL1_OFFSET 0x0004  /* VAD Control Register 1 */
+#define DA1470X_VAD_CTRL2_OFFSET 0x0008  /* VAD Control Register 2 */
+#define DA1470X_VAD_CTRL3_OFFSET 0x000c  /* VAD Control Register 3 */
+#define DA1470X_VAD_CTRL4_OFFSET 0x0010  /* VAD Control Register 4 */
+#define DA1470X_VAD_STATUS_OFFSET 0x0020 /* VAD Status Register */
 
-/* Register addresses *******************************************************/
+/* Register Addresses *******************************************************/
 
 #define DA1470X_VAD_CTRL0 (DA1470X_VAD_BASE + DA1470X_VAD_CTRL0_OFFSET)
 #define DA1470X_VAD_CTRL1 (DA1470X_VAD_BASE + DA1470X_VAD_CTRL1_OFFSET)
 #define DA1470X_VAD_CTRL2 (DA1470X_VAD_BASE + DA1470X_VAD_CTRL2_OFFSET)
 #define DA1470X_VAD_CTRL3 (DA1470X_VAD_BASE + DA1470X_VAD_CTRL3_OFFSET)
 #define DA1470X_VAD_CTRL4 (DA1470X_VAD_BASE + DA1470X_VAD_CTRL4_OFFSET)
+#define DA1470X_VAD_STATUS (DA1470X_VAD_BASE + DA1470X_VAD_STATUS_OFFSET)
 
-/* Register bit definitions *************************************************/
+/* Register Bit-field Definitions *******************************************/
 
-/* VAD_CTRL3_REG */
+/* CTRL0 register */
 
-#define VAD_CTRL3_VAD_SB (1 << 7)    /* Bit 7: Stand-by mode (1: deactivated) */
-#define VAD_CTRL3_VAD_SLEEP (1 << 6) /* Bit 6: Sleep mode (1: sleep) */
+#define VAD_CTRL0_PWR_LVL_SNSTVTY_SHIFT (0) /* Bits 0-2 */
+#define VAD_CTRL0_PWR_LVL_SNSTVTY_MASK (0x7 << VAD_CTRL0_PWR_LVL_SNSTVTY_SHIFT)
+#  define VAD_CTRL0_PWR_LVL_SNSTVTY(n) ((uint32_t)(n) << VAD_CTRL0_PWR_LVL_SNSTVTY_SHIFT)
+#define VAD_CTRL0_NTRACK_SHIFT (3)          /* Bits 3-5 */
+#define VAD_CTRL0_NTRACK_MASK (0x7 << VAD_CTRL0_NTRACK_SHIFT)
+#  define VAD_CTRL0_NTRACK(n) ((uint32_t)(n) << VAD_CTRL0_NTRACK_SHIFT)
+#define VAD_CTRL0_VTRACK_SHIFT (6)          /* Bits 6-7 */
+#define VAD_CTRL0_VTRACK_MASK (0x3 << VAD_CTRL0_VTRACK_SHIFT)
+#  define VAD_CTRL0_VTRACK(n) ((uint32_t)(n) << VAD_CTRL0_VTRACK_SHIFT)
 
-/* VAD_CTRL4_REG */
+/* CTRL1 register */
 
-#define VAD_CTRL4_VAD_IRQ_MODE (1 << 2) /* Bit 2: IRQ mode selection */
-#define VAD_CTRL4_VAD_IRQ_FLAG                                                 \
-  (1 << 1) /* Bit 1: Interrupt ReQuest flag (W1C) */
+#define VAD_CTRL1_MINEVENT_SHIFT (0) /* Bits 0-2 */
+#define VAD_CTRL1_MINEVENT_MASK (0x7 << VAD_CTRL1_MINEVENT_SHIFT)
+#  define VAD_CTRL1_MINEVENT(n) ((uint32_t)(n) << VAD_CTRL1_MINEVENT_SHIFT)
+#define VAD_CTRL1_MINDELAY_SHIFT (3) /* Bits 3-4 */
+#define VAD_CTRL1_MINDELAY_MASK (0x3 << VAD_CTRL1_MINDELAY_SHIFT)
+#  define VAD_CTRL1_MINDELAY(n) ((uint32_t)(n) << VAD_CTRL1_MINDELAY_SHIFT)
+
+/* CTRL2 register */
+
+#define VAD_CTRL2_NFI_DET_SHIFT (0) /* Bits 0-5 */
+#define VAD_CTRL2_NFI_DET_MASK (0x3f << VAD_CTRL2_NFI_DET_SHIFT)
+#  define VAD_CTRL2_NFI_DET(n) ((uint32_t)(n) << VAD_CTRL2_NFI_DET_SHIFT)
+
+/* CTRL3 register */
+
+#define VAD_CTRL3_MCLK_DIV_SHIFT (3) /* Bits 3-5 */
+#define VAD_CTRL3_MCLK_DIV_MASK (0x7 << VAD_CTRL3_MCLK_DIV_SHIFT)
+#  define VAD_CTRL3_MCLK_DIV(n) ((uint32_t)(n) << VAD_CTRL3_MCLK_DIV_SHIFT)
+#define VAD_CTRL3_SLEEP (1 << 6)     /* Bit 6 */
+#define VAD_CTRL3_SB (1 << 7)        /* Bit 7 */
+
+/* CTRL4 register */
+
+#define VAD_CTRL4_IRQ_FLAG (1 << 1) /* Bit 1 */
+#define VAD_CTRL4_IRQ_MODE (1 << 2) /* Bit 2 */
+
+/* STATUS register */
+
+#define VAD_STATUS_NFI_RD_SHIFT (0) /* Bits 0-5 */
+#define VAD_STATUS_NFI_RD_MASK (0x3f << VAD_STATUS_NFI_RD_SHIFT)
+#  define VAD_STATUS_NFI_RD(n) ((uint32_t)(n) << VAD_STATUS_NFI_RD_SHIFT)
 
 #endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_VAD_H */

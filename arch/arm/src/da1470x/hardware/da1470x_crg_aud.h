@@ -18,8 +18,12 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470X_CRG_AUD_H
-#define __DA1470X_CRG_AUD_H
+/* Generated from the Renesas CMSIS device header DA1470x-00.h (SDK
+ * 10.2.6.49).  Do not edit by hand; regenerate with tools/genhdr.py.
+ */
+
+#ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_AUD_H
+#define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_AUD_H
 
 /****************************************************************************
  * Included Files
@@ -32,51 +36,53 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Register offsets *********************************************************/
+/* Register Offsets *********************************************************/
 
-#define DA1470_CRG_AUD_PCM_DIV_OFFSET         0x0040 /* PCM divider and enables */
-#define DA1470_CRG_AUD_PCM_FDIV_OFFSET        0x0044 /* PCM fractional division register */
-#define DA1470_CRG_AUD_PDM_DIV_OFFSET         0x0048 /* PDM divider and enables */
-#define DA1470_CRG_AUD_SRC_DIV_OFFSET         0x004C /* SRC divider and enables */
+#define DA1470X_CRG_AUD_PCM_DIV_OFFSET 0x0040  /* PCM divider and enables */
+#define DA1470X_CRG_AUD_PCM_FDIV_OFFSET 0x0044 /* PCM fractional division register */
+#define DA1470X_CRG_AUD_PDM_DIV_OFFSET 0x0048  /* PDM divider and enables */
+#define DA1470X_CRG_AUD_SRC_DIV_OFFSET 0x004c  /* SRC divider and enables */
 
-/* Register addresses *******************************************************/
+/* Register Addresses *******************************************************/
 
-#define DA1470_CRG_AUD_BASE                   0x50030000 /* CRG_AUD registers */
+#define DA1470X_CRG_AUD_PCM_DIV (DA1470X_CRG_AUD_BASE + DA1470X_CRG_AUD_PCM_DIV_OFFSET)
+#define DA1470X_CRG_AUD_PCM_FDIV (DA1470X_CRG_AUD_BASE + DA1470X_CRG_AUD_PCM_FDIV_OFFSET)
+#define DA1470X_CRG_AUD_PDM_DIV (DA1470X_CRG_AUD_BASE + DA1470X_CRG_AUD_PDM_DIV_OFFSET)
+#define DA1470X_CRG_AUD_SRC_DIV (DA1470X_CRG_AUD_BASE + DA1470X_CRG_AUD_SRC_DIV_OFFSET)
 
-#define DA1470_CRG_AUD_PCM_DIV                (DA1470_CRG_AUD_BASE + DA1470_CRG_AUD_PCM_DIV_OFFSET) /* PCM divider and enables */
-#define DA1470_CRG_AUD_PCM_FDIV               (DA1470_CRG_AUD_BASE + DA1470_CRG_AUD_PCM_FDIV_OFFSET) /* PCM fractional division register */
-#define DA1470_CRG_AUD_PDM_DIV                (DA1470_CRG_AUD_BASE + DA1470_CRG_AUD_PDM_DIV_OFFSET) /* PDM divider and enables */
-#define DA1470_CRG_AUD_SRC_DIV                (DA1470_CRG_AUD_BASE + DA1470_CRG_AUD_SRC_DIV_OFFSET) /* SRC divider and enables */
+/* Register Bit-field Definitions *******************************************/
 
-/* Register bit definitions *************************************************/
+/* PCM_DIV register */
 
+#define CRG_AUD_PCM_DIV_PCM_DIV_SHIFT (0)     /* Bits 0-11 */
+#define CRG_AUD_PCM_DIV_PCM_DIV_MASK (0xfff << CRG_AUD_PCM_DIV_PCM_DIV_SHIFT)
+#  define CRG_AUD_PCM_DIV_PCM_DIV(n) ((uint32_t)(n) << CRG_AUD_PCM_DIV_PCM_DIV_SHIFT)
+#define CRG_AUD_PCM_DIV_CLK_PCM_EN (1 << 12)  /* Bit 12 */
+#define CRG_AUD_PCM_DIV_PCM_SRC_SEL (1 << 13) /* Bit 13 */
 
-/* PCM_DIV Register */
+/* PCM_FDIV register */
 
-#define CRG_AUD_PCM_SRC_SEL                   (1U << 13) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_AUD_CLK_PCM_EN                    (1U << 12) /* Enable for the internally generated PCM clock The PCM_DIV must be set before or  */
-#define CRG_AUD_PCM_DIV_MASK                  (0xFFF << 0) /* PCM clock divider. Minimum value is 0x2. */
-#define CRG_AUD_PCM_DIV_POS                   (0) /* PCM clock divider. Minimum value is 0x2. */
+#define CRG_AUD_PCM_FDIV_PCM_FDIV_SHIFT (0) /* Bits 0-15 */
+#define CRG_AUD_PCM_FDIV_PCM_FDIV_MASK (0xffff << CRG_AUD_PCM_FDIV_PCM_FDIV_SHIFT)
+#  define CRG_AUD_PCM_FDIV_PCM_FDIV(n) ((uint32_t)(n) << CRG_AUD_PCM_FDIV_PCM_FDIV_SHIFT)
 
-/* PCM_FDIV Register */
+/* PDM_DIV register */
 
-#define CRG_AUD_PCM_FDIV_MASK                 (0xFFFF << 0) /* These bits define the fractional division part of the PCM clock. The left most ' */
-#define CRG_AUD_PCM_FDIV_POS                  (0) /* These bits define the fractional division part of the PCM clock. The left most ' */
+#define CRG_AUD_PDM_DIV_PDM_DIV_SHIFT (0)        /* Bits 0-7 */
+#define CRG_AUD_PDM_DIV_PDM_DIV_MASK (0xff << CRG_AUD_PDM_DIV_PDM_DIV_SHIFT)
+#  define CRG_AUD_PDM_DIV_PDM_DIV(n) ((uint32_t)(n) << CRG_AUD_PDM_DIV_PDM_DIV_SHIFT)
+#define CRG_AUD_PDM_DIV_CLK_PDM_EN (1 << 8)      /* Bit 8 */
+#define CRG_AUD_PDM_DIV_PDM_MASTER_MODE (1 << 9) /* Bit 9 */
 
-/* PDM_DIV Register */
+/* SRC_DIV register */
 
-#define CRG_AUD_PDM_MASTER_MODE               (1U << 9) /* Master mode selection 0: slave mode 1: master mode */
-#define CRG_AUD_CLK_PDM_EN                    (1U << 8) /* Enable for the internally generated PDM clock The PDM_DIV must be set before or  */
-#define CRG_AUD_PDM_DIV_MASK                  (0xFF << 0) /* PDM clock divider */
-#define CRG_AUD_PDM_DIV_POS                   (0) /* PDM clock divider */
+#define CRG_AUD_SRC_DIV_SRC_DIV_SHIFT (0)     /* Bits 0-7 */
+#define CRG_AUD_SRC_DIV_SRC_DIV_MASK (0xff << CRG_AUD_SRC_DIV_SRC_DIV_SHIFT)
+#  define CRG_AUD_SRC_DIV_SRC_DIV(n) ((uint32_t)(n) << CRG_AUD_SRC_DIV_SRC_DIV_SHIFT)
+#define CRG_AUD_SRC_DIV_SRC2_DIV_SHIFT (8)    /* Bits 8-15 */
+#define CRG_AUD_SRC_DIV_SRC2_DIV_MASK (0xff << CRG_AUD_SRC_DIV_SRC2_DIV_SHIFT)
+#  define CRG_AUD_SRC_DIV_SRC2_DIV(n) ((uint32_t)(n) << CRG_AUD_SRC_DIV_SRC2_DIV_SHIFT)
+#define CRG_AUD_SRC_DIV_CLK_SRC_EN (1 << 16)  /* Bit 16 */
+#define CRG_AUD_SRC_DIV_CLK_SRC2_EN (1 << 17) /* Bit 17 */
 
-/* SRC_DIV Register */
-
-#define CRG_AUD_CLK_SRC2_EN                   (1U << 17) /* Enable for the internally generated SRC2 clock The SRC2_DIV must be set before o */
-#define CRG_AUD_CLK_SRC_EN                    (1U << 16) /* Enable for the internally generated SRC clock The SRC_DIV must be set before or  */
-#define CRG_AUD_SRC2_DIV_MASK                 (0xFF << 8) /* SRC2 clock divider */
-#define CRG_AUD_SRC2_DIV_POS                  (8) /* SRC2 clock divider */
-#define CRG_AUD_SRC_DIV_MASK                  (0xFF << 0) /* SRC clock divider */
-#define CRG_AUD_SRC_DIV_POS                   (0) /* SRC clock divider */
-
-#endif /* __DA1470X_CRG_AUD_H */
+#endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_AUD_H */

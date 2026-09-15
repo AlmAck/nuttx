@@ -1,22 +1,28 @@
 /****************************************************************************
  * arch/arm/src/da1470x/da1470x_i2c.c
  *
- * Polled I2C master driver for DA1470x. Implements NuttX i2c_ops_s for
- * I2C, I2C2, I2C3 — all DesignWare DW_apb_i2c controllers in PD_SNC.
- *
- * Initial scope: 7-bit-address master, Fast-mode (~400 kHz), polled.
- * Each transfer() processes the msg array sequentially, using repeated
- * START between messages unless I2C_M_NOSTART/I2C_M_NOSTOP say
- * otherwise. NACK is detected via IC_RAW_INTR_STAT.TX_ABRT.
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to you under the Apache License, Version
- * 2.0 (the "License"); you may not use this file except in compliance
- * with the License.
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
+
+/* Interrupt driven master driver for the DesignWare I2C controllers of the
+ * DA1470x.  Each i2c_msg_s is pushed through the 4-entry command FIFO from
+ * the TX_EMPTY interrupt; reads are drained from the RX_FULL interrupt;
+ * completion is signalled by STOP_DET, and NACKs by TX_ABRT.
+ */
 
 /****************************************************************************
  * Included Files
@@ -29,66 +35,38 @@
 #include <errno.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <time.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/clock.h>
 #include <nuttx/mutex.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/i2c/i2c_master.h>
 
 #include "arm_internal.h"
 #include "hardware/da1470x_crg_snc.h"
 #include "hardware/da1470x_i2c.h"
 #include "hardware/da1470x_memorymap.h"
+#include "da1470x_clockconfig.h"
+#include "da1470x_gpio.h"
 #include "da1470x_i2c.h"
 #include "da1470x_pmu.h"
+
+#ifdef CONFIG_DA1470X_I2C
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* I2C source clock = DivN = 32 MHz on our clock tree.
- * DW SCL_HCNT/LCNT register values are in source-clock periods.
- */
+#define I2C_TIMEOUT_MS          500
+#define I2C_ENABLE_WAIT_LOOPS   10000
 
-#define DA1470X_I2C_SRC_CLK              32000000
+/* Interrupts used by the master state machine */
 
-/* Bits we use that aren't already defined in hardware/da1470x_i2c.h. The
- * local header has offsets only; bit fields come from the SDK DA1470x-00.h.
- */
-
-#define I2C_CON_MASTER_MODE              (1U << 0)
-#define I2C_CON_SPEED_STANDARD           (1U << 1)
-#define I2C_CON_SPEED_FAST               (2U << 1)
-#define I2C_CON_10BITADDR_MASTER         (1U << 4)
-#define I2C_CON_RESTART_EN               (1U << 5)
-#define I2C_CON_SLAVE_DISABLE            (1U << 6)
-#define I2C_CON_STOP_DET_IFADDRESSED     (1U << 7)
-#define I2C_CON_TX_EMPTY_CTRL            (1U << 8)
-
-#define I2C_DATA_CMD_DAT_MASK            0xFFU
-#define I2C_DATA_CMD_CMD_READ            (1U << 8)
-#define I2C_DATA_CMD_STOP                (1U << 9)
-#define I2C_DATA_CMD_RESTART             (1U << 10)
-
-#define I2C_ENABLE_EN                    (1U << 0)
-#define I2C_ENABLE_ABORT                 (1U << 1)
-
-#define I2C_STATUS_ACTIVITY              (1U << 0)
-#define I2C_STATUS_TFNF                  (1U << 1)
-#define I2C_STATUS_TFE                   (1U << 2)
-#define I2C_STATUS_RFNE                  (1U << 3)
-#define I2C_STATUS_RFF                   (1U << 4)
-#define I2C_STATUS_MST_ACTIVITY          (1U << 5)
-
-/* Bits in IC_RAW_INTR_STAT we care about. */
-
-#define I2C_INTR_TX_ABRT                 (1U << 6)
-#define I2C_INTR_STOP_DET                (1U << 9)
-
-/* Poll deadline in source-clock cycles, ~50 ms at 32 MHz. */
-
-#define DA1470X_I2C_POLL_LOOPS           1600000
+#define I2C_INTR_MASTER (I2C_INTR_MASK_M_TX_EMPTY | \
+                         I2C_INTR_MASK_M_RX_FULL  | \
+                         I2C_INTR_MASK_M_TX_ABRT  | \
+                         I2C_INTR_MASK_M_STOP_DET)
 
 /****************************************************************************
  * Private Types
@@ -96,23 +74,39 @@
 
 struct da1470x_i2c_priv_s
 {
-  struct i2c_master_s i2cdev;    /* MUST be first */
-  uintptr_t           base;
-  mutex_t             lock;
-  uint8_t             bus;
-  uint16_t            cur_addr;  /* Currently programmed target address */
-  bool                initialized;
+  struct i2c_master_s i2cdev;   /* Externally visible part */
+  uintptr_t   base;             /* Register base */
+  uint8_t     bus;              /* Bus number (0..2) */
+  uint8_t     irq;              /* NVIC interrupt number */
+  uint32_t    enable_bit;       /* CRG_SNC clock enable bit */
+  uint32_t    sel_bit;          /* CRG_SNC clock select bit */
+  mutex_t     lock;             /* Bus exclusive lock */
+  sem_t       wait;             /* Transfer completion */
+  uint32_t    frequency;        /* Programmed bus frequency */
+  bool        initialized;
+
+  /* Current transfer */
+
+  struct i2c_msg_s *msgs;       /* Message array */
+  int         msgc;             /* Number of messages */
+  int         msgi;             /* Index of the message being pushed */
+  size_t      txndx;            /* Next byte to push in msgs[msgi] */
+  int         rxmsg;            /* Index of the message being drained */
+  size_t      rxndx;            /* Next byte to store in msgs[rxmsg] */
+  int         result;           /* Transfer result */
+  bool        done;             /* Completion flag */
 };
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
-static int da1470x_i2c_transfer(struct i2c_master_s *dev,
-                                struct i2c_msg_s *msgs, int count);
+static int  i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
+                         int count);
 #ifdef CONFIG_I2C_RESET
-static int da1470x_i2c_reset(struct i2c_master_s *dev);
+static int  i2c_reset(struct i2c_master_s *dev);
 #endif
+static int  i2c_interrupt(int irq, void *context, void *arg);
 
 /****************************************************************************
  * Private Data
@@ -120,393 +114,661 @@ static int da1470x_i2c_reset(struct i2c_master_s *dev);
 
 static const struct i2c_ops_s g_i2c_ops =
 {
-  .transfer = da1470x_i2c_transfer,
+  .transfer = i2c_transfer,
 #ifdef CONFIG_I2C_RESET
-  .reset    = da1470x_i2c_reset,
+  .reset    = i2c_reset,
 #endif
 };
 
-static struct da1470x_i2c_priv_s g_i2c0_priv =
+#ifdef CONFIG_DA1470X_I2C0
+static struct da1470x_i2c_priv_s g_i2c0priv =
 {
-  .i2cdev = { .ops = &g_i2c_ops },
-  .base   = DA1470X_I2C_BASE,
-  .lock   = NXMUTEX_INITIALIZER,
-  .bus    = DA1470X_I2C_BUS_I2C,
+  .i2cdev     =
+  {
+    .ops = &g_i2c_ops
+  },
+  .base       = DA1470X_I2C0_BASE,
+  .bus        = 0,
+  .irq        = DA1470X_IRQ_I2C0,
+  .enable_bit = CRG_SNC_CLK_SNC_I2C_ENABLE,
+  .sel_bit    = CRG_SNC_CLK_SNC_I2C_CLK_SEL,
+  .lock       = NXMUTEX_INITIALIZER,
+  .wait       = SEM_INITIALIZER(0),
 };
+#endif
 
-static struct da1470x_i2c_priv_s g_i2c1_priv =
+#ifdef CONFIG_DA1470X_I2C1
+static struct da1470x_i2c_priv_s g_i2c1priv =
 {
-  .i2cdev = { .ops = &g_i2c_ops },
-  .base   = DA1470X_I2C2_BASE,
-  .lock   = NXMUTEX_INITIALIZER,
-  .bus    = DA1470X_I2C_BUS_I2C2,
+  .i2cdev     =
+  {
+    .ops = &g_i2c_ops
+  },
+  .base       = DA1470X_I2C1_BASE,
+  .bus        = 1,
+  .irq        = DA1470X_IRQ_I2C1,
+  .enable_bit = CRG_SNC_CLK_SNC_I2C2_ENABLE,
+  .sel_bit    = CRG_SNC_CLK_SNC_I2C2_CLK_SEL,
+  .lock       = NXMUTEX_INITIALIZER,
+  .wait       = SEM_INITIALIZER(0),
 };
+#endif
 
-static struct da1470x_i2c_priv_s g_i2c2_priv =
+#ifdef CONFIG_DA1470X_I2C2
+static struct da1470x_i2c_priv_s g_i2c2priv =
 {
-  .i2cdev = { .ops = &g_i2c_ops },
-  .base   = DA1470X_I2C3_BASE,
-  .lock   = NXMUTEX_INITIALIZER,
-  .bus    = DA1470X_I2C_BUS_I2C3,
+  .i2cdev     =
+  {
+    .ops = &g_i2c_ops
+  },
+  .base       = DA1470X_I2C2_BASE,
+  .bus        = 2,
+  .irq        = DA1470X_IRQ_I2C2,
+  .enable_bit = CRG_SNC_CLK_SNC_I2C3_ENABLE,
+  .sel_bit    = CRG_SNC_CLK_SNC_I2C3_CLK_SEL,
+  .lock       = NXMUTEX_INITIALIZER,
+  .wait       = SEM_INITIALIZER(0),
 };
+#endif
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-static inline void i2c_putreg(struct da1470x_i2c_priv_s *p,
-                              uint32_t off, uint32_t val)
+/****************************************************************************
+ * Name: i2c_getreg / i2c_putreg
+ ****************************************************************************/
+
+static inline uint32_t i2c_getreg(struct da1470x_i2c_priv_s *priv,
+                                  uint32_t offset)
 {
-  putreg32(val, p->base + off);
+  return getreg32(priv->base + offset);
 }
 
-static inline uint32_t i2c_getreg(struct da1470x_i2c_priv_s *p, uint32_t off)
+static inline void i2c_putreg(struct da1470x_i2c_priv_s *priv,
+                              uint32_t offset, uint32_t value)
 {
-  return getreg32(p->base + off);
+  putreg32(value, priv->base + offset);
 }
 
-static void i2c_clock_enable(struct da1470x_i2c_priv_s *p)
-{
-  uint32_t mask;
-  uint32_t sel;
+/****************************************************************************
+ * Name: i2c_enable_block
+ *
+ * Description:
+ *   Enable or disable the controller and wait for IC_ENABLE_STATUS to
+ *   follow.
+ *
+ ****************************************************************************/
 
-  switch (p->bus)
+static void i2c_enable_block(struct da1470x_i2c_priv_s *priv, bool enable)
+{
+  uint32_t want = enable ? I2C_ENABLE_STATUS_IC_EN : 0;
+  int i;
+
+  i2c_putreg(priv, DA1470X_I2C_ENABLE_OFFSET, enable ? I2C_ENABLE_EN : 0);
+
+  for (i = 0; i < I2C_ENABLE_WAIT_LOOPS; i++)
     {
-      case DA1470X_I2C_BUS_I2C:
-        mask = CRG_SNC_I2C_ENABLE;
-        sel  = CRG_SNC_I2C_CLK_SEL;
-        break;
-      case DA1470X_I2C_BUS_I2C2:
-        mask = CRG_SNC_I2C2_ENABLE;
-        sel  = CRG_SNC_I2C2_CLK_SEL;
-        break;
-      case DA1470X_I2C_BUS_I2C3:
-        mask = CRG_SNC_I2C3_ENABLE;
-        sel  = CRG_SNC_I2C3_CLK_SEL;
-        break;
-      default:
-        return;
-    }
-
-  /* DivN (32 MHz) -> clear CLK_SEL, then set ENABLE. */
-
-  putreg32(sel, DA1470_CRG_SNC_RESET_CLK_SNC);
-  putreg32(mask, DA1470_CRG_SNC_SET_CLK_SNC);
-}
-
-static void i2c_disable_block(struct da1470x_i2c_priv_s *p)
-{
-  /* Spec: writing 0 to IC_ENABLE asks the controller to stop; poll
-   * IC_ENABLE_STATUS.IC_EN until it actually deasserts.
-   */
-
-  i2c_putreg(p, DA1470_I2C_ENABLE_OFFSET, 0);
-  for (int i = 0; i < 1000; i++)
-    {
-      if ((i2c_getreg(p, DA1470_I2C_ENABLE_STATUS_OFFSET) & 0x1U) == 0)
+      if ((i2c_getreg(priv, DA1470X_I2C_ENABLE_STATUS_OFFSET) &
+           I2C_ENABLE_STATUS_IC_EN) == want)
         {
           return;
         }
     }
+
+  i2cwarn("IC_ENABLE did not settle\n");
 }
 
-static void i2c_enable_block(struct da1470x_i2c_priv_s *p)
-{
-  i2c_putreg(p, DA1470_I2C_ENABLE_OFFSET, I2C_ENABLE_EN);
-  for (int i = 0; i < 1000; i++)
-    {
-      if ((i2c_getreg(p, DA1470_I2C_ENABLE_STATUS_OFFSET) & 0x1U) != 0)
-        {
-          return;
-        }
-    }
-}
+/****************************************************************************
+ * Name: i2c_setfrequency
+ *
+ * Description:
+ *   Program the SCL high/low counts for the requested bus frequency.  The
+ *   controller is clocked from DIVN (32 MHz).  Counts follow the DesignWare
+ *   rule: HCNT + LCNT + spike-filter + fixed overhead = clocks per bit.
+ *
+ ****************************************************************************/
 
-static void i2c_set_target(struct da1470x_i2c_priv_s *p, uint16_t addr)
+static void i2c_setfrequency(struct da1470x_i2c_priv_s *priv,
+                             uint32_t frequency)
 {
-  if (addr == p->cur_addr)
+  uint32_t clk = da1470x_get_divn_clk();
+  uint32_t total;
+  uint32_t hcnt;
+  uint32_t lcnt;
+  uint32_t con;
+
+  if (frequency == priv->frequency || frequency == 0)
     {
       return;
     }
 
-  /* IC_TAR may only be written while the controller is disabled. */
+  total = clk / frequency;
 
-  i2c_disable_block(p);
-  i2c_putreg(p, DA1470_I2C_TAR_OFFSET, addr & 0x7FU);
-  i2c_enable_block(p);
-  p->cur_addr = addr;
+  /* Low phase gets the larger share as required by the I2C timing spec
+   * (tLOW >= 1.3 us at 400 kHz, >= 4.7 us at 100 kHz).
+   */
+
+  lcnt = (total * 6) / 10;
+  hcnt = total - lcnt;
+
+  /* Subtract the controller's internal overhead (7 clocks on high, 1 on
+   * low) and keep the minimum legal values.
+   */
+
+  if (hcnt > 8)
+    {
+      hcnt -= 8;
+    }
+  else
+    {
+      hcnt = 6;
+    }
+
+  if (lcnt > 1)
+    {
+      lcnt -= 1;
+    }
+  else
+    {
+      lcnt = 8;
+    }
+
+  i2c_enable_block(priv, false);
+
+  con  = i2c_getreg(priv, DA1470X_I2C_CON_OFFSET);
+  con &= ~I2C_CON_SPEED_MASK;
+
+  if (frequency <= 100000)
+    {
+      con |= I2C_CON_SPEED_STANDARD;
+      i2c_putreg(priv, DA1470X_I2C_SS_SCL_HCNT_OFFSET, hcnt);
+      i2c_putreg(priv, DA1470X_I2C_SS_SCL_LCNT_OFFSET, lcnt);
+    }
+  else
+    {
+      con |= I2C_CON_SPEED_FAST;
+      i2c_putreg(priv, DA1470X_I2C_FS_SCL_HCNT_OFFSET, hcnt);
+      i2c_putreg(priv, DA1470X_I2C_FS_SCL_LCNT_OFFSET, lcnt);
+    }
+
+  i2c_putreg(priv, DA1470X_I2C_CON_OFFSET, con);
+  i2c_putreg(priv, DA1470X_I2C_IC_FS_SPKLEN_OFFSET, 1);
+
+  i2c_enable_block(priv, true);
+  priv->frequency = frequency;
 }
 
 /****************************************************************************
- * Master transfer (polled)
+ * Name: i2c_settarget
  *
- * For each message: enable RESTART when crossing message boundaries (or
- * when transitioning from write -> read). Push bytes via IC_DATA_CMD
- * with the CMD bit selecting direction; for the last byte of the last
- * message (unless I2C_M_NOSTOP), set the STOP bit so the controller
- * emits a STOP condition.
+ * Description:
+ *   Program the target address and addressing mode.  Requires the block to
+ *   be disabled.
  *
- * NACK is detected by reading IC_RAW_INTR_STAT after the controller
- * raises an error; we clear it via IC_CLR_TX_ABRT and return -ENXIO so
- * the caller can distinguish "no device" from a bus hang (-ETIMEDOUT).
  ****************************************************************************/
 
-static int i2c_xfer_msg(struct da1470x_i2c_priv_s *p,
-                        struct i2c_msg_s *msg, bool need_restart, bool last)
+static void i2c_settarget(struct da1470x_i2c_priv_s *priv,
+                          struct i2c_msg_s *msg)
 {
-  size_t i;
-  uint8_t *buf = msg->buffer;
-  size_t len   = msg->length;
-  bool is_read = (msg->flags & I2C_M_READ) != 0;
+  uint32_t con;
 
-  /* Make sure the controller is addressing this slave. */
+  i2c_enable_block(priv, false);
 
-  i2c_set_target(p, msg->addr);
+  con = i2c_getreg(priv, DA1470X_I2C_CON_OFFSET);
 
-  /* Walk the data buffer. For reads, push N "read command" entries and
-   * pull responses; for writes, push N data bytes.
-   */
-
-  size_t rx_done = 0;
-  for (i = 0; i < len; i++)
+  if ((msg->flags & I2C_M_TEN) != 0)
     {
-      uint32_t cmd = is_read ? I2C_DATA_CMD_CMD_READ : (buf[i] & 0xFFU);
+      con |= I2C_CON_10BITADDR_MASTER;
+      i2c_putreg(priv, DA1470X_I2C_TAR_OFFSET, msg->addr & 0x3ff);
+    }
+  else
+    {
+      con &= ~I2C_CON_10BITADDR_MASTER;
+      i2c_putreg(priv, DA1470X_I2C_TAR_OFFSET, msg->addr & 0x7f);
+    }
 
-      if (need_restart && i == 0)
+  i2c_putreg(priv, DA1470X_I2C_CON_OFFSET, con);
+  i2c_enable_block(priv, true);
+}
+
+/****************************************************************************
+ * Name: i2c_abort_to_errno
+ ****************************************************************************/
+
+static int i2c_abort_to_errno(uint32_t source)
+{
+  if ((source & (I2C_TX_ABRT_SOURCE_ABRT_7B_ADDR_NOACK |
+                 I2C_TX_ABRT_SOURCE_ABRT_10ADDR1_NOACK |
+                 I2C_TX_ABRT_SOURCE_ABRT_10ADDR2_NOACK)) != 0)
+    {
+      return -ENXIO;
+    }
+
+  if ((source & I2C_TX_ABRT_SOURCE_ABRT_TXDATA_NOACK) != 0)
+    {
+      return -EIO;
+    }
+
+  if ((source & I2C_TX_ABRT_SOURCE_ARB_LOST) != 0)
+    {
+      return -EAGAIN;
+    }
+
+  return -EIO;
+}
+
+/****************************************************************************
+ * Name: i2c_fill_txfifo
+ *
+ * Description:
+ *   Push as many command entries as the FIFO accepts.  Returns true when
+ *   every message has been fully queued.
+ *
+ ****************************************************************************/
+
+static bool i2c_fill_txfifo(struct da1470x_i2c_priv_s *priv)
+{
+  while (priv->msgi < priv->msgc)
+    {
+      struct i2c_msg_s *msg = &priv->msgs[priv->msgi];
+      uint32_t cmd;
+
+      if (priv->txndx >= msg->length)
+        {
+          /* Message fully queued: advance.  A new address requires the
+           * controller to be re-targeted, which can only happen once
+           * the current traffic has drained; that case is handled by
+           * splitting the transfer in i2c_transfer().
+           */
+
+          priv->msgi++;
+          priv->txndx = 0;
+          continue;
+        }
+
+      if ((i2c_getreg(priv, DA1470X_I2C_STATUS_OFFSET) &
+           I2C_STATUS_TFNF) == 0)
+        {
+          return false;
+        }
+
+      if ((msg->flags & I2C_M_READ) != 0)
+        {
+          cmd = I2C_DATA_CMD_CMD;
+        }
+      else
+        {
+          cmd = msg->buffer[priv->txndx];
+        }
+
+      /* RESTART before the first byte of every message that follows a
+       * message without STOP (unless the caller asked for no START).
+       */
+
+      if (priv->txndx == 0 && priv->msgi > 0 &&
+          (msg->flags & I2C_M_NOSTART) == 0)
         {
           cmd |= I2C_DATA_CMD_RESTART;
         }
 
-      if (last && i == len - 1 && (msg->flags & I2C_M_NOSTOP) == 0)
+      /* STOP after the last byte of the last message, unless suppressed */
+
+      if (priv->txndx == msg->length - 1 &&
+          priv->msgi == priv->msgc - 1 &&
+          (msg->flags & I2C_M_NOSTOP) == 0)
         {
           cmd |= I2C_DATA_CMD_STOP;
         }
 
-      /* Wait for TX FIFO space. */
+      i2c_putreg(priv, DA1470X_I2C_DATA_CMD_OFFSET, cmd);
+      priv->txndx++;
+    }
 
-      int budget = DA1470X_I2C_POLL_LOOPS;
-      while ((i2c_getreg(p, DA1470_I2C_STATUS_OFFSET) & I2C_STATUS_TFNF) == 0)
+  return true;
+}
+
+/****************************************************************************
+ * Name: i2c_drain_rxfifo
+ ****************************************************************************/
+
+static void i2c_drain_rxfifo(struct da1470x_i2c_priv_s *priv)
+{
+  while ((i2c_getreg(priv, DA1470X_I2C_STATUS_OFFSET) &
+          I2C_STATUS_RFNE) != 0)
+    {
+      uint8_t data = i2c_getreg(priv, DA1470X_I2C_DATA_CMD_OFFSET) & 0xff;
+
+      /* Find the next read message with room */
+
+      while (priv->rxmsg < priv->msgc &&
+             ((priv->msgs[priv->rxmsg].flags & I2C_M_READ) == 0 ||
+              priv->rxndx >= priv->msgs[priv->rxmsg].length))
         {
-          if (--budget <= 0) return -ETIMEDOUT;
+          priv->rxmsg++;
+          priv->rxndx = 0;
         }
 
-      i2c_putreg(p, DA1470_I2C_DATA_CMD_OFFSET, cmd);
-
-      /* For reads, drain the RX FIFO as bytes arrive so it doesn't
-       * stall. We don't need to wait per-byte here: the controller
-       * keeps issuing reads up to TX FIFO depth, and we'll loop again.
-       */
-
-      if (is_read)
+      if (priv->rxmsg >= priv->msgc)
         {
-          while (rx_done <= i &&
-                 (i2c_getreg(p, DA1470_I2C_STATUS_OFFSET) & I2C_STATUS_RFNE)
-                 != 0)
-            {
-              buf[rx_done++] = i2c_getreg(p, DA1470_I2C_DATA_CMD_OFFSET)
-                               & I2C_DATA_CMD_DAT_MASK;
-            }
+          i2cwarn("Unexpected RX byte\n");
+          continue;
         }
 
-      /* Check for NACK / abort after each pushed entry. */
+      priv->msgs[priv->rxmsg].buffer[priv->rxndx++] = data;
+    }
+}
 
-      if ((i2c_getreg(p, DA1470_I2C_RAW_INTR_STAT_OFFSET) & I2C_INTR_TX_ABRT)
-          != 0)
+/****************************************************************************
+ * Name: i2c_complete
+ ****************************************************************************/
+
+static void i2c_complete(struct da1470x_i2c_priv_s *priv, int result)
+{
+  if (!priv->done)
+    {
+      priv->result = result;
+      priv->done   = true;
+      i2c_putreg(priv, DA1470X_I2C_INTR_MASK_OFFSET, 0);
+      nxsem_post(&priv->wait);
+    }
+}
+
+/****************************************************************************
+ * Name: i2c_interrupt
+ ****************************************************************************/
+
+static int i2c_interrupt(int irq, void *context, void *arg)
+{
+  struct da1470x_i2c_priv_s *priv = (struct da1470x_i2c_priv_s *)arg;
+  uint32_t stat = i2c_getreg(priv, DA1470X_I2C_INTR_STAT_OFFSET);
+
+  if ((stat & I2C_RAW_INTR_STAT_TX_ABRT) != 0)
+    {
+      uint32_t source = i2c_getreg(priv, DA1470X_I2C_TX_ABRT_SOURCE_OFFSET);
+
+      i2c_getreg(priv, DA1470X_I2C_CLR_TX_ABRT_OFFSET);
+      i2c_complete(priv, i2c_abort_to_errno(source));
+      return OK;
+    }
+
+  if ((stat & I2C_RAW_INTR_STAT_RX_FULL) != 0)
+    {
+      i2c_drain_rxfifo(priv);
+    }
+
+  if ((stat & I2C_RAW_INTR_STAT_TX_EMPTY) != 0)
+    {
+      if (i2c_fill_txfifo(priv))
         {
-          (void)i2c_getreg(p, DA1470_I2C_CLR_TX_ABRT_OFFSET);
-          return -ENXIO;
+          /* Everything queued: stop asking for TX_EMPTY */
+
+          modifyreg32(priv->base + DA1470X_I2C_INTR_MASK_OFFSET,
+                      I2C_INTR_MASK_M_TX_EMPTY, 0);
         }
     }
 
-  /* For reads, drain whatever remains in the RX FIFO. */
-
-  if (is_read)
+  if ((stat & I2C_RAW_INTR_STAT_STOP_DET) != 0)
     {
-      int budget = DA1470X_I2C_POLL_LOOPS;
-      while (rx_done < len)
-        {
-          if ((i2c_getreg(p, DA1470_I2C_RAW_INTR_STAT_OFFSET)
-               & I2C_INTR_TX_ABRT) != 0)
-            {
-              (void)i2c_getreg(p, DA1470_I2C_CLR_TX_ABRT_OFFSET);
-              return -ENXIO;
-            }
+      i2c_getreg(priv, DA1470X_I2C_CLR_STOP_DET_OFFSET);
+      i2c_drain_rxfifo(priv);
 
-          if ((i2c_getreg(p, DA1470_I2C_STATUS_OFFSET) & I2C_STATUS_RFNE)
-              != 0)
-            {
-              buf[rx_done++] = i2c_getreg(p, DA1470_I2C_DATA_CMD_OFFSET)
-                               & I2C_DATA_CMD_DAT_MASK;
-            }
-          else if (--budget <= 0)
-            {
-              return -ETIMEDOUT;
-            }
+      if (priv->msgi >= priv->msgc)
+        {
+          i2c_complete(priv, OK);
         }
     }
 
   return OK;
 }
 
-static int da1470x_i2c_transfer(struct i2c_master_s *dev,
-                                struct i2c_msg_s *msgs, int count)
+/****************************************************************************
+ * Name: i2c_run
+ *
+ * Description:
+ *   Execute a group of messages that share the same target address and
+ *   end with a STOP (or a caller-requested NOSTOP).
+ *
+ ****************************************************************************/
+
+static int i2c_run(struct da1470x_i2c_priv_s *priv, struct i2c_msg_s *msgs,
+                   int count)
 {
-  struct da1470x_i2c_priv_s *p = (struct da1470x_i2c_priv_s *)dev;
+  irqstate_t flags;
+  int ret;
+
+  priv->msgs   = msgs;
+  priv->msgc   = count;
+  priv->msgi   = 0;
+  priv->txndx  = 0;
+  priv->rxmsg  = 0;
+  priv->rxndx  = 0;
+  priv->result = OK;
+  priv->done   = false;
+
+  i2c_settarget(priv, &msgs[0]);
+
+  /* Clear any stale status, then arm the interrupts.  The TX_EMPTY
+   * interrupt fires immediately and starts pushing commands.
+   */
+
+  i2c_getreg(priv, DA1470X_I2C_CLR_INTR_OFFSET);
+  i2c_putreg(priv, DA1470X_I2C_TX_TL_OFFSET, 0);
+  i2c_putreg(priv, DA1470X_I2C_RX_TL_OFFSET, 0);
+
+  flags = enter_critical_section();
+  i2c_putreg(priv, DA1470X_I2C_INTR_MASK_OFFSET, I2C_INTR_MASTER);
+  leave_critical_section(flags);
+
+  ret = nxsem_tickwait_uninterruptible(&priv->wait,
+                                       MSEC2TICK(I2C_TIMEOUT_MS));
+  if (ret < 0)
+    {
+      flags = enter_critical_section();
+      i2c_putreg(priv, DA1470X_I2C_INTR_MASK_OFFSET, 0);
+      priv->done = true;
+      leave_critical_section(flags);
+
+      i2cerr("Timeout, STATUS=%08" PRIx32 " RAW=%08" PRIx32 "\n",
+             i2c_getreg(priv, DA1470X_I2C_STATUS_OFFSET),
+             i2c_getreg(priv, DA1470X_I2C_RAW_INTR_STAT_OFFSET));
+
+      /* Abort and recover the controller */
+
+      i2c_putreg(priv, DA1470X_I2C_ENABLE_OFFSET,
+                 I2C_ENABLE_EN | I2C_ENABLE_ABORT);
+      up_udelay(100);
+      i2c_getreg(priv, DA1470X_I2C_CLR_TX_ABRT_OFFSET);
+      i2c_enable_block(priv, false);
+      i2c_enable_block(priv, true);
+      return -ETIMEDOUT;
+    }
+
+  /* Make sure any trailing RX data is stored */
+
+  i2c_drain_rxfifo(priv);
+  i2c_getreg(priv, DA1470X_I2C_CLR_INTR_OFFSET);
+
+  return priv->result;
+}
+
+/****************************************************************************
+ * Name: i2c_transfer
+ *
+ * Description:
+ *   Generic I2C transfer function.  Consecutive messages to the same
+ *   address are executed in one hardware transaction; a change of address
+ *   starts a new one.
+ *
+ ****************************************************************************/
+
+static int i2c_transfer(struct i2c_master_s *dev, struct i2c_msg_s *msgs,
+                        int count)
+{
+  struct da1470x_i2c_priv_s *priv = (struct da1470x_i2c_priv_s *)dev;
+  int start = 0;
   int ret = OK;
   int i;
 
-  if (count <= 0)
+  if (msgs == NULL || count <= 0)
     {
       return -EINVAL;
     }
 
-  nxmutex_lock(&p->lock);
-
-  for (i = 0; i < count; i++)
+  ret = nxmutex_lock(&priv->lock);
+  if (ret < 0)
     {
-      bool need_restart = (i > 0) && (msgs[i].flags & I2C_M_NOSTART) == 0;
-      bool last         = (i == count - 1);
+      return ret;
+    }
 
-      ret = i2c_xfer_msg(p, &msgs[i], need_restart, last);
-      if (ret < 0)
+  if (msgs[0].frequency != 0)
+    {
+      i2c_setfrequency(priv, msgs[0].frequency);
+    }
+
+  for (i = 1; i <= count; i++)
+    {
+      if (i == count || msgs[i].addr != msgs[start].addr)
         {
-          break;
+          ret = i2c_run(priv, &msgs[start], i - start);
+          if (ret < 0)
+            {
+              break;
+            }
+
+          start = i;
         }
     }
 
-  /* Confirm the bus actually completed: either we saw STOP_DET (the
-   * controller drove a STOP at the end) or TX_ABRT (NACK from slave).
-   * MST_ACTIVITY alone is not enough — it can be 0 from the start if
-   * the pins aren't muxed and no transaction ever began, which would
-   * falsely indicate success.
-   *
-   * Only require STOP_DET when the last message asked for a STOP.
-   */
-
-  bool needed_stop = (count > 0) &&
-                     (msgs[count - 1].flags & I2C_M_NOSTOP) == 0;
-
-  if (ret == OK && needed_stop)
-    {
-      int budget = DA1470X_I2C_POLL_LOOPS;
-      while (true)
-        {
-          uint32_t raw = i2c_getreg(p, DA1470_I2C_RAW_INTR_STAT_OFFSET);
-
-          if ((raw & I2C_INTR_TX_ABRT) != 0)
-            {
-              (void)i2c_getreg(p, DA1470_I2C_CLR_TX_ABRT_OFFSET);
-              ret = -ENXIO;
-              break;
-            }
-
-          if ((raw & I2C_INTR_STOP_DET) != 0)
-            {
-              (void)i2c_getreg(p, DA1470_I2C_CLR_STOP_DET_OFFSET);
-              break;
-            }
-
-          if (--budget <= 0)
-            {
-              ret = -ETIMEDOUT;
-              break;
-            }
-        }
-    }
-
-  /* Drain any residual STOP_DET so it doesn't masquerade as completion
-   * of a future transfer.
-   */
-
-  (void)i2c_getreg(p, DA1470_I2C_CLR_STOP_DET_OFFSET);
-
-  nxmutex_unlock(&p->lock);
+  nxmutex_unlock(&priv->lock);
   return ret;
 }
 
+/****************************************************************************
+ * Name: i2c_reset
+ *
+ * Description:
+ *   Recover a stuck bus: disable the controller, clock SCL manually until
+ *   SDA is released, issue a STOP and re-enable.
+ *
+ ****************************************************************************/
+
 #ifdef CONFIG_I2C_RESET
-static int da1470x_i2c_reset(struct i2c_master_s *dev)
+static int i2c_reset(struct i2c_master_s *dev)
 {
-  struct da1470x_i2c_priv_s *p = (struct da1470x_i2c_priv_s *)dev;
-  nxmutex_lock(&p->lock);
-  i2c_disable_block(p);
-  i2c_enable_block(p);
-  p->cur_addr = 0xFFFF;       /* force re-program */
-  nxmutex_unlock(&p->lock);
+  struct da1470x_i2c_priv_s *priv = (struct da1470x_i2c_priv_s *)dev;
+
+  nxmutex_lock(&priv->lock);
+  i2c_enable_block(priv, false);
+  i2c_getreg(priv, DA1470X_I2C_CLR_INTR_OFFSET);
+  i2c_enable_block(priv, true);
+  nxmutex_unlock(&priv->lock);
   return OK;
 }
 #endif
 
 /****************************************************************************
+ * Name: i2c_bus_initialize
+ ****************************************************************************/
+
+static void i2c_bus_initialize(struct da1470x_i2c_priv_s *priv)
+{
+  da1470x_pd_enable(DA1470X_PD_SNC);
+
+  /* DIVN clock, then enable */
+
+  putreg32(priv->sel_bit, DA1470X_CRG_SNC_RESET_CLK_SNC);
+  putreg32(priv->enable_bit, DA1470X_CRG_SNC_SET_CLK_SNC);
+
+  i2c_enable_block(priv, false);
+
+  i2c_putreg(priv, DA1470X_I2C_CON_OFFSET,
+             I2C_CON_MASTER_MODE | I2C_CON_SPEED_FAST |
+             I2C_CON_RESTART_EN | I2C_CON_SLAVE_DISABLE |
+             I2C_CON_TX_EMPTY_CTRL);
+
+  i2c_putreg(priv, DA1470X_I2C_INTR_MASK_OFFSET, 0);
+  i2c_putreg(priv, DA1470X_I2C_TX_TL_OFFSET, 0);
+  i2c_putreg(priv, DA1470X_I2C_RX_TL_OFFSET, 0);
+  i2c_putreg(priv, DA1470X_I2C_SDA_HOLD_OFFSET, 8);
+
+  priv->frequency = 0;
+  i2c_setfrequency(priv, 100000);
+
+  irq_attach(priv->irq, i2c_interrupt, priv);
+  up_enable_irq(priv->irq);
+
+  i2c_enable_block(priv, true);
+  priv->initialized = true;
+}
+
+/****************************************************************************
  * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: da1470x_i2cbus_initialize
  ****************************************************************************/
 
 struct i2c_master_s *da1470x_i2cbus_initialize(int bus)
 {
-  struct da1470x_i2c_priv_s *p;
+  struct da1470x_i2c_priv_s *priv;
 
   switch (bus)
     {
-      case DA1470X_I2C_BUS_I2C:  p = &g_i2c0_priv; break;
-      case DA1470X_I2C_BUS_I2C2: p = &g_i2c1_priv; break;
-      case DA1470X_I2C_BUS_I2C3: p = &g_i2c2_priv; break;
+#ifdef CONFIG_DA1470X_I2C0
+      case 0:
+        priv = &g_i2c0priv;
+        break;
+#endif
+#ifdef CONFIG_DA1470X_I2C1
+      case 1:
+        priv = &g_i2c1priv;
+        break;
+#endif
+#ifdef CONFIG_DA1470X_I2C2
+      case 2:
+        priv = &g_i2c2priv;
+        break;
+#endif
       default:
-        i2cerr("ERROR: I2C bus %d not supported\n", bus);
+        i2cerr("I2C bus %d not supported\n", bus);
         return NULL;
     }
 
-  if (p->initialized)
+  if (!priv->initialized)
     {
-      return &p->i2cdev;
+      nxmutex_lock(&priv->lock);
+      i2c_bus_initialize(priv);
+      nxmutex_unlock(&priv->lock);
     }
 
-  da1470x_pd_enable(DA1470X_PD_SNC);
-  i2c_clock_enable(p);
-
-  /* Controller must be disabled to program timing / mode. */
-
-  i2c_disable_block(p);
-
-  /* Fast-mode master, 7-bit, slave-disabled, repeated-start enabled. */
-
-  i2c_putreg(p, DA1470_I2C_CON_OFFSET,
-             I2C_CON_MASTER_MODE | I2C_CON_SPEED_FAST |
-             I2C_CON_RESTART_EN  | I2C_CON_SLAVE_DISABLE |
-             I2C_CON_TX_EMPTY_CTRL);
-
-  /* Timing for Fast-mode (400 kHz) @ 32 MHz source clock:
-   *   bit time = 2.5 us; HCNT + LCNT ~= 80 cycles minimum.
-   * Use HCNT = 26, LCNT = 50 -> ~76 cycles total (~ 421 kHz) which is
-   * within Fast-mode spec margins. Spike-length filter = 1 cycle.
-   */
-
-  i2c_putreg(p, DA1470_I2C_FS_SCL_HCNT_OFFSET, 26);
-  i2c_putreg(p, DA1470_I2C_FS_SCL_LCNT_OFFSET, 50);
-  i2c_putreg(p, DA1470_I2C_IC_FS_SPKLEN_OFFSET, 1);
-
-  /* Standard-mode timing (filled in case CON.SPEED is changed later). */
-
-  i2c_putreg(p, DA1470_I2C_SS_SCL_HCNT_OFFSET, 130);
-  i2c_putreg(p, DA1470_I2C_SS_SCL_LCNT_OFFSET, 150);
-
-  /* TX/RX FIFO thresholds: interrupt on TX-empty when level <= 4, and
-   * on RX-full when level >= 0 (i.e. at least one byte present). We're
-   * polled so the thresholds only matter for future IRQ-mode work, but
-   * keep them sensible.
-   */
-
-  i2c_putreg(p, DA1470_I2C_TX_TL_OFFSET, 0);
-  i2c_putreg(p, DA1470_I2C_RX_TL_OFFSET, 0);
-
-  /* Mask all interrupts (polled driver). */
-
-  i2c_putreg(p, DA1470_I2C_INTR_MASK_OFFSET, 0);
-
-  /* Re-enable the controller in master mode. */
-
-  i2c_enable_block(p);
-
-  p->cur_addr    = 0xFFFF;    /* force first transfer to program TAR */
-  p->initialized = true;
-  return &p->i2cdev;
+  return &priv->i2cdev;
 }
+
+/****************************************************************************
+ * Name: da1470x_i2cbus_uninitialize
+ ****************************************************************************/
+
+int da1470x_i2cbus_uninitialize(struct i2c_master_s *dev)
+{
+  struct da1470x_i2c_priv_s *priv = (struct da1470x_i2c_priv_s *)dev;
+
+  if (priv == NULL || !priv->initialized)
+    {
+      return -EINVAL;
+    }
+
+  nxmutex_lock(&priv->lock);
+
+  up_disable_irq(priv->irq);
+  irq_detach(priv->irq);
+  i2c_enable_block(priv, false);
+  putreg32(priv->enable_bit, DA1470X_CRG_SNC_RESET_CLK_SNC);
+
+  priv->initialized = false;
+  nxmutex_unlock(&priv->lock);
+  return OK;
+}
+
+#endif /* CONFIG_DA1470X_I2C */

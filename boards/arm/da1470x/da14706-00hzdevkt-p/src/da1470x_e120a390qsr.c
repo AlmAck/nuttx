@@ -36,7 +36,21 @@
 
 #include "da1470x_gpio.h"
 #include "da1470x_lcdc.h"
+#include "hardware/da1470x_lcdc.h"
 #include "da1470x_e120a390qsr.h"
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+/* Framebuffer for Layer 0. 390x390 RGB565 = 304200 B. Aligned to 4 bytes
+ * because LAYER0_BASEADDR / LAYER0_STRIDE must be word-aligned. Lives in
+ * the retained-RAM BSS section (1 MB available); the LCDC DMA reads it
+ * directly from SRAM each frame.
+ */
+
+static uint16_t g_e120a390_fb[E120A390_RESX * E120A390_RESY]
+        aligned_data(4);
 
 /****************************************************************************
  * Private helpers
@@ -181,32 +195,39 @@ int da1470x_e120a390_initialize(void)
 
 void da1470x_e120a390_fill(uint16_t rgb565)
 {
-  /* Reset the active window to the full panel, then start a RAMWR. The
-   * RM69091 keeps the address auto-incrementing across pixel pushes so
-   * we just stream RESX*RESY pixels at 2 bytes/pixel.
-   */
+  const size_t n = (size_t)E120A390_RESX * E120A390_RESY;
+
+  for (size_t i = 0; i < n; i++)
+    {
+      g_e120a390_fb[i] = rgb565;
+    }
+
+  /* Reset the RM69091 window to the full panel before kicking off the
+   * frame transfer. */
 
   e120a390_set_window(E120A390_OFFSETX,
                       E120A390_OFFSETY,
                       E120A390_OFFSETX + E120A390_RESX - 1,
                       E120A390_OFFSETY + E120A390_RESY - 1);
 
-  da1470x_lcdc_set_hold(true);
-  e120a390_send_cmd(E120A390_DCS_RAMWR);
-
-  const uint8_t hi = (uint8_t)((rgb565 >> 8) & 0xFF);
-  const uint8_t lo = (uint8_t)( rgb565       & 0xFF);
-  const size_t  n  = (size_t)E120A390_RESX * E120A390_RESY;
-
-  /* Release hold so the controller actually starts shifting bits while
-   * we keep loading the FIFO.
+  /* Program the LCDC display timing and Layer 0 to fetch from the
+   * framebuffer. Stride = RESX * 2 bytes/pixel (already 4-byte aligned
+   * because RESX=390 is even).
    */
 
-  da1470x_lcdc_set_hold(false);
+  da1470x_lcdc_set_resolution(E120A390_RESX, E120A390_RESY);
+  da1470x_lcdc_set_layer0((uintptr_t)g_e120a390_fb,
+                          E120A390_RESX, E120A390_RESY,
+                          E120A390_RESX * 2,
+                          LCDC_OCM_8RGB565);
 
-  for (size_t i = 0; i < n; i++)
-    {
-      e120a390_send_data(hi);
-      e120a390_send_data(lo);
-    }
+  /* Send the SSQ-prefixed RAMWR (frame command). Under DMA_HOLD so the
+   * cmd lands first; send_one_frame() releases hold, forces CSX low for
+   * the whole frame, and triggers SFRAME_UPD.
+   */
+
+  da1470x_lcdc_set_hold(true);
+  da1470x_lcdc_qspi_send_frame_cmd(0x32, E120A390_DCS_RAMWR);
+
+  (void)da1470x_lcdc_send_one_frame();
 }

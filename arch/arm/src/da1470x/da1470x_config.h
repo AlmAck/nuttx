@@ -34,44 +34,29 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Configuration ************************************************************/
-
-/* Make sure that no unsupported UART, I2C master, or SPI master peripherals
- * are enabled.
- */
-
-/* Map logical UART names (Just for simplicity of naming) */
+/* Map logical UART names */
 
 #undef HAVE_UART0
 #undef HAVE_UART1
 #undef HAVE_UART2
 
-#ifdef CONFIG_DA1470_UART0
+#ifdef CONFIG_DA1470X_UART0
 #  define HAVE_UART0 1
 #endif
 
-#ifdef CONFIG_DA1470_UART1
+#ifdef CONFIG_DA1470X_UART1
 #  define HAVE_UART1 1
 #endif
 
-#ifdef CONFIG_DA1470_UART2
+#ifdef CONFIG_DA1470X_UART2
 #  define HAVE_UART2 1
 #endif
 
 /* Check if we have a UART device */
 
-#undef CONFIG_DA1470X_HAVE_UART
 #undef HAVE_UART_DEVICE
 
-#if defined(HAVE_UART0)
-#  define HAVE_UART_DEVICE 1
-#endif
-
-#if defined(HAVE_UART1)
-#  define HAVE_UART_DEVICE 1
-#endif
-
-#if defined(HAVE_UART2)
+#if defined(HAVE_UART0) || defined(HAVE_UART1) || defined(HAVE_UART2)
 #  define HAVE_UART_DEVICE 1
 #endif
 
@@ -83,18 +68,28 @@
 #  undef CONFIG_UART1_SERIAL_CONSOLE
 #  undef CONFIG_UART2_SERIAL_CONSOLE
 #  define HAVE_UART_CONSOLE 1
-#endif
-
-#if defined(CONFIG_UART1_SERIAL_CONSOLE) && defined(HAVE_UART1)
+#elif defined(CONFIG_UART1_SERIAL_CONSOLE) && defined(HAVE_UART1)
 #  undef CONFIG_UART0_SERIAL_CONSOLE
 #  undef CONFIG_UART2_SERIAL_CONSOLE
 #  define HAVE_UART_CONSOLE 1
-#endif
-
-#if defined(CONFIG_UART2_SERIAL_CONSOLE) && defined(HAVE_UART2)
+#elif defined(CONFIG_UART2_SERIAL_CONSOLE) && defined(HAVE_UART2)
 #  undef CONFIG_UART0_SERIAL_CONSOLE
 #  undef CONFIG_UART1_SERIAL_CONSOLE
 #  define HAVE_UART_CONSOLE 1
+#else
+#  undef CONFIG_UART0_SERIAL_CONSOLE
+#  undef CONFIG_UART1_SERIAL_CONSOLE
+#  undef CONFIG_UART2_SERIAL_CONSOLE
+#endif
+
+/* Hardware flow control is only wired on UART1 and UART2 (datasheet UART2
+ * and UART3).
+ */
+
+#undef HAVE_UART_FLOWCONTROL
+
+#if defined(CONFIG_SERIAL_IFLOWCONTROL) || defined(CONFIG_SERIAL_OFLOWCONTROL)
+#  define HAVE_UART_FLOWCONTROL 1
 #endif
 
 #endif /* __ARCH_ARM_SRC_DA1470X_DA1470X_CONFIG_H */

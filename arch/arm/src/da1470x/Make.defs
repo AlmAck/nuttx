@@ -1,4 +1,4 @@
-##############################################################################
+############################################################################
 # arch/arm/src/da1470x/Make.defs
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
@@ -16,45 +16,63 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
-##############################################################################
-
-
-# Common ARM and Cortex-M4 files (copied from da1470x/Make.defs)
+############################################################################
 
 include armv8-m/Make.defs
 
-# Required da1470x files
-
 CHIP_ASRCS  =
-CHIP_CSRCS  = da1470x_allocateheap.c da1470x_clk.c da1470x_clockconfig.c
-CHIP_CSRCS += da1470x_gpio.c da1470x_irq.c da1470x_lowputc.c
-CHIP_CSRCS += da1470x_start.c da1470x_systick.c da1470x_serial.c
-CHIP_CSRCS += da1470x_pmu.c da1470x_dma.c da1470x_spi.c da1470x_i2c.c
-CHIP_CSRCS += da1470x_lcdc.c
-
-
-#ifeq ($(CONFIG_DA1470_UART),y)
-#CHIP_CSRCS += da1470x_serial.c
-#endif
+CHIP_CSRCS  = da1470x_allocateheap.c da1470x_clockconfig.c da1470x_gpio.c
+CHIP_CSRCS += da1470x_irq.c da1470x_lowputc.c da1470x_start.c
+CHIP_CSRCS += da1470x_systick.c da1470x_pmu.c
 
 ifneq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 CHIP_CSRCS += da1470x_idle.c
 endif
 
-#ifeq ($(CONFIG_TIMER),y)
-#CHIP_CSRCS += da1470x_tim_lowerhalf.c
-#endif
+ifeq ($(CONFIG_DA1470X_UART),y)
+CHIP_CSRCS += da1470x_serial.c
+endif
 
-#ifeq ($(CONFIG_BUILD_PROTECTED),y)
-#CHIP_CSRCS += da1470x_userspace.c da1470x_mpuinit.c
-#endif
+ifeq ($(CONFIG_DA1470X_DMA),y)
+CHIP_CSRCS += da1470x_dma.c
+endif
 
-#ifeq ($(CONFIG_DEBUG_FEATURES),y)
-#CHIP_CSRCS += da1470x_dumpgpio.c
-#endif
+ifeq ($(CONFIG_DA1470X_SPI),y)
+CHIP_CSRCS += da1470x_spi.c
+endif
 
-## Required chip type specific files
+ifeq ($(CONFIG_DA1470X_I2C),y)
+CHIP_CSRCS += da1470x_i2c.c
+endif
 
-#ifeq ($(CONFIG_USBDEV),y)
-#CHIP_CSRCS += da1470x_otgdev.c
-#endif
+ifeq ($(CONFIG_DA1470X_RTC),y)
+CHIP_CSRCS += da1470x_rtc.c da1470x_rtc_lowerhalf.c
+endif
+
+ifeq ($(CONFIG_DA1470X_PDC),y)
+CHIP_CSRCS += da1470x_pdc.c
+endif
+
+ifeq ($(CONFIG_PM),y)
+CHIP_CSRCS += da1470x_pm.c da1470x_pminitialize.c
+endif
+
+ifeq ($(CONFIG_DA1470X_OQSPI_MTD),y)
+CHIP_CSRCS += da1470x_oqspi.c
+endif
+
+ifeq ($(CONFIG_DA1470X_LCDC),y)
+CHIP_CSRCS += da1470x_lcdc.c
+endif
+
+ifeq ($(CONFIG_DA1470X_GPU),y)
+CHIP_CSRCS += da1470x_gpu.c
+endif
+
+ifeq ($(CONFIG_DA1470X_BLE),y)
+CHIP_CSRCS += da1470x_cmac.c da1470x_bt.c
+endif
+
+ifeq ($(CONFIG_DA1470X_PWMLED),y)
+CHIP_CSRCS += da1470x_pwmled.c
+endif

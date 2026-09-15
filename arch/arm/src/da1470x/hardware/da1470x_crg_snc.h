@@ -18,8 +18,12 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470X_CRG_SNC_H
-#define __DA1470X_CRG_SNC_H
+/* Generated from the Renesas CMSIS device header DA1470x-00.h (SDK
+ * 10.2.6.49).  Do not edit by hand; regenerate with tools/genhdr.py.
+ */
+
+#ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_SNC_H
+#define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_SNC_H
 
 /****************************************************************************
  * Included Files
@@ -32,42 +36,81 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Register offsets *********************************************************/
+/* Register Offsets *********************************************************/
 
-#define DA1470_CRG_SNC_CLK_SNC_OFFSET         0x0004 /* Peripheral divider register */
-#define DA1470_CRG_SNC_RESET_CLK_SNC_OFFSET   0x000C /* Peripheral divider register RESET register. Reads back 0x0000 */
-#define DA1470_CRG_SNC_SET_CLK_SNC_OFFSET     0x0008 /* Peripheral divider register SET register. Reads back 0x0000 */
+#define DA1470X_CRG_SNC_CLK_SNC_OFFSET 0x0004       /* Peripheral divider register */
+#define DA1470X_CRG_SNC_SET_CLK_SNC_OFFSET 0x0008   /* Peripheral divider register SET register */
+#define DA1470X_CRG_SNC_RESET_CLK_SNC_OFFSET 0x000c /* Peripheral divider register RESET regist */
 
-/* Register addresses *******************************************************/
+/* Register Addresses *******************************************************/
 
-#define DA1470_CRG_SNC_BASE                   0x50020900 /* CRG_SNC registers */
+#define DA1470X_CRG_SNC_CLK_SNC (DA1470X_CRG_SNC_BASE + DA1470X_CRG_SNC_CLK_SNC_OFFSET)
+#define DA1470X_CRG_SNC_SET_CLK_SNC (DA1470X_CRG_SNC_BASE + DA1470X_CRG_SNC_SET_CLK_SNC_OFFSET)
+#define DA1470X_CRG_SNC_RESET_CLK_SNC (DA1470X_CRG_SNC_BASE + DA1470X_CRG_SNC_RESET_CLK_SNC_OFFSET)
 
-#define DA1470_CRG_SNC_CLK_SNC                (DA1470_CRG_SNC_BASE + DA1470_CRG_SNC_CLK_SNC_OFFSET) /* Peripheral divider register */
-#define DA1470_CRG_SNC_RESET_CLK_SNC          (DA1470_CRG_SNC_BASE + DA1470_CRG_SNC_RESET_CLK_SNC_OFFSET) /* Peripheral divider register RESET register. Reads back 0x0000 */
-#define DA1470_CRG_SNC_SET_CLK_SNC            (DA1470_CRG_SNC_BASE + DA1470_CRG_SNC_SET_CLK_SNC_OFFSET) /* Peripheral divider register SET register. Reads back 0x0000 */
+/* Register Bit-field Definitions *******************************************/
 
-/* Register bit definitions *************************************************/
+/* CLK_SNC register */
 
+#define CRG_SNC_CLK_SNC_UART_ENABLE (1 << 0)   /* Bit 0 */
+#define CRG_SNC_CLK_SNC_UART_CLK_SEL (1 << 1)  /* Bit 1 */
+#define CRG_SNC_CLK_SNC_UART2_ENABLE (1 << 2)  /* Bit 2 */
+#define CRG_SNC_CLK_SNC_UART2_CLK_SEL (1 << 3) /* Bit 3 */
+#define CRG_SNC_CLK_SNC_UART3_ENABLE (1 << 4)  /* Bit 4 */
+#define CRG_SNC_CLK_SNC_UART3_CLK_SEL (1 << 5) /* Bit 5 */
+#define CRG_SNC_CLK_SNC_SPI_ENABLE (1 << 6)    /* Bit 6 */
+#define CRG_SNC_CLK_SNC_SPI_CLK_SEL (1 << 7)   /* Bit 7 */
+#define CRG_SNC_CLK_SNC_SPI2_ENABLE (1 << 8)   /* Bit 8 */
+#define CRG_SNC_CLK_SNC_SPI2_CLK_SEL (1 << 9)  /* Bit 9 */
+#define CRG_SNC_CLK_SNC_I2C_ENABLE (1 << 10)   /* Bit 10 */
+#define CRG_SNC_CLK_SNC_I2C_CLK_SEL (1 << 11)  /* Bit 11 */
+#define CRG_SNC_CLK_SNC_I2C2_ENABLE (1 << 12)  /* Bit 12 */
+#define CRG_SNC_CLK_SNC_I2C2_CLK_SEL (1 << 13) /* Bit 13 */
+#define CRG_SNC_CLK_SNC_I2C3_ENABLE (1 << 14)  /* Bit 14 */
+#define CRG_SNC_CLK_SNC_I2C3_CLK_SEL (1 << 15) /* Bit 15 */
+#define CRG_SNC_CLK_SNC_I3C_ENABLE (1 << 16)   /* Bit 16 */
+#define CRG_SNC_CLK_SNC_I3C_CLK_SEL (1 << 17)  /* Bit 17 */
 
-/* CLK_SNC Register */
+/* SET_CLK_SNC register */
 
-#define CRG_SNC_I3C_CLK_SEL                   (1U << 17) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_I3C_ENABLE                    (1U << 16) /* Enables the clock */
-#define CRG_SNC_I2C3_CLK_SEL                  (1U << 15) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_I2C3_ENABLE                   (1U << 14) /* Enables the clock */
-#define CRG_SNC_I2C2_CLK_SEL                  (1U << 13) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_I2C2_ENABLE                   (1U << 12) /* Enables the clock */
-#define CRG_SNC_I2C_CLK_SEL                   (1U << 11) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_I2C_ENABLE                    (1U << 10) /* Enables the clock */
-#define CRG_SNC_SPI2_CLK_SEL                  (1U << 9) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_SPI2_ENABLE                   (1U << 8) /* Enables the clock */
-#define CRG_SNC_SPI_CLK_SEL                   (1U << 7) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_SPI_ENABLE                    (1U << 6) /* Enables the clock */
-#define CRG_SNC_UART2_CLK_SEL                 (1U << 5) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_UART2_ENABLE                  (1U << 4) /* Enables the clock */
-#define CRG_SNC_UART1_CLK_SEL                 (1U << 3) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_UART1_ENABLE                  (1U << 2) /* Enables the clock */
-#define CRG_SNC_UART0_CLK_SEL                 (1U << 1) /* Selects the clock source 1 = DIV1 clock 0 = DIVN clock */
-#define CRG_SNC_UART0_ENABLE                  (1U << 0) /* Enables the clock */
+#define CRG_SNC_SET_CLK_SNC_UART_ENABLE (1 << 0)   /* Bit 0 */
+#define CRG_SNC_SET_CLK_SNC_UART_CLK_SEL (1 << 1)  /* Bit 1 */
+#define CRG_SNC_SET_CLK_SNC_UART2_ENABLE (1 << 2)  /* Bit 2 */
+#define CRG_SNC_SET_CLK_SNC_UART2_CLK_SEL (1 << 3) /* Bit 3 */
+#define CRG_SNC_SET_CLK_SNC_UART3_ENABLE (1 << 4)  /* Bit 4 */
+#define CRG_SNC_SET_CLK_SNC_UART3_CLK_SEL (1 << 5) /* Bit 5 */
+#define CRG_SNC_SET_CLK_SNC_SPI_ENABLE (1 << 6)    /* Bit 6 */
+#define CRG_SNC_SET_CLK_SNC_SPI_CLK_SEL (1 << 7)   /* Bit 7 */
+#define CRG_SNC_SET_CLK_SNC_SPI2_ENABLE (1 << 8)   /* Bit 8 */
+#define CRG_SNC_SET_CLK_SNC_SPI2_CLK_SEL (1 << 9)  /* Bit 9 */
+#define CRG_SNC_SET_CLK_SNC_I2C_ENABLE (1 << 10)   /* Bit 10 */
+#define CRG_SNC_SET_CLK_SNC_I2C_CLK_SEL (1 << 11)  /* Bit 11 */
+#define CRG_SNC_SET_CLK_SNC_I2C2_ENABLE (1 << 12)  /* Bit 12 */
+#define CRG_SNC_SET_CLK_SNC_I2C2_CLK_SEL (1 << 13) /* Bit 13 */
+#define CRG_SNC_SET_CLK_SNC_I2C3_ENABLE (1 << 14)  /* Bit 14 */
+#define CRG_SNC_SET_CLK_SNC_I2C3_CLK_SEL (1 << 15) /* Bit 15 */
+#define CRG_SNC_SET_CLK_SNC_I3C_ENABLE (1 << 16)   /* Bit 16 */
+#define CRG_SNC_SET_CLK_SNC_I3C_CLK_SEL (1 << 17)  /* Bit 17 */
 
-#endif /* __DA1470X_CRG_SNC_H */
+/* RESET_CLK_SNC register */
+
+#define CRG_SNC_RESET_CLK_SNC_UART_ENABLE (1 << 0)   /* Bit 0 */
+#define CRG_SNC_RESET_CLK_SNC_UART_CLK_SEL (1 << 1)  /* Bit 1 */
+#define CRG_SNC_RESET_CLK_SNC_UART2_ENABLE (1 << 2)  /* Bit 2 */
+#define CRG_SNC_RESET_CLK_SNC_UART2_CLK_SEL (1 << 3) /* Bit 3 */
+#define CRG_SNC_RESET_CLK_SNC_UART3_ENABLE (1 << 4)  /* Bit 4 */
+#define CRG_SNC_RESET_CLK_SNC_UART3_CLK_SEL (1 << 5) /* Bit 5 */
+#define CRG_SNC_RESET_CLK_SNC_SPI_ENABLE (1 << 6)    /* Bit 6 */
+#define CRG_SNC_RESET_CLK_SNC_SPI_CLK_SEL (1 << 7)   /* Bit 7 */
+#define CRG_SNC_RESET_CLK_SNC_SPI2_ENABLE (1 << 8)   /* Bit 8 */
+#define CRG_SNC_RESET_CLK_SNC_SPI2_CLK_SEL (1 << 9)  /* Bit 9 */
+#define CRG_SNC_RESET_CLK_SNC_I2C_ENABLE (1 << 10)   /* Bit 10 */
+#define CRG_SNC_RESET_CLK_SNC_I2C_CLK_SEL (1 << 11)  /* Bit 11 */
+#define CRG_SNC_RESET_CLK_SNC_I2C2_ENABLE (1 << 12)  /* Bit 12 */
+#define CRG_SNC_RESET_CLK_SNC_I2C2_CLK_SEL (1 << 13) /* Bit 13 */
+#define CRG_SNC_RESET_CLK_SNC_I2C3_ENABLE (1 << 14)  /* Bit 14 */
+#define CRG_SNC_RESET_CLK_SNC_I2C3_CLK_SEL (1 << 15) /* Bit 15 */
+#define CRG_SNC_RESET_CLK_SNC_I3C_ENABLE (1 << 16)   /* Bit 16 */
+#define CRG_SNC_RESET_CLK_SNC_I3C_CLK_SEL (1 << 17)  /* Bit 17 */
+
+#endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_SNC_H */
