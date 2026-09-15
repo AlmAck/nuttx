@@ -39,6 +39,10 @@
 #  include <nuttx/timers/rtc.h>
 #endif
 
+#ifdef CONFIG_VIDEO_FB
+#  include <nuttx/video/fb.h>
+#endif
+
 #ifdef CONFIG_DA1470X_OQSPI_MTD
 #  include <nuttx/mtd/mtd.h>
 #  ifdef CONFIG_FS_NXFFS
@@ -220,6 +224,14 @@ int da1470x_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "Failed to initialize the display: %d\n", ret);
+    }
+  else
+    {
+      ret = fb_register(0, 0);
+      if (ret < 0)
+        {
+          syslog(LOG_ERR, "Failed to register /dev/fb0: %d\n", ret);
+        }
     }
 #endif
 

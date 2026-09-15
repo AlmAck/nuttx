@@ -1,23 +1,27 @@
 /****************************************************************************
  * boards/arm/da1470x/da14706-00hzdevkt-p/src/da1470x_e120a390qsr.c
  *
- * Panel driver for the EverDisplay E120A390QSR (Raydium RM69091 driver
- * IC, 1.19" 390x390 round AMOLED, RGB565) mounted on the Renesas
- * "da1470x-sb-E120A390QSR" QSPI daughterboard.
- *
- * Pinmux and the RM69091 init sequence are transcribed from the
- * Renesas demo (da1470x_demo_vscode/gdi/inc/e120a390qsr.h +
- * config/peripheral_setup.h) — see project memory for the schematic
- * cross-reference.
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to you under the Apache License, Version
- * 2.0 (the "License"); you may not use this file except in compliance
- * with the License.
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
+
+/* EverDisplay E120A390QSR: 1.2" 390x390 round AMOLED with a Raydium
+ * RM69091 controller, attached to the LCDC in quad-SPI mode on the
+ * da1470x-sb-E120A390QSR daughterboard.
+ */
 
 /****************************************************************************
  * Included Files
@@ -25,87 +29,222 @@
 
 #include <nuttx/config.h>
 
+#include <stdint.h>
+#include <stdbool.h>
 #include <debug.h>
 #include <errno.h>
-#include <stdint.h>
-#include <unistd.h>
 
 #include <nuttx/arch.h>
-
 #include <arch/board/board.h>
 
 #include "da1470x_gpio.h"
 #include "da1470x_lcdc.h"
-#include "hardware/da1470x_lcdc.h"
-#include "da1470x_e120a390qsr.h"
+#include "da14706-00hzdevkt-p.h"
+
+#ifdef CONFIG_DA14706_LCD_E120A390QSR
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#define E120A390_RESX            390
+#define E120A390_RESY            390
+#define E120A390_OFFSETX         6      /* Column offset of the visible area */
+#define E120A390_OFFSETY         0
+
+/* DCS commands */
+
+#define DCS_SLPOUT               0x11
+#define DCS_DISPON               0x29
+#define DCS_CASET                0x2a
+#define DCS_RASET                0x2b
+#define DCS_RAMWR                0x2c
+#define DCS_TEOFF                0x34
+#define DCS_TEON                 0x35
+#define DCS_COLMOD               0x3a
+#define DCS_WRCTRLD              0x53
+#define DCS_WRDISBV              0x51
+
+/* QSPI framing prefixes of the RM69091 */
+
+#define RM69091_CMD_PREFIX       0x02   /* Single command write */
+#define RM69091_FRAME_PREFIX     0x32   /* Quad pixel write */
+
+/****************************************************************************
+ * Private Function Prototypes
+ ****************************************************************************/
+
+static int  e120a390_init(const struct da1470x_lcdc_panel_s *panel);
+static int  e120a390_window(const struct da1470x_lcdc_panel_s *panel,
+                            uint16_t x0, uint16_t y0, uint16_t x1,
+                            uint16_t y1);
+static void e120a390_power(const struct da1470x_lcdc_panel_s *panel,
+                           bool on);
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-/* Framebuffer for Layer 0. 390x390 RGB565 = 304200 B. Aligned to 4 bytes
- * because LAYER0_BASEADDR / LAYER0_STRIDE must be word-aligned. Lives in
- * the retained-RAM BSS section (1 MB available); the LCDC DMA reads it
- * directly from SRAM each frame.
- */
-
-static uint16_t g_e120a390_fb[E120A390_RESX * E120A390_RESY]
-        aligned_data(4);
+static const struct da1470x_lcdc_panel_s g_e120a390_panel =
+{
+  .xres         = E120A390_RESX,
+  .yres         = E120A390_RESY,
+  .bpp          = 16,
+  .clkdiv       = 1,            /* 32 MHz SCLK */
+  .cmd_prefix   = RM69091_CMD_PREFIX,
+  .frame_prefix = RM69091_FRAME_PREFIX,
+  .ramwr        = DCS_RAMWR,
+#ifdef CONFIG_DA1470X_LCDC_TE
+  .te           = true,
+#else
+  .te           = false,
+#endif
+  .init         = e120a390_init,
+  .window       = e120a390_window,
+  .power        = e120a390_power,
+};
 
 /****************************************************************************
- * Private helpers
+ * Private Functions
  ****************************************************************************/
 
-/* Compact helpers for one-shot batched command sequences. The RM69091
- * doesn't really need DMA-hold for short single-cmd transfers but it
- * mirrors the SDK pattern and keeps batches deterministic.
- */
+/****************************************************************************
+ * Name: e120a390_cmd / e120a390_cmd1
+ *
+ * Description:
+ *   Send a DCS command without or with one parameter as a single burst.
+ *
+ ****************************************************************************/
 
-static inline void e120a390_send_cmd(uint8_t cmd)
+static void e120a390_cmd(uint8_t cmd)
 {
-  da1470x_lcdc_qspi_send_cmd(E120A390_QSPI_WRITE_PREFIX, cmd);
+  da1470x_lcdc_dcs_hold(true);
+  da1470x_lcdc_dcs_cmd(cmd);
+  da1470x_lcdc_dcs_hold(false);
 }
 
-static inline void e120a390_send_data(uint8_t data)
+static void e120a390_cmd1(uint8_t cmd, uint8_t param)
 {
-  da1470x_lcdc_qspi_send_data(data);
+  da1470x_lcdc_dcs_hold(true);
+  da1470x_lcdc_dcs_cmd(cmd);
+  da1470x_lcdc_dcs_data(param);
+  da1470x_lcdc_dcs_hold(false);
 }
 
-static void e120a390_send_cmd_p1(uint8_t cmd, uint8_t p0)
+/****************************************************************************
+ * Name: e120a390_window
+ *
+ * Description:
+ *   Set the column and row address window (panel coordinates).
+ *
+ ****************************************************************************/
+
+static int e120a390_window(const struct da1470x_lcdc_panel_s *panel,
+                           uint16_t x0, uint16_t y0, uint16_t x1,
+                           uint16_t y1)
 {
-  da1470x_lcdc_set_hold(true);
-  e120a390_send_cmd(cmd);
-  e120a390_send_data(p0);
-  da1470x_lcdc_set_hold(false);
+  x0 += E120A390_OFFSETX;
+  x1 += E120A390_OFFSETX;
+  y0 += E120A390_OFFSETY;
+  y1 += E120A390_OFFSETY;
+
+  da1470x_lcdc_dcs_hold(true);
+  da1470x_lcdc_dcs_cmd(DCS_CASET);
+  da1470x_lcdc_dcs_data(x0 >> 8);
+  da1470x_lcdc_dcs_data(x0 & 0xff);
+  da1470x_lcdc_dcs_data(x1 >> 8);
+  da1470x_lcdc_dcs_data(x1 & 0xff);
+  da1470x_lcdc_dcs_cmd(DCS_RASET);
+  da1470x_lcdc_dcs_data(y0 >> 8);
+  da1470x_lcdc_dcs_data(y0 & 0xff);
+  da1470x_lcdc_dcs_data(y1 >> 8);
+  da1470x_lcdc_dcs_data(y1 & 0xff);
+  da1470x_lcdc_dcs_hold(false);
+  return OK;
 }
 
-static void e120a390_set_window(uint16_t x0, uint16_t y0,
-                                uint16_t x1, uint16_t y1)
+/****************************************************************************
+ * Name: e120a390_power
+ *
+ * Description:
+ *   Drive the panel DC/DC enable and reset lines.
+ *
+ ****************************************************************************/
+
+static void e120a390_power(const struct da1470x_lcdc_panel_s *panel,
+                           bool on)
 {
-  da1470x_lcdc_set_hold(true);
-  e120a390_send_cmd(E120A390_DCS_CASET);
-  e120a390_send_data((x0 >> 8) & 0xFF);
-  e120a390_send_data( x0       & 0xFF);
-  e120a390_send_data((x1 >> 8) & 0xFF);
-  e120a390_send_data( x1       & 0xFF);
-  e120a390_send_cmd(E120A390_DCS_RASET);
-  e120a390_send_data((y0 >> 8) & 0xFF);
-  e120a390_send_data( y0       & 0xFF);
-  e120a390_send_data((y1 >> 8) & 0xFF);
-  e120a390_send_data( y1       & 0xFF);
-  da1470x_lcdc_set_hold(false);
+  if (on)
+    {
+      da1470x_gpio_write(BOARD_LCDC_DCDC_PIN, true);
+      up_mdelay(5);
+      da1470x_gpio_write(BOARD_LCDC_RST_PIN, false);
+      up_mdelay(50);
+      da1470x_gpio_write(BOARD_LCDC_RST_PIN, true);
+      up_mdelay(120);
+    }
+  else
+    {
+      da1470x_gpio_write(BOARD_LCDC_RST_PIN, false);
+      da1470x_gpio_write(BOARD_LCDC_DCDC_PIN, false);
+    }
+}
+
+/****************************************************************************
+ * Name: e120a390_init
+ *
+ * Description:
+ *   RM69091 start-up sequence (from the panel vendor's reference):
+ *   manufacturer page settings, SPI-to-RAM write path, brightness, then
+ *   the standard sleep-out and display-on.
+ *
+ ****************************************************************************/
+
+static int e120a390_init(const struct da1470x_lcdc_panel_s *panel)
+{
+  e120a390_cmd1(0xfe, 0x01);            /* Manufacturer command page 1 */
+  e120a390_cmd1(0x04, 0xa0);
+  e120a390_cmd1(0xfe, 0x01);
+  e120a390_cmd1(0x6a, 0x00);            /* ELVSS -2.4 V */
+  e120a390_cmd1(0xab, 0x00);            /* HBM ELVSS -2.4 V */
+  e120a390_cmd1(0xfe, 0x00);            /* User command page */
+  e120a390_cmd1(0xc4, 0x80);            /* SPI write to RAM */
+  e120a390_cmd1(DCS_WRCTRLD, 0x20);     /* Dimming on */
+  e120a390_cmd1(DCS_WRDISBV, 0xff);     /* Maximum brightness */
+
+  e120a390_window(panel, 0, 0, E120A390_RESX - 1, E120A390_RESY - 1);
+
+  e120a390_cmd1(DCS_COLMOD, 0x55);      /* RGB565 */
+
+  if (panel->te)
+    {
+      e120a390_cmd1(DCS_TEON, 0x00);
+    }
+  else
+    {
+      e120a390_cmd(DCS_TEOFF);
+    }
+
+  e120a390_cmd(DCS_SLPOUT);
+  up_mdelay(120);
+  e120a390_cmd(DCS_DISPON);
+  up_mdelay(50);
+
+  return OK;
 }
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
+/****************************************************************************
+ * Name: da1470x_e120a390_initialize
+ ****************************************************************************/
+
 int da1470x_e120a390_initialize(void)
 {
-  /* 1. Pinmux. The six LCDC signal pins (SCLK / SD0 / SD1 / SD2 / SD3 /
-   * CSX) get configured as plain GPIO outputs with no pull — the LCDC
-   * peripheral itself will steal them once we flip its pad-mux below.
-   * RST and DCDC_EN are pure GPIO outputs driven by this function.
+  /* The LCDC pad mux is hard wired; the pins are plain GPIO outputs that
+   * the controller takes over.  RST and DCDC_EN stay under GPIO control.
    */
 
   da1470x_gpio_config(BOARD_LCDC_SCLK_PIN);
@@ -114,120 +253,13 @@ int da1470x_e120a390_initialize(void)
   da1470x_gpio_config(BOARD_LCDC_SD2_PIN);
   da1470x_gpio_config(BOARD_LCDC_SD3_PIN);
   da1470x_gpio_config(BOARD_LCDC_CSX_PIN);
-
+#ifdef CONFIG_DA1470X_LCDC_TE
+  da1470x_gpio_config(BOARD_LCDC_TE_PIN);
+#endif
   da1470x_gpio_config(BOARD_LCDC_RST_PIN);
   da1470x_gpio_config(BOARD_LCDC_DCDC_PIN);
 
-  /* 2. Enable the on-board boost: NCP333FCT2G load switch on the VCI
-   * rail, gated by P1.7 (DCDC_EN). Spec says no min hold-on time, but
-   * give the LT3463 ~5 ms to bring up ELVDD/ELVSS.
-   */
-
-  da1470x_gpio_write(BOARD_LCDC_DCDC_PIN, true);
-  up_mdelay(5);
-
-  /* 3. RM69091 power-on reset sequence: hold RST low for >=50 us, then
-   * wait >=120 ms after release. The Renesas demo uses 50 ms / 120 ms.
-   */
-
-  da1470x_gpio_write(BOARD_LCDC_RST_PIN, false);
-  up_mdelay(50);
-  da1470x_gpio_write(BOARD_LCDC_RST_PIN, true);
-  up_mdelay(120);
-
-  /* 4. LCDC takes over the pads (Serial mode, SI-on-SO shared) and we
-   * program the DBIB_CFG for quad-SPI. 32 MHz DivN / 1 = 32 MHz SCLK,
-   * within the RM69091's 50 MHz write limit.
-   */
-
-  da1470x_lcdc_qspi_configure(1);
-  da1470x_lcdc_set_iface_serial(true);
-
-  /* 5. RM69091 init sequence (transcribed from the demo's
-   * screen_init_cmds[] in gdi/inc/e120a390qsr.h). The 0xFE writes
-   * select the manufacturer command page; 0x6A/0xAB set ELVSS;
-   * 0xC4 enables SPI->RAM writes; 0x53/0x51 set dimming + brightness.
-   */
-
-  e120a390_send_cmd_p1(0xFE, 0x01);                       /* CMD2 page 1 */
-  e120a390_send_cmd_p1(0x04, 0xA0);
-  e120a390_send_cmd_p1(0xFE, 0x01);
-  e120a390_send_cmd_p1(0x6A, 0x00);                       /* ELVSS = -2.4V */
-  e120a390_send_cmd_p1(0xAB, 0x00);                       /* HBM ELVSS = -2.4V */
-  e120a390_send_cmd_p1(0xFE, 0x00);                       /* user CMD page */
-  e120a390_send_cmd_p1(0xC4, 0x80);                       /* SPI write to RAM */
-  e120a390_send_cmd_p1(0x53, 0x20);                       /* DCS Write Ctrl Display: dimming */
-  e120a390_send_cmd_p1(0x51, 0xFF);                       /* DCS Set Brightness max */
-
-  /* Window: [OFFSETX .. OFFSETX+RESX-1] x [OFFSETY .. OFFSETY+RESY-1] */
-
-  e120a390_set_window(E120A390_OFFSETX,
-                      E120A390_OFFSETY,
-                      E120A390_OFFSETX + E120A390_RESX - 1,
-                      E120A390_OFFSETY + E120A390_RESY - 1);
-
-  /* Pixel format RGB565 (0x55) */
-
-  e120a390_send_cmd_p1(E120A390_DCS_COLMOD, 0x55);
-
-  /* Tear off — we aren't using the TE line in this pass */
-
-  da1470x_lcdc_set_hold(true);
-  e120a390_send_cmd(E120A390_DCS_TEAR_OFF);
-  da1470x_lcdc_set_hold(false);
-
-  /* Sleep out + 120 ms */
-
-  da1470x_lcdc_set_hold(true);
-  e120a390_send_cmd(E120A390_DCS_SLPOUT);
-  da1470x_lcdc_set_hold(false);
-  up_mdelay(120);
-
-  /* Display on + 50 ms */
-
-  da1470x_lcdc_set_hold(true);
-  e120a390_send_cmd(E120A390_DCS_DISPON);
-  da1470x_lcdc_set_hold(false);
-  up_mdelay(50);
-
-  return OK;
+  return da1470x_lcdc_register(&g_e120a390_panel);
 }
 
-void da1470x_e120a390_fill(uint16_t rgb565)
-{
-  const size_t n = (size_t)E120A390_RESX * E120A390_RESY;
-
-  for (size_t i = 0; i < n; i++)
-    {
-      g_e120a390_fb[i] = rgb565;
-    }
-
-  /* Reset the RM69091 window to the full panel before kicking off the
-   * frame transfer. */
-
-  e120a390_set_window(E120A390_OFFSETX,
-                      E120A390_OFFSETY,
-                      E120A390_OFFSETX + E120A390_RESX - 1,
-                      E120A390_OFFSETY + E120A390_RESY - 1);
-
-  /* Program the LCDC display timing and Layer 0 to fetch from the
-   * framebuffer. Stride = RESX * 2 bytes/pixel (already 4-byte aligned
-   * because RESX=390 is even).
-   */
-
-  da1470x_lcdc_set_resolution(E120A390_RESX, E120A390_RESY);
-  da1470x_lcdc_set_layer0((uintptr_t)g_e120a390_fb,
-                          E120A390_RESX, E120A390_RESY,
-                          E120A390_RESX * 2,
-                          LCDC_OCM_8RGB565);
-
-  /* Send the SSQ-prefixed RAMWR (frame command). Under DMA_HOLD so the
-   * cmd lands first; send_one_frame() releases hold, forces CSX low for
-   * the whole frame, and triggers SFRAME_UPD.
-   */
-
-  da1470x_lcdc_set_hold(true);
-  da1470x_lcdc_qspi_send_frame_cmd(0x32, E120A390_DCS_RAMWR);
-
-  (void)da1470x_lcdc_send_one_frame();
-}
+#endif /* CONFIG_DA14706_LCD_E120A390QSR */
