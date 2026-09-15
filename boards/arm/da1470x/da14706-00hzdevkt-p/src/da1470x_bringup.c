@@ -55,6 +55,7 @@
 #include "da1470x_rtc.h"
 #include "da1470x_pdc.h"
 #include "da1470x_oqspi.h"
+#include "da1470x_gpu.h"
 #include "da14706-00hzdevkt-p.h"
 
 /****************************************************************************
@@ -232,6 +233,14 @@ int da1470x_bringup(void)
         {
           syslog(LOG_ERR, "Failed to register /dev/fb0: %d\n", ret);
         }
+    }
+#endif
+
+#ifdef CONFIG_DA1470X_GPU
+  ret = da1470x_gpu_register("/dev/gpu0");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to register /dev/gpu0: %d\n", ret);
     }
 #endif
 

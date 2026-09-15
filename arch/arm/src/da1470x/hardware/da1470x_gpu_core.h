@@ -38,59 +38,59 @@
 
 /* Register Offsets *********************************************************/
 
-#define DA1470X_GPU_CORE_D2_CONTROL_OFFSET 0x0000        /* #0: Geometry control register. This regi */
-#define DA1470X_GPU_CORE_D2_CONTROL2_OFFSET 0x0004       /* #1: Surface control register. This regis */
-#define DA1470X_GPU_CORE_D2_CONTROL3_OFFSET 0x0008       /* #2: Burst length limit control register. */
-#define DA1470X_GPU_CORE_D2_L1START_OFFSET 0x0010        /* #4: Limiter1 start value. All limiter re */
-#define DA1470X_GPU_CORE_D2_L2START_OFFSET 0x0014        /* #5: Limiter2 start value. See D2_L1START */
-#define DA1470X_GPU_CORE_D2_L3START_OFFSET 0x0018        /* #6: Limiter3 start value. See D2_L1START */
-#define DA1470X_GPU_CORE_D2_L4START_OFFSET 0x001c        /* #7: Limiter4 start value. See D2_L1START */
-#define DA1470X_GPU_CORE_D2_L5START_OFFSET 0x0020        /* #8: Limiter5 start value. See D2_L1START */
-#define DA1470X_GPU_CORE_D2_L6START_OFFSET 0x0024        /* #9: Limiter6 start value. See D2_L1START */
-#define DA1470X_GPU_CORE_D2_L1XADD_OFFSET 0x0028         /* #10: Limiter1 X-Axis increment. The xadd */
-#define DA1470X_GPU_CORE_D2_L2XADD_OFFSET 0x002c         /* #11: Limiter2 X-Axis increment. See D2_L */
-#define DA1470X_GPU_CORE_D2_L3XADD_OFFSET 0x0030         /* #12: Limiter3 X-Axis increment */
-#define DA1470X_GPU_CORE_D2_L4XADD_OFFSET 0x0034         /* #13: Limiter4 X-Axis increment. See D2_L */
-#define DA1470X_GPU_CORE_D2_L5XADD_OFFSET 0x0038         /* #14: Limiter5 X-Axis increment. See D2_L */
-#define DA1470X_GPU_CORE_D2_L6XADD_OFFSET 0x003c         /* #15: Limiter6 X-Axis increment. See D2_L */
-#define DA1470X_GPU_CORE_D2_L1YADD_OFFSET 0x0040         /* #16: Limiter1 Y-Axis increment. The yadd */
-#define DA1470X_GPU_CORE_D2_L2YADD_OFFSET 0x0044         /* #17: Limiter2 Y-Axis increment. See D2_L */
-#define DA1470X_GPU_CORE_D2_L3YADD_OFFSET 0x0048         /* #18: Limiter3 Y-Axis increment. See D2_L */
-#define DA1470X_GPU_CORE_D2_L4YADD_OFFSET 0x004c         /* #19: Limiter4 Y-Axis increment. See D2_L */
-#define DA1470X_GPU_CORE_D2_L5YADD_OFFSET 0x0050         /* #20: Limiter5 Y-Axis increment. See D2_L */
-#define DA1470X_GPU_CORE_D2_L6YADD_OFFSET 0x0054         /* #21: Limiter6 Y-Axis increment. See D2_L */
-#define DA1470X_GPU_CORE_D2_L1BAND_OFFSET 0x0058         /* #22: Limiter1 band width parameter. Post */
-#define DA1470X_GPU_CORE_D2_L2BAND_OFFSET 0x005c         /* #23: Limiter2 band width parameter. See */
-#define DA1470X_GPU_CORE_D2_COLOR1_OFFSET 0x0064         /* #25: Base color register. All color regi */
-#define DA1470X_GPU_CORE_D2_COLOR2_OFFSET 0x0068         /* #26: Secondary color register. Secondary */
-#define DA1470X_GPU_CORE_D2_PATTERN_OFFSET 0x0074        /* #29: Pattern register. Each bit in the p */
-#define DA1470X_GPU_CORE_D2_SIZE_OFFSET 0x0078           /* #30: Bounding box dimension */
-#define DA1470X_GPU_CORE_D2_PITCH_OFFSET 0x007c          /* #31: Framebuffer pitch and spanstore del */
-#define DA1470X_GPU_CORE_D2_ORIGIN_OFFSET 0x0080         /* #32: Address of the first pixel in frame */
-#define DA1470X_GPU_CORE_D2_LUSTART_OFFSET 0x0090        /* #36: U Limiter start value. The start va */
-#define DA1470X_GPU_CORE_D2_LUXADD_OFFSET 0x0094         /* #37: U Limiter X-Axis increment. The add */
-#define DA1470X_GPU_CORE_D2_LUYADD_OFFSET 0x0098         /* #38: U Limiter Y-Axis increment. The add */
-#define DA1470X_GPU_CORE_D2_LVSTARTI_OFFSET 0x009c       /* #39: V Limiter start value integer part */
-#define DA1470X_GPU_CORE_D2_LVSTARTF_OFFSET 0x00a0       /* #40: V Limiter start value fractional pa */
-#define DA1470X_GPU_CORE_D2_LVXADDI_OFFSET 0x00a4        /* #41: V Limiter X-Axis increment integer */
-#define DA1470X_GPU_CORE_D2_LVYADDI_OFFSET 0x00a8        /* #42: V Limiter Y-Axis increment integer */
-#define DA1470X_GPU_CORE_D2_LVYXADDF_OFFSET 0x00ac       /* #43: V Limiter X and Y increment fractio */
-#define DA1470X_GPU_CORE_D2_TEXPITCH_OFFSET 0x00b4       /* #45: Texels per texture line&Pitch is eq */
-#define DA1470X_GPU_CORE_D2_TEXMASK_OFFSET 0x00b8        /* #46: Texture size or texture address mas */
-#define DA1470X_GPU_CORE_D2_TEXORIGIN_OFFSET 0x00bc      /* #47: Texture base address. All texture r */
-#define DA1470X_GPU_CORE_D2_IRQCTL_OFFSET 0x00c0         /* #48: Interrupt control register. The GPU */
-#define DA1470X_GPU_CORE_D2_CACHECTL_OFFSET 0x00c4       /* #49: Cache control register. Internal ca */
-#define DA1470X_GPU_CORE_D2_DLISTSTART_OFFSET 0x00c8     /* #50: Displaylist start address. Setting */
-#define DA1470X_GPU_CORE_D2_PERFCOUNT1_OFFSET 0x00cc     /* #51: Performance counter. Writing to the */
-#define DA1470X_GPU_CORE_D2_PERFCOUNT2_OFFSET 0x00d0     /* #52: Performance counter. Writing to the */
-#define DA1470X_GPU_CORE_D2_PERFTRIGGER_OFFSET 0x00d4    /* #53: Performance counters control regist */
-#define DA1470X_GPU_CORE_D2_TEXCLUT_OFFSET 0x00d8        /* #54: Color Lookup Table for the indexed */
-#define DA1470X_GPU_CORE_D2_TEXCLUT_ADDR_OFFSET 0x00dc   /* #55: Color Lookup Table write address fo */
-#define DA1470X_GPU_CORE_D2_TEXCLUT_DATA_OFFSET 0x00e0   /* #56: Color Lookup Table write data for t */
-#define DA1470X_GPU_CORE_D2_TEXCLUT_OFFSET_OFFSET 0x00e4 /* #57: Offset to the texture index for the */
-#define DA1470X_GPU_CORE_D2_COLKEY_OFFSET 0x00e8         /* #58: Color key value. The R, G, and B co */
-#define DA1470X_GPU_CORE_D2_HWREVISION_OFFSET 0x00f0     /* #1: Hardware version and feature set ID. */
-#define DA1470X_GPU_CORE_D2_STATUS_OFFSET 0x00f4         /* #0: Status control register. The current */
+#define DA1470X_GPU_CORE_D2_CONTROL_OFFSET 0x0000      /* #0: Geometry control register. This regi */
+#define DA1470X_GPU_CORE_D2_CONTROL2_OFFSET 0x0004     /* #1: Surface control register. This regis */
+#define DA1470X_GPU_CORE_D2_CONTROL3_OFFSET 0x0008     /* #2: Burst length limit control register. */
+#define DA1470X_GPU_CORE_D2_L1START_OFFSET 0x0010      /* #4: Limiter1 start value. All limiter re */
+#define DA1470X_GPU_CORE_D2_L2START_OFFSET 0x0014      /* #5: Limiter2 start value. See D2_L1START */
+#define DA1470X_GPU_CORE_D2_L3START_OFFSET 0x0018      /* #6: Limiter3 start value. See D2_L1START */
+#define DA1470X_GPU_CORE_D2_L4START_OFFSET 0x001c      /* #7: Limiter4 start value. See D2_L1START */
+#define DA1470X_GPU_CORE_D2_L5START_OFFSET 0x0020      /* #8: Limiter5 start value. See D2_L1START */
+#define DA1470X_GPU_CORE_D2_L6START_OFFSET 0x0024      /* #9: Limiter6 start value. See D2_L1START */
+#define DA1470X_GPU_CORE_D2_L1XADD_OFFSET 0x0028       /* #10: Limiter1 X-Axis increment. The xadd */
+#define DA1470X_GPU_CORE_D2_L2XADD_OFFSET 0x002c       /* #11: Limiter2 X-Axis increment. See D2_L */
+#define DA1470X_GPU_CORE_D2_L3XADD_OFFSET 0x0030       /* #12: Limiter3 X-Axis increment */
+#define DA1470X_GPU_CORE_D2_L4XADD_OFFSET 0x0034       /* #13: Limiter4 X-Axis increment. See D2_L */
+#define DA1470X_GPU_CORE_D2_L5XADD_OFFSET 0x0038       /* #14: Limiter5 X-Axis increment. See D2_L */
+#define DA1470X_GPU_CORE_D2_L6XADD_OFFSET 0x003c       /* #15: Limiter6 X-Axis increment. See D2_L */
+#define DA1470X_GPU_CORE_D2_L1YADD_OFFSET 0x0040       /* #16: Limiter1 Y-Axis increment. The yadd */
+#define DA1470X_GPU_CORE_D2_L2YADD_OFFSET 0x0044       /* #17: Limiter2 Y-Axis increment. See D2_L */
+#define DA1470X_GPU_CORE_D2_L3YADD_OFFSET 0x0048       /* #18: Limiter3 Y-Axis increment. See D2_L */
+#define DA1470X_GPU_CORE_D2_L4YADD_OFFSET 0x004c       /* #19: Limiter4 Y-Axis increment. See D2_L */
+#define DA1470X_GPU_CORE_D2_L5YADD_OFFSET 0x0050       /* #20: Limiter5 Y-Axis increment. See D2_L */
+#define DA1470X_GPU_CORE_D2_L6YADD_OFFSET 0x0054       /* #21: Limiter6 Y-Axis increment. See D2_L */
+#define DA1470X_GPU_CORE_D2_L1BAND_OFFSET 0x0058       /* #22: Limiter1 band width parameter. Post */
+#define DA1470X_GPU_CORE_D2_L2BAND_OFFSET 0x005c       /* #23: Limiter2 band width parameter. See */
+#define DA1470X_GPU_CORE_D2_COLOR1_OFFSET 0x0064       /* #25: Base color register. All color regi */
+#define DA1470X_GPU_CORE_D2_COLOR2_OFFSET 0x0068       /* #26: Secondary color register. Secondary */
+#define DA1470X_GPU_CORE_D2_PATTERN_OFFSET 0x0074      /* #29: Pattern register. Each bit in the p */
+#define DA1470X_GPU_CORE_D2_SIZE_OFFSET 0x0078         /* #30: Bounding box dimension */
+#define DA1470X_GPU_CORE_D2_PITCH_OFFSET 0x007c        /* #31: Framebuffer pitch and spanstore del */
+#define DA1470X_GPU_CORE_D2_ORIGIN_OFFSET 0x0080       /* #32: Address of the first pixel in frame */
+#define DA1470X_GPU_CORE_D2_LUSTART_OFFSET 0x0090      /* #36: U Limiter start value. The start va */
+#define DA1470X_GPU_CORE_D2_LUXADD_OFFSET 0x0094       /* #37: U Limiter X-Axis increment. The add */
+#define DA1470X_GPU_CORE_D2_LUYADD_OFFSET 0x0098       /* #38: U Limiter Y-Axis increment. The add */
+#define DA1470X_GPU_CORE_D2_LVSTARTI_OFFSET 0x009c     /* #39: V Limiter start value integer part */
+#define DA1470X_GPU_CORE_D2_LVSTARTF_OFFSET 0x00a0     /* #40: V Limiter start value fractional pa */
+#define DA1470X_GPU_CORE_D2_LVXADDI_OFFSET 0x00a4      /* #41: V Limiter X-Axis increment integer */
+#define DA1470X_GPU_CORE_D2_LVYADDI_OFFSET 0x00a8      /* #42: V Limiter Y-Axis increment integer */
+#define DA1470X_GPU_CORE_D2_LVYXADDF_OFFSET 0x00ac     /* #43: V Limiter X and Y increment fractio */
+#define DA1470X_GPU_CORE_D2_TEXPITCH_OFFSET 0x00b4     /* #45: Texels per texture line&Pitch is eq */
+#define DA1470X_GPU_CORE_D2_TEXMASK_OFFSET 0x00b8      /* #46: Texture size or texture address mas */
+#define DA1470X_GPU_CORE_D2_TEXORIGIN_OFFSET 0x00bc    /* #47: Texture base address. All texture r */
+#define DA1470X_GPU_CORE_D2_IRQCTL_OFFSET 0x00c0       /* #48: Interrupt control register. The GPU */
+#define DA1470X_GPU_CORE_D2_CACHECTL_OFFSET 0x00c4     /* #49: Cache control register. Internal ca */
+#define DA1470X_GPU_CORE_D2_DLISTSTART_OFFSET 0x00c8   /* #50: Displaylist start address. Setting */
+#define DA1470X_GPU_CORE_D2_PERFCOUNT1_OFFSET 0x00cc   /* #51: Performance counter. Writing to the */
+#define DA1470X_GPU_CORE_D2_PERFCOUNT2_OFFSET 0x00d0   /* #52: Performance counter. Writing to the */
+#define DA1470X_GPU_CORE_D2_PERFTRIGGER_OFFSET 0x00d4  /* #53: Performance counters control regist */
+#define DA1470X_GPU_CORE_D2_TEXCLUT_OFFSET 0x00d8      /* #54: Color Lookup Table for the indexed */
+#define DA1470X_GPU_CORE_D2_TEXCLUT_ADDR_OFFSET 0x00dc /* #55: Color Lookup Table write address fo */
+#define DA1470X_GPU_CORE_D2_TEXCLUT_DATA_OFFSET 0x00e0 /* #56: Color Lookup Table write data for t */
+#define DA1470X_GPU_CORE_D2_TEXCLUT_OFS_OFFSET 0x00e4  /* #57: Offset to the texture index for the */
+#define DA1470X_GPU_CORE_D2_COLKEY_OFFSET 0x00e8       /* #58: Color key value. The R, G, and B co */
+#define DA1470X_GPU_CORE_D2_HWREVISION_OFFSET 0x00f0   /* #1: Hardware version and feature set ID. */
+#define DA1470X_GPU_CORE_D2_STATUS_OFFSET 0x00f4       /* #0: Status control register. The current */
 
 /* Register Addresses *******************************************************/
 
@@ -143,7 +143,7 @@
 #define DA1470X_GPU_CORE_D2_TEXCLUT (DA1470X_GPU_CORE_BASE + DA1470X_GPU_CORE_D2_TEXCLUT_OFFSET)
 #define DA1470X_GPU_CORE_D2_TEXCLUT_ADDR (DA1470X_GPU_CORE_BASE + DA1470X_GPU_CORE_D2_TEXCLUT_ADDR_OFFSET)
 #define DA1470X_GPU_CORE_D2_TEXCLUT_DATA (DA1470X_GPU_CORE_BASE + DA1470X_GPU_CORE_D2_TEXCLUT_DATA_OFFSET)
-#define DA1470X_GPU_CORE_D2_TEXCLUT_OFFSET (DA1470X_GPU_CORE_BASE + DA1470X_GPU_CORE_D2_TEXCLUT_OFFSET_OFFSET)
+#define DA1470X_GPU_CORE_D2_TEXCLUT_OFS (DA1470X_GPU_CORE_BASE + DA1470X_GPU_CORE_D2_TEXCLUT_OFS_OFFSET)
 #define DA1470X_GPU_CORE_D2_COLKEY (DA1470X_GPU_CORE_BASE + DA1470X_GPU_CORE_D2_COLKEY_OFFSET)
 #define DA1470X_GPU_CORE_D2_HWREVISION (DA1470X_GPU_CORE_BASE + DA1470X_GPU_CORE_D2_HWREVISION_OFFSET)
 #define DA1470X_GPU_CORE_D2_STATUS (DA1470X_GPU_CORE_BASE + DA1470X_GPU_CORE_D2_STATUS_OFFSET)
@@ -535,11 +535,11 @@
 #define GPU_CORE_D2_TEXCLUT_DATA_TEXCLUT_ARGB_MASK (0xffffffff << GPU_CORE_D2_TEXCLUT_DATA_TEXCLUT_ARGB_SHIFT)
 #  define GPU_CORE_D2_TEXCLUT_DATA_TEXCLUT_ARGB(n) ((uint32_t)(n) << GPU_CORE_D2_TEXCLUT_DATA_TEXCLUT_ARGB_SHIFT)
 
-/* D2_TEXCLUT_OFFSET register */
+/* D2_TEXCLUT_OFS register */
 
-#define GPU_CORE_D2_TEXCLUT_OFFSET_TEXCLUT_OFFSET_SHIFT (0) /* Bits 0-7 */
-#define GPU_CORE_D2_TEXCLUT_OFFSET_TEXCLUT_OFFSET_MASK (0xff << GPU_CORE_D2_TEXCLUT_OFFSET_TEXCLUT_OFFSET_SHIFT)
-#  define GPU_CORE_D2_TEXCLUT_OFFSET_TEXCLUT_OFFSET(n) ((uint32_t)(n) << GPU_CORE_D2_TEXCLUT_OFFSET_TEXCLUT_OFFSET_SHIFT)
+#define GPU_CORE_D2_TEXCLUT_OFS_TEXCLUT_OFFSET_SHIFT (0) /* Bits 0-7 */
+#define GPU_CORE_D2_TEXCLUT_OFS_TEXCLUT_OFFSET_MASK (0xff << GPU_CORE_D2_TEXCLUT_OFS_TEXCLUT_OFFSET_SHIFT)
+#  define GPU_CORE_D2_TEXCLUT_OFS_TEXCLUT_OFFSET(n) ((uint32_t)(n) << GPU_CORE_D2_TEXCLUT_OFS_TEXCLUT_OFFSET_SHIFT)
 
 /* D2_COLKEY register */
 

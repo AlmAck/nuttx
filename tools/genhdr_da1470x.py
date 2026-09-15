@@ -267,6 +267,8 @@ def shortreg(inst, reg):
         r = r[len(inst) + 1:]
     if r.endswith("_REG"):
         r = r[:-4]
+    if r.endswith("_OFFSET"):
+        r = r[:-7] + "_OFS"
     return r
 
 
