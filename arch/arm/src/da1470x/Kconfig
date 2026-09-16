@@ -259,17 +259,27 @@ config DA1470X_BLE
 	bool "Bluetooth LE (CMAC controller + HCI transport)"
 	default n
 	depends on DA1470X_PDC && DA1470X_CLOCK_XTAL32M_SRC
-	select WIRELESS_BLUETOOTH
-	select NET_BLUETOOTH
+	select ALLOW_BSD_COMPONENTS
+	select NET
 	select NETDEVICES
+	select NETDEV_LATEINIT
+	select WIRELESS
+	select WIRELESS_BLUETOOTH
+	select WIRELESS_BLUETOOTH_HOST
+	select NET_BLUETOOTH
+	select SCHED_HPWORK
 	---help---
 		Load the CMAC controller firmware and register a NuttX HCI
 		driver over the CPUAPP/CMAC mailbox.
 
 config DA1470X_CMAC_FW_PATH
-	string "Path of the CMAC firmware binary"
+	string "Path of the CMAC firmware binary (relative to the NuttX tree)"
 	default "../Renesas_SDK-10.2.6.49/cmac_fw.bin"
 	depends on DA1470X_BLE
+	---help---
+		Firmware area extracted from the SDK's libble_stack_da1470x.a
+		with tools/da1470x_cmac_fw.sh.  The controller only sleeps with
+		XTAL32K as low-power clock; with RCLP it is kept awake.
 
 config DA1470X_PWMLED
 	bool "PWM LED driver block"

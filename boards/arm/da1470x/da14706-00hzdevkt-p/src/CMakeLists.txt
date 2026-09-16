@@ -50,6 +50,13 @@ if(CONFIG_DA1470X_PWMLED)
   list(APPEND SRCS da1470x_pwmled.c)
 endif()
 
+if(CONFIG_DA1470X_BLE)
+  list(APPEND SRCS da1470x_cmac_fw.S)
+  set_source_files_properties(
+    da1470x_cmac_fw.S PROPERTIES COMPILE_DEFINITIONS
+    "DA1470X_CMAC_FW_PATH=\"${NUTTX_DIR}/${CONFIG_DA1470X_CMAC_FW_PATH}\"")
+endif()
+
 target_sources(board PRIVATE ${SRCS})
 
 set_property(GLOBAL PROPERTY LD_SCRIPT "${NUTTX_BOARD_DIR}/scripts/flash_app.ld")

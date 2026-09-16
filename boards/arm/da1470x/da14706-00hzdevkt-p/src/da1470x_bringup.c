@@ -56,6 +56,7 @@
 #include "da1470x_pdc.h"
 #include "da1470x_oqspi.h"
 #include "da1470x_gpu.h"
+#include "da1470x_bt.h"
 #include "da14706-00hzdevkt-p.h"
 
 /****************************************************************************
@@ -241,6 +242,14 @@ int da1470x_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "Failed to register /dev/gpu0: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_DA1470X_BLE
+  ret = da1470x_bt_initialize(NULL);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to register the Bluetooth driver: %d\n", ret);
     }
 #endif
 

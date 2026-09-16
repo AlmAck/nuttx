@@ -52,6 +52,11 @@ ifeq ($(CONFIG_DA1470X_PWMLED),y)
 CSRCS += da1470x_pwmled.c
 endif
 
+ifeq ($(CONFIG_DA1470X_BLE),y)
+ASRCS += da1470x_cmac_fw.S
+AFLAGS += -DDA1470X_CMAC_FW_PATH=\"$(TOPDIR)/$(CONFIG_DA1470X_CMAC_FW_PATH)\"
+endif
+
 DEPPATH += --dep-path board
 VPATH += :board
 CFLAGS += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)board$(DELIM)board
