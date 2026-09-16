@@ -66,12 +66,22 @@ SPI0    SCLK P0.28, MOSI P0.29, MISO P0.30, CS P0.27 (``/dev/spi0``)
 I2C0    SCL P0.24, SDA P0.25, open drain (``/dev/i2c0``)
 ======  ================================
 
-Display
-=======
+Display and touch
+=================
 
 The AMOLED is driven by the LCDC in QSPI mode on P0.14..P0.18 and P0.22,
-with tearing effect on P0.10, reset on P0.23 and the panel DC/DC enable on
-P1.07.  ``CONFIG_DA14706_LCD_E120A390QSR`` registers it as ``/dev/fb0``.
+with tearing effect on P0.10, reset on P0.23, the panel DC/DC enable on
+P1.07 and the interface mode straps on P0.24/P1.00.
+``CONFIG_DA14706_LCD_E120A390QSR`` registers it as ``/dev/fb0``.  The
+driver transfers only the updated rectangle, can hold two frame buffers
+(``CONFIG_DA1470X_LCDC_NBUFFERS``) selected through ``FBIOPAN_DISPLAY``,
+and synchronises transfers to the tearing-effect line
+(``CONFIG_DA1470X_LCDC_TE``).
+
+The display board carries a Zinitix ZT2628 capacitive touch controller
+on I2C0 (SCL P1.12, SDA P1.11), interrupt on P1.03, reset on P1.01 and a
+supply switch on P0.28.  ``CONFIG_DA14706_TOUCH_ZT2628`` registers it as
+``/dev/input0``.
 
 Flashing
 ========
@@ -84,8 +94,12 @@ Renesas ``ezFlashCLI`` tool through the on-board J-Link::
   ezFlashCLI -j <jlink serial> image_flash nuttx.bin
 
 The tool places the image at flash offset 0x3400 and only programs the
-first 512 KiB of the flash, so ``nuttx.bin`` must stay below about
-510 KB; a larger image boots with a truncated ``.data`` section.
+first 512 KiB of the flash.  ``tools/da1470x_flash.sh <serial> nuttx.bin``
+wraps it: it writes the part of a larger image past that boundary
+separately and then resets the board under the debugger, flushes the
+flash cache at the entry point and runs, because the boot ROM leaves
+stale cache lines when it re-sizes the cacheable window for a new
+image.  Always use the script for images above 510 KB.
 
 Debugging without the UART
 --------------------------
@@ -107,3 +121,11 @@ nsh_cpuapp
 NSH on UART0 with GPIO, SPI0, I2C0, RTC, PDC, power management, the OQSPI
 flash partition mounted on ``/mnt/flash`` (NXFFS), the framebuffer, the
 GPU, the PWM LED driver and Bluetooth LE (``bt`` tool) enabled.
+
+lvgl
+----
+
+Everything in ``nsh_cpuapp`` plus LVGL 9.2.1 with the widgets and
+benchmark demos (``lvgldemo widgets``), two frame buffers, tearing-effect
+sync, the touch panel and the FPU.  The image is about 1 MB: flash it
+with ``tools/da1470x_flash.sh``.
