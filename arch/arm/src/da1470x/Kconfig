@@ -268,7 +268,7 @@ config DA1470X_GPU
 config DA1470X_BLE
 	bool "Bluetooth LE (CMAC controller + HCI transport)"
 	default n
-	depends on DA1470X_PDC && DA1470X_CLOCK_XTAL32M_SRC
+	depends on DA1470X_PDC && (DA1470X_CLOCK_XTAL32M_SRC || DA1470X_CLOCK_PLL160_SRC)
 	select ALLOW_BSD_COMPONENTS
 	select NET
 	select NETDEVICES
@@ -328,6 +328,13 @@ config DA1470X_CLOCK_XTAL32M_SRC
 		Start the 32 MHz crystal oscillator and run the system clock
 		from it.  Required for the radio and for accurate peripheral
 		timing.
+
+config DA1470X_CLOCK_PLL160_SRC
+	bool "PLL at 160 MHz (from the XTAL32M crystal)"
+	---help---
+		Start the crystal and the system PLL and run the core at
+		160 MHz.  The flash controller runs at 80 MHz.  The
+		peripheral clock stays at 32 MHz.
 
 config DA1470X_CLOCK_RCHS_SRC
 	bool "RCHS (internal high-speed RC oscillator)"

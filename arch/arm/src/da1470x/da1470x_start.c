@@ -179,9 +179,6 @@ void __start(void)
   da1470x_cache_flush();
   da1470x_pwr_init();
   da1470x_wdog_freeze();
-  da1470x_clockconfig();
-  da1470x_lowsetup();
-  showprogress('A');
 
   /* Clear .bss.  We'll do this inline (vs. calling memset) just to be
    * certain that there are no issues with the state of global variables.
@@ -191,8 +188,6 @@ void __start(void)
     {
       *dest++ = 0;
     }
-
-  showprogress('B');
 
   /* Move the initialized data section from its temporary holding spot in
    * FLASH into the correct place in SRAM.  The correct place in SRAM is
@@ -210,7 +205,8 @@ void __start(void)
   /* Copy any necessary code sections from FLASH to RAM.  The correct
    * destination in SRAM is given by _sramfuncs and _eramfuncs.  The
    * temporary location is in flash after the data initialization code
-   * at _framfuncs.
+   * at _framfuncs.  This must precede the clock configuration, which
+   * reprograms the flash from RAM when the PLL is selected.
    */
 
   for (src = (const uint32_t *)_framfuncs,
@@ -220,6 +216,10 @@ void __start(void)
       *dest++ = *src++;
     }
 
+  da1470x_clockconfig();
+  da1470x_lowsetup();
+  showprogress('A');
+  showprogress('B');
   showprogress('C');
 
 #ifdef CONFIG_ARMV8M_STACKCHECK

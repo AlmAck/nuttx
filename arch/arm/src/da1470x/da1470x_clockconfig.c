@@ -235,6 +235,59 @@ void da1470x_rchs_disable(void)
 }
 
 /****************************************************************************
+ * Name: clk_flash_for_sysclk
+ *
+ * Description:
+ *   The flash controller is clocked from the system clock and the flash
+ *   is rated for 80 MHz, so at 160 MHz the controller runs at half
+ *   speed.  The read command keeps the two dummy bytes and the read pipe
+ *   delay the boot ROM programmed, which are what an 80 MHz quad read
+ *   at 1.2 V needs.  Call before speeding up or after slowing down.
+ *
+ ****************************************************************************/
+
+static void clk_flash_for_sysclk(bool pll)
+{
+  modifyreg32(DA1470X_CRG_TOP_CLK_AMBA, CRG_TOP_CLK_AMBA_OQSPIF_DIV_MASK,
+              CRG_TOP_CLK_AMBA_OQSPIF_DIV(pll ? 1 : 0));
+}
+
+/****************************************************************************
+ * Name: clk_pll_enable / clk_pll_disable
+ ****************************************************************************/
+
+static int clk_pll_enable(void)
+{
+  int ret;
+
+  modifyreg32(DA1470X_CRG_XTAL_PLL_SYS_CTRL1, 0,
+              CRG_XTAL_PLL_SYS_CTRL1_LDO_PLL_ENABLE);
+  ret = clk_wait_bits(DA1470X_CRG_XTAL_PLL_SYS_STATUS,
+                      CRG_XTAL_PLL_SYS_STATUS_LDO_PLL_OK, CLKSW_WAIT_LOOPS);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  modifyreg32(DA1470X_CRG_XTAL_PLL_SYS_CTRL1, 0,
+              CRG_XTAL_PLL_SYS_CTRL1_PLL_EN);
+  modifyreg32(DA1470X_CRG_XTAL_PLL_SYS_CTRL1, 0,
+              CRG_XTAL_PLL_SYS_CTRL1_PLL_RST_N);
+
+  return clk_wait_bits(DA1470X_CRG_XTAL_PLL_SYS_STATUS,
+                       CRG_XTAL_PLL_SYS_STATUS_PLL_LOCK_FINE,
+                       CLKSW_WAIT_LOOPS);
+}
+
+static void clk_pll_disable(void)
+{
+  modifyreg32(DA1470X_CRG_XTAL_PLL_SYS_CTRL1,
+              CRG_XTAL_PLL_SYS_CTRL1_PLL_RST_N |
+              CRG_XTAL_PLL_SYS_CTRL1_PLL_EN |
+              CRG_XTAL_PLL_SYS_CTRL1_LDO_PLL_ENABLE, 0);
+}
+
+/****************************************************************************
  * Name: da1470x_set_sysclk
  ****************************************************************************/
 
@@ -283,8 +336,69 @@ int da1470x_set_sysclk(enum da1470x_sysclk_e clk)
         ret = da1470x_xtal32m_enable();
         if (ret == OK)
           {
+            bool from_pll = (getreg32(DA1470X_CRG_TOP_CLK_CTRL) &
+                             CRG_TOP_CLK_CTRL_RUNNING_AT_PLL) != 0;
+
             ret = clk_select_sysclk(SYS_CLK_SEL_XTAL32M,
                                     CRG_TOP_CLK_CTRL_RUNNING_AT_XTAL32M);
+            if (ret == OK && from_pll)
+              {
+                clk_flash_for_sysclk(false);
+                clk_pll_disable();
+              }
+          }
+        break;
+
+      case DA1470X_SYSCLK_PLL160:
+
+        /* The PLL needs the crystal as reference and the core at 1.2 V.
+         * Go through XTAL32M so the flash is slowed for the switch.
+         */
+
+        ret = da1470x_xtal32m_enable();
+        if (ret < 0)
+          {
+            break;
+          }
+
+        if ((getreg32(DA1470X_CRG_TOP_CLK_CTRL) &
+             CRG_TOP_CLK_CTRL_RUNNING_AT_PLL) != 0)
+          {
+            break;
+          }
+
+        ret = clk_select_sysclk(SYS_CLK_SEL_XTAL32M,
+                                CRG_TOP_CLK_CTRL_RUNNING_AT_XTAL32M);
+        if (ret < 0)
+          {
+            break;
+          }
+
+        ret = da1470x_pmu_set_v12(DA1470X_V12_LEVEL_1P20V);
+        if (ret < 0)
+          {
+            break;
+          }
+
+        clk_wait_bits(DA1470X_CRG_TOP_SYS_STAT,
+                      CRG_TOP_SYS_STAT_POWER_IS_UP, CLKSW_WAIT_LOOPS);
+        clk_wait_bits(DA1470X_CRG_TOP_ANA_STATUS,
+                      CRG_TOP_ANA_STATUS_BUCK_DCDC_V12_OK, CLKSW_WAIT_LOOPS);
+
+        ret = clk_pll_enable();
+        if (ret < 0)
+          {
+            clk_pll_disable();
+            break;
+          }
+
+        clk_flash_for_sysclk(true);
+        ret = clk_select_sysclk(SYS_CLK_SEL_PLL,
+                                CRG_TOP_CLK_CTRL_RUNNING_AT_PLL);
+        if (ret < 0)
+          {
+            clk_flash_for_sysclk(false);
+            clk_pll_disable();
           }
         break;
 
@@ -310,7 +424,11 @@ enum da1470x_sysclk_e da1470x_get_sysclk_src(void)
 {
   uint32_t ctrl = getreg32(DA1470X_CRG_TOP_CLK_CTRL);
 
-  if ((ctrl & CRG_TOP_CLK_CTRL_RUNNING_AT_XTAL32M) != 0)
+  if ((ctrl & CRG_TOP_CLK_CTRL_RUNNING_AT_PLL) != 0)
+    {
+      return DA1470X_SYSCLK_PLL160;
+    }
+  else if ((ctrl & CRG_TOP_CLK_CTRL_RUNNING_AT_XTAL32M) != 0)
     {
       return DA1470X_SYSCLK_XTAL32M;
     }
@@ -358,6 +476,10 @@ uint32_t da1470x_get_sysclk(void)
 
       case DA1470X_SYSCLK_RCLP:
         freq = DA1470X_RCLP_SLOW_FREQ;
+        break;
+
+      case DA1470X_SYSCLK_PLL160:
+        freq = DA1470X_PLL160_FREQ;
         break;
 
       default:
@@ -425,7 +547,13 @@ void da1470x_clockconfig(void)
    * high-frequency source.
    */
 
-#if defined(CONFIG_DA1470X_CLOCK_XTAL32M_SRC)
+#if defined(CONFIG_DA1470X_CLOCK_PLL160_SRC)
+  if (da1470x_set_sysclk(DA1470X_SYSCLK_PLL160) < 0 &&
+      da1470x_set_sysclk(DA1470X_SYSCLK_XTAL32M) < 0)
+    {
+      da1470x_set_sysclk(DA1470X_SYSCLK_RCHS_32);
+    }
+#elif defined(CONFIG_DA1470X_CLOCK_XTAL32M_SRC)
   if (da1470x_set_sysclk(DA1470X_SYSCLK_XTAL32M) < 0)
     {
       /* No crystal: fall back to the RC oscillator so we still boot */

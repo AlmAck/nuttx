@@ -26,10 +26,13 @@
 #
 # The flash cache keeps lines from before the programming and the boot ROM
 # does not flush them when it re-sizes the cacheable window for the new
-# image, so the first fetch of the new code can return stale bytes.  After
-# programming, the board is reset under the debugger, stopped at the
-# image's entry point, the cache RAM mux is toggled (which flushes the
-# cache) and execution continues.
+# image, so the first fetch of the new code can return stale bytes.  A reset
+# request through the debugger also leaves the clock tree as the previous
+# firmware left it, and the boot ROM hangs when that was the 160 MHz PLL.
+# After programming, the board is therefore reset under the debugger and,
+# while the core is still halted at the reset vector, the system clock is
+# put back on the internal RC oscillator with the PLL off and the cache RAM
+# mux is toggled (which flushes the cache) before the ROM runs.
 #
 # Usage: da1470x_flash.sh <jlink serial> <nuttx.bin>
 
@@ -66,15 +69,17 @@ jlink() {
            -autoconnect 1 -NoGui 1 -CommanderScript "$1"
 }
 
-# Reset vector of the image (the thumb bit dropped)
+# Registers restored while halted at the reset vector
 
-entry=$(printf '0x%x' $(( $(od -An -tu4 -j4 -N4 "$image") & ~1 )))
+clk_ctrl_reg=0x50000014
+clk_ctrl_rchs=0x1
+clk_amba_reg=0x50000000
+clk_amba_default=0x1040
+pll_ctrl_reg=0x50050460
+pll_ctrl_off=0xE8A0
 
 {
   echo "r"
-  echo "setbp $entry"
-  echo "g"
-  echo "sleep 1000"
   echo "mem32 $sysctrl_reg 1"
   echo "qc"
 } > "$tmp/read.jlink"
@@ -82,7 +87,7 @@ entry=$(printf '0x%x' $(( $(od -An -tu4 -j4 -N4 "$image") & ~1 )))
 sysctrl=$(jlink "$tmp/read.jlink" | sed -n 's/^50000024 = \([0-9A-F]*\).*/\1/p')
 
 if [ -z "$sysctrl" ]; then
-  echo "Could not stop at the entry point; power-cycle the board" >&2
+  echo "Could not halt the core at reset; power-cycle the board" >&2
   exit 1
 fi
 
@@ -91,16 +96,14 @@ set=$(printf '0x%08X' $(( 0x$sysctrl | cacheram_mux )))
 
 {
   echo "r"
-  echo "setbp $entry"
-  echo "g"
-  echo "sleep 1000"
+  echo "w4 $clk_ctrl_reg $clk_ctrl_rchs"
+  echo "w4 $clk_amba_reg $clk_amba_default"
+  echo "w4 $pll_ctrl_reg $pll_ctrl_off"
   echo "w4 $sysctrl_reg $clr"
   echo "w4 $sysctrl_reg $set"
-  echo "clrbp 1"
-  echo "clrbp 2"
   echo "g"
   echo "qc"
 } > "$tmp/flush.jlink"
 
 jlink "$tmp/flush.jlink" > /dev/null
-echo "Cache flushed at entry $entry, running"
+echo "Clocks restored and cache flushed at reset, running"

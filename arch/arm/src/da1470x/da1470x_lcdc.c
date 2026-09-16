@@ -44,6 +44,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
 #include <nuttx/kmalloc.h>
+#include <nuttx/power/pm.h>
 #include <nuttx/mutex.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/wqueue.h>
@@ -54,6 +55,7 @@
 #include "hardware/da1470x_lcdc.h"
 #include "da1470x_lcdc.h"
 #include "da1470x_pmu.h"
+#include "da1470x_clockconfig.h"
 
 #ifdef CONFIG_DA1470X_LCDC
 
@@ -153,6 +155,58 @@ static int lcdc_fifo_push(uint32_t value)
 }
 
 /****************************************************************************
+ * Name: lcdc_clock_select
+ *
+ * Description:
+ *   Feed the controller from whichever of the fixed 32 MHz peripheral
+ *   clock and the system clock gives the highest serial clock that stays
+ *   within the panel's limit, and program the divider accordingly.
+ *
+ ****************************************************************************/
+
+static void lcdc_clock_select(const struct da1470x_lcdc_panel_s *panel)
+{
+  uint32_t limit = panel->sclk_max ? panel->sclk_max : 32000000;
+  uint32_t divn  = da1470x_get_divn_clk();
+  uint32_t sys   = da1470x_get_sysclk();
+  uint32_t divn_div;
+  uint32_t sys_div;
+  uint32_t div;
+  bool use_sys;
+
+  divn_div = (divn + limit - 1) / limit;
+  sys_div  = (sys + limit - 1) / limit;
+  if (divn_div == 0)
+    {
+      divn_div = 1;
+    }
+
+  if (sys_div == 0)
+    {
+      sys_div = 1;
+    }
+
+  use_sys = (sys / sys_div) > (divn / divn_div);
+  div     = use_sys ? sys_div : divn_div;
+
+  if (use_sys)
+    {
+      putreg32(CRG_SYS_CLK_SYS_LCD_CLK_SEL, DA1470X_CRG_SYS_SET_CLK_SYS);
+    }
+  else
+    {
+      putreg32(CRG_SYS_CLK_SYS_LCD_CLK_SEL, DA1470X_CRG_SYS_RESET_CLK_SYS);
+    }
+
+  modifyreg32(DA1470X_LCDC_CLKCTRL, LCDC_CLKCTRL_CLK_DIV_MASK,
+              LCDC_CLKCTRL_CLK_DIV(div));
+
+  lcdinfo("Serial clock %lu Hz from %s\n",
+          (unsigned long)((use_sys ? sys : divn) / div),
+          use_sys ? "the system clock" : "DIVN");
+}
+
+/****************************************************************************
  * Name: lcdc_qspi_configure
  *
  * Description:
@@ -164,7 +218,6 @@ static int lcdc_fifo_push(uint32_t value)
 static void lcdc_qspi_configure(const struct da1470x_lcdc_panel_s *panel)
 {
   uint32_t cfg;
-  uint32_t clkdiv = panel->clkdiv ? panel->clkdiv : 1;
 
   /* Output colour format on the serial interface: 8-bit RGB888 or the
    * two-byte RGB565 packing, matching the panel's COLMOD setting.  TE
@@ -187,8 +240,7 @@ static void lcdc_qspi_configure(const struct da1470x_lcdc_panel_s *panel)
 
   putreg32(LCDC_MODE_UNDERRUN_PREVENTION_EN, DA1470X_LCDC_MODE);
 
-  modifyreg32(DA1470X_LCDC_CLKCTRL, LCDC_CLKCTRL_CLK_DIV_MASK,
-              LCDC_CLKCTRL_CLK_DIV(clkdiv));
+  lcdc_clock_select(panel);
 
   /* Route the serial interface to the pads and let the LCDC drive them.
    * The panel's tearing-effect line is active high.
@@ -376,13 +428,23 @@ static int lcdc_send_region(struct da1470x_lcdc_s *priv, int buf,
   cfg &= ~LCDC_DBIB_CFG_DBIB_CSX_CFG;
   putreg32(cfg, DA1470X_LCDC_DBIB_CFG);
 
-  /* Arm FRAME_END and fire the frame */
+  /* Arm FRAME_END and fire the frame.  The system clock, and with it
+   * the serial clock, must not change while the frame is on the wire.
+   */
+
+#ifdef CONFIG_PM
+  pm_stay(PM_IDLE_DOMAIN, PM_NORMAL);
+#endif
 
   modifyreg32(DA1470X_LCDC_INTERRUPT, 0, LCDC_INTERRUPT_FE_IRQ_EN);
   modifyreg32(DA1470X_LCDC_MODE, 0, LCDC_MODE_SFRAME_UPD);
 
   ret = nxsem_tickwait_uninterruptible(&priv->frame,
                                        MSEC2TICK(LCDC_FRAME_TIMEOUT_MS));
+
+#ifdef CONFIG_PM
+  pm_relax(PM_IDLE_DOMAIN, PM_NORMAL);
+#endif
   if (ret < 0)
     {
       lcderr("Frame timed out (status %08" PRIx32 ")\n",
@@ -491,21 +553,17 @@ static int lcdc_updatearea(struct fb_vtable_s *vtable,
       return -ENODEV;
     }
 
-  /* Rows beyond the visible height name the buffer explicitly; a plain
-   * area refers to the buffer currently shown.  A client that draws into
-   * the other buffer and pans afterwards gets that buffer re-sent from
-   * the pan request.
+  /* The row range names the buffer: rows beyond the visible height are
+   * the second buffer.  Clients that pan (LVGL, the fb example) always
+   * update with the offset of the buffer they drew into, so the area is
+   * taken from that buffer and the pan that follows does not send it
+   * again.
    */
 
   buf = area->y / panel->yres;
   if (buf >= LCDC_NBUFFERS)
     {
       return -EINVAL;
-    }
-
-  if (buf == 0)
-    {
-      buf = priv->shown;
     }
 
   x0 = area->x;
@@ -599,7 +657,7 @@ static int lcdc_pandisplay(struct fb_vtable_s *vtable,
 
   if (work_available(&priv->panwork))
     {
-      work_queue(LPWORK, &priv->panwork, lcdc_panwork, priv, 1);
+      work_queue(LPWORK, &priv->panwork, lcdc_panwork, priv, 0);
     }
 
   return OK;

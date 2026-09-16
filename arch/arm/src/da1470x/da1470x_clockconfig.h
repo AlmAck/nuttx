@@ -44,13 +44,16 @@
 #define DA1470X_RCHS_32_FREQ      32000000
 #define DA1470X_RCHS_64_FREQ      64000000
 #define DA1470X_RCHS_96_FREQ      96000000
+#define DA1470X_PLL160_FREQ       160000000
 #define DA1470X_RCLP_SLOW_FREQ    32000
 #define DA1470X_RCLP_FAST_FREQ    512000
 #define DA1470X_XTAL32K_FREQ      32768
 
 /* Boot-time system clock frequency as selected by Kconfig */
 
-#if defined(CONFIG_DA1470X_CLOCK_XTAL32M_SRC)
+#if defined(CONFIG_DA1470X_CLOCK_PLL160_SRC)
+#  define DA1470X_SYSCLK_FREQ     DA1470X_PLL160_FREQ
+#elif defined(CONFIG_DA1470X_CLOCK_XTAL32M_SRC)
 #  define DA1470X_SYSCLK_FREQ     DA1470X_XTAL32M_FREQ
 #elif defined(CONFIG_DA1470X_CLOCK_HFCLK_SRC_RCHS_64)
 #  define DA1470X_SYSCLK_FREQ     DA1470X_RCHS_64_FREQ
@@ -70,6 +73,7 @@ enum da1470x_sysclk_e
   DA1470X_SYSCLK_RCHS_64,       /* Internal RC, 64 MHz */
   DA1470X_SYSCLK_RCHS_96,       /* Internal RC, 96 MHz */
   DA1470X_SYSCLK_XTAL32M,       /* External crystal, 32 MHz */
+  DA1470X_SYSCLK_PLL160,        /* PLL from the crystal, 160 MHz */
   DA1470X_SYSCLK_RCLP           /* Low power RC (sleep only) */
 };
 

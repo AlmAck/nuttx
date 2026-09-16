@@ -45,7 +45,7 @@ struct da1470x_lcdc_panel_s
   uint16_t xres;          /* Visible columns */
   uint16_t yres;          /* Visible rows */
   uint8_t  bpp;           /* Bits per pixel: 16 (RGB565) or 32 (RGBA8888) */
-  uint8_t  clkdiv;        /* LCDC clock divider (SCLK = 32 MHz / clkdiv) */
+  uint32_t sclk_max;      /* Highest serial clock the panel accepts (Hz) */
   uint8_t  cmd_prefix;    /* QSPI write-command prefix byte (e.g. 0x02) */
   uint8_t  frame_prefix;  /* QSPI prefix for the pixel stream (e.g. 0x32) */
   uint8_t  ramwr;         /* DCS memory write command (0x2c) */

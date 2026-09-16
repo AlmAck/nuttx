@@ -26,6 +26,11 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/board.h>
+#include <nuttx/irq.h>
+
+#include "arm_internal.h"
+#include "hardware/da1470x_sys_wdog.h"
+#include "hardware/da1470x_gpreg.h"
 
 #ifdef CONFIG_BOARDCTL_RESET
 
@@ -55,7 +60,22 @@
 
 int board_reset(int status)
 {
-  up_systemreset();
+  /* A core reset request leaves the clock tree, the PLL and the flash
+   * controller as they are and the boot ROM then fails to start when the
+   * system clock is the PLL.  Reset through the watchdog instead, which
+   * resets the whole chip like the reset pin does.
+   */
+
+  up_irq_save();
+  modifyreg32(DA1470X_SYS_WDOG_WATCHDOG_CTRL, 0,
+              SYS_WDOG_WATCHDOG_CTRL_NMI_RST);
+  putreg32(SYS_WDOG_WATCHDOG_WDOG_VAL(1), DA1470X_SYS_WDOG_WATCHDOG);
+  putreg32(GPREG_SET_FREEZE_FRZ_SYS_WDOG, DA1470X_GPREG_RESET_FREEZE);
+
+  for (; ; )
+    {
+    }
+
   return 0;
 }
 

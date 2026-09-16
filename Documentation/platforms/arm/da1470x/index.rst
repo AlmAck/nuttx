@@ -36,10 +36,22 @@ Clock Configuration
 
 The system clock is chosen with Kconfig: the 32 MHz crystal
 (``CONFIG_DA1470X_CLOCK_XTAL32M_SRC``, default and required for the RTC,
-the PDC ``EN_XTAL`` flag and the BLE controller) or the RC high-speed
-oscillator at 32, 64 or 96 MHz.  The peripheral clock (DIVN) is always
-32 MHz.  The low-power clock defaults to the internal RCLP; select
-``XTAL32K`` for an accurate RTC and for controller sleep.
+the PDC ``EN_XTAL`` flag and the BLE controller), the system PLL at
+160 MHz fed by the crystal (``CONFIG_DA1470X_CLOCK_PLL160_SRC``, the
+choice for graphics work; the core runs at 1.2 V and the flash
+controller at 80 MHz with the read settings the boot ROM programmed) or
+the RC high-speed oscillator at 32, 64 or 96 MHz.  The peripheral clock
+(DIVN) is always 32 MHz.  The low-power clock defaults to the internal
+RCLP; select ``XTAL32K`` for an accurate RTC and for controller sleep.
+
+A core reset request (``up_systemreset``, or ``r`` in a debugger) does
+not reset the clock tree, and the boot ROM hangs when it starts with the
+PLL selected.  ``board_reset`` therefore resets through the watchdog,
+and ``tools/da1470x_flash.sh`` puts the clocks back before running the
+ROM.  When resetting from a debugger by hand, write ``0x1`` to
+``CLK_CTRL_REG`` (0x50000014), ``0x1040`` to ``CLK_AMBA_REG``
+(0x50000000) and ``0xE8A0`` to ``PLL_SYS_CTRL1_REG`` (0x50050460) while
+the core is halted at the reset vector.
 
 The system tick is the Cortex-M SysTick fed by the system clock.
 
@@ -85,8 +97,8 @@ Power Management
 ----------------
 
 ``CONFIG_DA1470X_PM`` registers a CONFIG_PM lower half.  IDLE is a plain
-WFI.  STANDBY switches the system clock to XTAL32M, stops the RC oscillator
-and enters Cortex-M deep sleep; any NVIC interrupt (RTC alarm, GPIO wake-up,
+WFI.  STANDBY switches the system clock to XTAL32M, stops the PLL and the
+RC oscillator and enters Cortex-M deep sleep; any NVIC interrupt (RTC alarm, GPIO wake-up,
 UART) wakes the core.  SLEEP behaves as STANDBY unless
 ``CONFIG_DA1470X_PM_EXTENDED_SLEEP`` is set, which is reserved for a full
 PD_SYS power-off with context restore and is not yet implemented.

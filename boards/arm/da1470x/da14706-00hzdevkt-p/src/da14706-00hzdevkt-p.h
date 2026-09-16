@@ -36,9 +36,19 @@
 
 /* LED definitions **********************************************************/
 
+/* LED2 (P1.1) is the touch controller's reset line when the display
+ * board is fitted; with the touch driver enabled the LED set shrinks to
+ * LED1 and LED3 so the kernel's status LEDs cannot hold the controller
+ * in reset.
+ */
+
 #define GPIO_LED1  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT0 | GPIO_PIN(31))
-#define GPIO_LED2  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(1))
-#define GPIO_LED3  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(2))
+#ifdef CONFIG_DA14706_TOUCH_ZT2628
+#  define GPIO_LED2 (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(2))
+#else
+#  define GPIO_LED2 (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(1))
+#  define GPIO_LED3 (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(2))
+#endif
 
 /* Button definitions *******************************************************/
 
