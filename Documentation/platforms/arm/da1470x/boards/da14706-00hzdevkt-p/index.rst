@@ -129,5 +129,5 @@ lvgl
 
 Everything in ``nsh_cpuapp`` plus LVGL 9.2.1 with the widgets and
 benchmark demos (``lvgldemo widgets``), two frame buffers, tearing-effect
-sync, the touch panel and the FPU.  The image is about 1 MB: flash it
-with ``tools/da1470x_flash.sh``.
+sync, the touch panel, the FPU, the 160 MHz PLL and the GPU draw unit.
+The image is about 1 MB: flash it with ``tools/da1470x_flash.sh``.

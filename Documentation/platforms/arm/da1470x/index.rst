@@ -121,6 +121,28 @@ rings, H4 framing) was recovered from the SDK objects for firmware
 "CMAC v1.0.0" of SDK 10.2.6.49; other SDK releases move the table addresses
 in ``da1470x_cmac.c``.  Radio trim values from OTP are not applied yet.
 
+GPU
+---
+
+``CONFIG_DA1470X_GPU`` drives the D/AVE 2D core directly: ``/dev/gpu0``
+accepts a rectangle fill with an ARGB colour (blended by its alpha) and a
+rectangle copy from an RGB565 or ARGB8888 surface (blended by the pixel
+alpha; the core has no texture operation unit, so no constant opacity on
+top of it).  The core is a bus master without
+the CPU's address remapping and without the flash cache in its path, so
+the driver rebases sources below the SRAM onto the flash controller's
+second window at 0x38000000.  Reads from flash are latency bound (the
+controller fetches short bursts), so assets the GPU should blit fast
+belong in RAM.
+
+``CONFIG_LV_USE_NUTTX_DA1470X_GPU`` adds an LVGL draw unit
+(``apps/graphics/lvgl/port/lv_draw_da1470x.c``) that claims blended
+rectangle fills and untransformed, fully opaque RGB565/ARGB8888 image
+and layer blits; opaque fills stay on the CPU, which stores them as fast
+as the GPU.  The
+application calls ``lv_draw_da1470x_init()`` after ``lv_init()``; any
+task the GPU declines or fails is redrawn by the software renderer.
+
 Supported Boards
 ================
 

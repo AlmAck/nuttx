@@ -59,7 +59,15 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define GPU_TIMEOUT_MS          500
+#define GPU_TIMEOUT_MS          100
+
+/* The core is an AHB master without the CPU's address remapping and
+ * without the flash cache in its path: the boot flash, which the CPU
+ * sees at address 0, is reached through the controller's second window.
+ */
+
+#define GPU_FLASH_CPU_WINDOW    0x08000000
+#define GPU_FLASH_BUS_BASE      0x38000000
 #define GPU_IDLE_LOOPS          1000000
 
 #define GPU_BUSY_MASK           (GPU_CORE_D2_STATUS_D2C_BUSY_ENUM | \
@@ -228,6 +236,16 @@ static uint32_t gpu_readformat(uint8_t format)
  *
  ****************************************************************************/
 
+static uintptr_t gpu_bus_addr(uintptr_t addr)
+{
+  if (addr < GPU_FLASH_CPU_WINDOW)
+    {
+      return addr + GPU_FLASH_BUS_BASE;
+    }
+
+  return addr;
+}
+
 static bool gpu_check_rect(const struct da1470x_gpu_surface_s *s,
                            uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
@@ -296,6 +314,42 @@ static int gpu_wait_idle(void)
 }
 
 /****************************************************************************
+ * Name: gpu_setup
+ *
+ * Description:
+ *   Static core configuration: burst limits, no caches (frame buffers
+ *   are read by the LCDC right after a render and sources are rewritten
+ *   by the CPU between renders), interrupts on enumeration end and bus
+ *   error.
+ *
+ ****************************************************************************/
+
+static void gpu_setup(void)
+{
+  gpu_putreg(DA1470X_GPU_CORE_D2_CONTROL3_OFFSET, GPU_CONTROL3_BURST8);
+  gpu_putreg(DA1470X_GPU_CORE_D2_CACHECTL_OFFSET, 0);
+  gpu_putreg(DA1470X_GPU_CORE_D2_IRQCTL_OFFSET,
+             GPU_IRQ_ENABLE | GPU_IRQ_CLEAR);
+}
+
+/****************************************************************************
+ * Name: gpu_reset
+ *
+ * Description:
+ *   A bus error or a hung enumeration leaves the core busy for good.
+ *   Cycle its enable to start over.
+ *
+ ****************************************************************************/
+
+static void gpu_reset(void)
+{
+  modifyreg32(DA1470X_GPU_REG_GPU_CTRL, GPU_REG_GPU_CTRL_GPU_EN, 0);
+  up_udelay(10);
+  modifyreg32(DA1470X_GPU_REG_GPU_CTRL, 0, GPU_REG_GPU_CTRL_GPU_EN);
+  gpu_setup();
+}
+
+/****************************************************************************
  * Name: gpu_render
  *
  * Description:
@@ -314,11 +368,14 @@ static int gpu_render(struct da1470x_gpu_s *priv,
   ret = gpu_wait_idle();
   if (ret < 0)
     {
-      gerr("GPU busy before render\n");
+      gerr("GPU busy before render, resetting\n");
+      gpu_reset();
       return ret;
     }
 
-  origin = dst->addr + ((uintptr_t)y * dst->pitch + x) * gpu_bpp(dst->format);
+  origin = gpu_bus_addr(dst->addr) +
+           ((uintptr_t)y * dst->pitch + x) * gpu_bpp(dst->format);
+
 
   priv->buserror = false;
 
@@ -338,16 +395,24 @@ static int gpu_render(struct da1470x_gpu_s *priv,
     {
       gerr("GPU render timed out, status %08" PRIx32 "\n",
            getreg32(DA1470X_GPU_CORE_D2_STATUS));
+      gpu_reset();
       return ret;
     }
 
   if (priv->buserror)
     {
       gerr("GPU bus error\n");
+      gpu_reset();
       return -EIO;
     }
 
-  return gpu_wait_idle();
+  ret = gpu_wait_idle();
+  if (ret < 0)
+    {
+      gpu_reset();
+    }
+
+  return ret;
 }
 
 /****************************************************************************
@@ -432,18 +497,9 @@ int da1470x_gpu_initialize(void)
       return -ENODEV;
     }
 
-  /* Burst limits, no caches (frame buffers are read by the LCDC right
-   * after a render), interrupts on enumeration end and bus error.
-   */
-
-  gpu_putreg(DA1470X_GPU_CORE_D2_CONTROL3_OFFSET, GPU_CONTROL3_BURST8);
-  gpu_putreg(DA1470X_GPU_CORE_D2_CACHECTL_OFFSET, 0);
-
   irq_attach(DA1470X_IRQ_GPU, gpu_interrupt, priv);
   up_enable_irq(DA1470X_IRQ_GPU);
-
-  gpu_putreg(DA1470X_GPU_CORE_D2_IRQCTL_OFFSET,
-             GPU_IRQ_ENABLE | GPU_IRQ_CLEAR);
+  gpu_setup();
 
   priv->initialized = true;
   return OK;
@@ -531,7 +587,7 @@ int da1470x_gpu_blit(const struct da1470x_gpu_blit_s *op)
       return ret;
     }
 
-  texorigin = op->src.addr +
+  texorigin = gpu_bus_addr(op->src.addr) +
               ((uintptr_t)op->sy * op->src.pitch + op->sx) *
               gpu_bpp(op->src.format);
 
@@ -542,6 +598,12 @@ int da1470x_gpu_blit(const struct da1470x_gpu_blit_s *op)
              GPU_CORE_D2_CONTROL2_D2C_TEXTURECLAMPY |
              GPU_CORE_D2_CONTROL2_D2C_WRITEALPHA1 |
              GPU_CORE_D2_CONTROL2_D2C_BDI;
+
+  /* The colour part of COLOR1 is added to the texel and must stay zero.
+   * Its alpha is ignored for textured boxes: this core has no texture
+   * operation unit, so a constant opacity cannot be applied on top of
+   * the source alpha.
+   */
 
   gpu_putreg(DA1470X_GPU_CORE_D2_CONTROL_OFFSET, 0);
   gpu_putreg(DA1470X_GPU_CORE_D2_CONTROL2_OFFSET, control2);
