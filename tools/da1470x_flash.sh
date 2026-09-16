@@ -24,6 +24,13 @@
 # 512 KiB of the flash, so the part of the image beyond that boundary is
 # written separately.
 #
+# The flash cache keeps lines from before the programming and the boot ROM
+# does not flush them when it re-sizes the cacheable window for the new
+# image, so the first fetch of the new code can return stale bytes.  After
+# programming, the board is reset under the debugger, stopped at the
+# image's entry point, the cache RAM mux is toggled (which flushes the
+# cache) and execution continues.
+#
 # Usage: da1470x_flash.sh <jlink serial> <nuttx.bin>
 
 set -e
@@ -39,13 +46,61 @@ imgbase=$((0x3400))
 limit=$((0x80000))
 maxfirst=$((limit - imgbase))
 size=$(stat -c %s "$image")
+sysctrl_reg=0x50000024
+cacheram_mux=0x400
 
 ezFlashCLI -j "$serial" image_flash "$image"
 
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
 if [ "$size" -gt "$maxfirst" ]; then
-  tail=$(mktemp)
-  trap 'rm -f "$tail"' EXIT
-  dd if="$image" of="$tail" bs=4096 skip=$maxfirst iflag=skip_bytes status=none
+  dd if="$image" of="$tmp/tail.bin" bs=4096 skip=$maxfirst iflag=skip_bytes \
+     status=none
   echo "Image exceeds 512 KiB: writing $((size - maxfirst)) bytes at 0x80000"
-  ezFlashCLI -j "$serial" write_flash $limit "$tail"
+  ezFlashCLI -j "$serial" write_flash $limit "$tmp/tail.bin"
 fi
+
+jlink() {
+  JLinkExe -SelectEmuBySN "$serial" -device Cortex-M33 -if SWD -speed 4000 \
+           -autoconnect 1 -NoGui 1 -CommanderScript "$1"
+}
+
+# Reset vector of the image (the thumb bit dropped)
+
+entry=$(printf '0x%x' $(( $(od -An -tu4 -j4 -N4 "$image") & ~1 )))
+
+{
+  echo "r"
+  echo "setbp $entry"
+  echo "g"
+  echo "sleep 1000"
+  echo "mem32 $sysctrl_reg 1"
+  echo "qc"
+} > "$tmp/read.jlink"
+
+sysctrl=$(jlink "$tmp/read.jlink" | sed -n 's/^50000024 = \([0-9A-F]*\).*/\1/p')
+
+if [ -z "$sysctrl" ]; then
+  echo "Could not stop at the entry point; power-cycle the board" >&2
+  exit 1
+fi
+
+clr=$(printf '0x%08X' $(( 0x$sysctrl & ~cacheram_mux )))
+set=$(printf '0x%08X' $(( 0x$sysctrl | cacheram_mux )))
+
+{
+  echo "r"
+  echo "setbp $entry"
+  echo "g"
+  echo "sleep 1000"
+  echo "w4 $sysctrl_reg $clr"
+  echo "w4 $sysctrl_reg $set"
+  echo "clrbp 1"
+  echo "clrbp 2"
+  echo "g"
+  echo "qc"
+} > "$tmp/flush.jlink"
+
+jlink "$tmp/flush.jlink" > /dev/null
+echo "Cache flushed at entry $entry, running"

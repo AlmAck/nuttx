@@ -34,6 +34,8 @@
 #include "arm_internal.h"
 #include "nvic.h"
 
+#include "hardware/da1470x_cache.h"
+#include "hardware/da1470x_crg_top.h"
 #include "hardware/da1470x_gpreg.h"
 #include "hardware/da1470x_sys_wdog.h"
 #include "da1470x_lowputc.h"
@@ -73,6 +75,39 @@ extern uint8_t _framfuncs[];
 
 void __start(void) noinstrument_function;
 #endif
+
+/****************************************************************************
+ * Name: da1470x_cache_flush
+ *
+ * Description:
+ *   Drop whatever the flash cache holds from before this boot (the ROM
+ *   does not flush it when it re-sizes the cacheable window).  Toggling
+ *   the cache RAM mux flushes the cache.
+ *
+ ****************************************************************************/
+
+static void da1470x_cache_flush(void)
+{
+  int i;
+
+  if ((getreg32(DA1470X_CACHE_CTRL2) & CACHE_CTRL2_FLUSH_DISABLE) != 0)
+    {
+      return;
+    }
+
+  modifyreg32(DA1470X_CRG_TOP_SYS_CTRL, CRG_TOP_SYS_CTRL_CACHERAM_MUX, 0);
+  modifyreg32(DA1470X_CRG_TOP_SYS_CTRL, 0, CRG_TOP_SYS_CTRL_CACHERAM_MUX);
+
+  for (i = 0; i < 100000; i++)
+    {
+      if ((getreg32(DA1470X_CACHE_CTRL2) & CACHE_CTRL2_FLUSHED) != 0)
+        {
+          break;
+        }
+    }
+
+  modifyreg32(DA1470X_CACHE_CTRL2, CACHE_CTRL2_FLUSHED, 0);
+}
 
 /****************************************************************************
  * Name: da1470x_wdog_freeze
@@ -133,6 +168,15 @@ void __start(void)
   __asm__ __volatile__ ("dsb" : : : "memory");
   __asm__ __volatile__ ("isb" : : : "memory");
 
+  /* Enable the FPU before any code that the compiler may have given
+   * floating-point registers to use.
+   */
+
+#ifdef CONFIG_ARCH_FPU
+  arm_fpuconfig();
+#endif
+
+  da1470x_cache_flush();
   da1470x_pwr_init();
   da1470x_wdog_freeze();
   da1470x_clockconfig();
@@ -180,12 +224,6 @@ void __start(void)
 
 #ifdef CONFIG_ARMV8M_STACKCHECK
   arm_stack_check_init();
-#endif
-
-#ifdef CONFIG_ARCH_FPU
-  /* Initialize the FPU (if available) */
-
-  arm_fpuconfig();
 #endif
 
 #ifdef CONFIG_ARCH_PERF_EVENTS

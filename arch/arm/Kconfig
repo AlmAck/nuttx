@@ -132,6 +132,7 @@ config ARCH_CHIP_CSK6
 config ARCH_CHIP_DA1470X
 	bool "Renesas DA1470x"
 	select ARCH_CORTEXM33
+	select ARCH_HAVE_FPU
 	depends on EXPERIMENTAL
 	---help---
 		Renesas DA1470 architectures (ARM dual Cortex-M33).
