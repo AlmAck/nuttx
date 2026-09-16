@@ -196,6 +196,17 @@ static void rtc_clock_config(void)
   uint32_t div_frac = 10 * (lp - div_int * RTC_TICK_HZ);
   uint32_t regval;
 
+  if (div_int > (CRG_TOP_CLK_RTCDIV_RTC_DIV_INT_MASK >>
+                 CRG_TOP_CLK_RTCDIV_RTC_DIV_INT_SHIFT))
+    {
+      /* The 512 kHz RCLP mode cannot be divided down to 100 Hz */
+
+      rtcerr("LP clock %" PRIu32 " Hz too fast for the RTC divider\n", lp);
+      div_int  = CRG_TOP_CLK_RTCDIV_RTC_DIV_INT_MASK >>
+                 CRG_TOP_CLK_RTCDIV_RTC_DIV_INT_SHIFT;
+      div_frac = 0;
+    }
+
   regval  = getreg32(DA1470X_CRG_TOP_CLK_RTCDIV);
   regval &= ~(CRG_TOP_CLK_RTCDIV_RTC_DIV_DENOM |
               CRG_TOP_CLK_RTCDIV_RTC_DIV_INT_MASK |

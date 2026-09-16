@@ -623,10 +623,14 @@ static int cmac_boot(struct da1470x_cmac_s *priv, const uint8_t bdaddr[6])
       return priv->pdc_entry;
     }
 
-  /* The controller must be held in reset */
+  /* Hold the controller in reset and drop anything left over from a
+   * previous run (a warm reset of the host does not reset the CMAC).
+   */
 
   modifyreg32(DA1470X_CRG_TOP_CLK_RADIO, 0,
               CRG_TOP_CLK_RADIO_CMAC_SYNCH_RESET);
+  modifyreg32(DA1470X_CRG_XTAL_RESET_SYS_IRQ_CTRL, 0,
+              CRG_XTAL_SYS_IRQ_CTRL_CMAC2SYS_IRQ_BIT);
 
   /* Power the radio domain through the PDC if it is down */
 
@@ -753,14 +757,19 @@ int da1470x_cmac_start(const uint8_t bdaddr[6], da1470x_cmac_rx_t rx,
   priv->pend_len = 0;
 
   ret = cmac_boot(priv, bdaddr);
-  if (ret < 0)
+  if (ret >= 0)
     {
-      return ret;
+      ret = cmac_mbox_init(priv);
     }
 
-  ret = cmac_mbox_init(priv);
   if (ret < 0)
     {
+      /* Leave the controller in reset so it cannot interrupt us */
+
+      modifyreg32(DA1470X_CRG_TOP_CLK_RADIO, 0,
+                  CRG_TOP_CLK_RADIO_CMAC_SYNCH_RESET);
+      modifyreg32(DA1470X_CRG_XTAL_RESET_SYS_IRQ_CTRL, 0,
+                  CRG_XTAL_SYS_IRQ_CTRL_CMAC2SYS_IRQ_BIT);
       return ret;
     }
 

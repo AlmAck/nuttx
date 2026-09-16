@@ -519,6 +519,17 @@ int da1470x_lcdc_register(const struct da1470x_lcdc_panel_s *panel)
     }
 
   priv->initialized = true;
+
+  /* Push the cleared frame buffer so the panel does not show whatever
+   * its own memory held at power-up.
+   */
+
+  ret = lcdc_send_frame(priv);
+  if (ret < 0)
+    {
+      lcdwarn("Initial frame failed: %d\n", ret);
+    }
+
   return OK;
 }
 

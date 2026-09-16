@@ -164,7 +164,13 @@ static void clk_lpclk_config(void)
 #elif defined(CONFIG_DA1470X_CLOCK_LPCLK_SRC_EXTERNAL)
   sel = LP_CLK_SEL_EXTERNAL;
 #else
-  modifyreg32(DA1470X_CRG_TOP_CLK_RCLP, 0, CRG_TOP_CLK_RCLP_RCLP_ENABLE);
+  /* RCLP comes out of reset in its 512 kHz mode; as a low-power clock it
+   * must run at 32 kHz so that the RTC divider and sleep timing fit.
+   */
+
+  modifyreg32(DA1470X_CRG_TOP_CLK_RCLP, 0,
+              CRG_TOP_CLK_RCLP_RCLP_ENABLE |
+              CRG_TOP_CLK_RCLP_RCLP_LOW_SPEED_FORCE);
   sel = LP_CLK_SEL_RCLP;
 #endif
 
