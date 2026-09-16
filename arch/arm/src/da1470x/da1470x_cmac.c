@@ -92,7 +92,7 @@
 /* Mailbox blocks: {u16 magic; u16 flags; u16 wr; u16 rd; u8 buf[504]} */
 
 #define CMAC_MBOX_SYS2CMAC        0x2017296c   /* Host writes */
-#define CMAC_MBOX_CMAC2SYS        0x20172764   /* Host reads */
+#define CMAC_MBOX_CMAC2SYS        0x2017276c   /* Host reads */
 #define CMAC_MBOX_BUFSIZE         504
 #define CMAC_MBOX_MAGIC           0xa55a
 
@@ -609,10 +609,13 @@ static int cmac_boot(struct da1470x_cmac_s *priv, const uint8_t bdaddr[6])
       return -EINVAL;
     }
 
-  /* Wake-up entry that lets the host (and the PDC) start the CMAC */
+  /* Wake-up entry that powers PD_RAD for the controller.  The firmware
+   * scans the LUT for exactly this trigger (MAC timer, master CMAC) at
+   * boot and reuses it for the SYS2CMAC mailbox interrupt.
+   */
 
   priv->pdc_entry = da1470x_pdc_add(DA1470X_PDC_TRIG_PERIPHERAL,
-                                    DA1470X_PDC_PERIPH_MASTERONLY,
+                                    DA1470X_PDC_PERIPH_MAC_TIMER,
                                     DA1470X_PDC_MASTER_CMAC,
                                     DA1470X_PDC_FLAG_EN_XTAL);
   if (priv->pdc_entry < 0)
