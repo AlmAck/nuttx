@@ -83,6 +83,21 @@ Renesas ``ezFlashCLI`` tool through the on-board J-Link::
   make
   ezFlashCLI -j <jlink serial> image_flash nuttx.bin
 
+The tool places the image at flash offset 0x3400 and only programs the
+first 512 KiB of the flash, so ``nuttx.bin`` must stay below about
+510 KB; a larger image boots with a truncated ``.data`` section.
+
+Debugging without the UART
+--------------------------
+
+When the FT2232 console is not available, the Segger RTT console works
+through the on-board J-Link: enable ``CONFIG_SEGGER_RTT``,
+``CONFIG_SERIAL_RTT0`` and ``CONFIG_SERIAL_RTT_CONSOLE`` and select "No
+serial console".  Then run ``JLinkExe -device Cortex-M33 -if SWD
+-RTTTelnetPort 19021``, give it ``exec SetRTTAddr <address of
+_SEGGER_RTT>`` (from ``nm nuttx``) before ``connect``, and attach
+``telnet localhost 19021`` to get NSH.
+
 Configurations
 ==============
 
