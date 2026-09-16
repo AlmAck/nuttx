@@ -119,6 +119,15 @@ void da1470x_pm_normal(void)
 {
   pm_set_sleepdeep(false);
 
+  /* The core's FPU access and context-control registers do not survive
+   * the deep-sleep states of this chip; restore them before any task
+   * touches the FPU again.
+   */
+
+#ifdef CONFIG_ARCH_FPU
+  arm_fpuconfig();
+#endif
+
 #ifdef CONFIG_DA1470X_PM_EXTENDED_SLEEP
   modifyreg32(DA1470X_CRG_TOP_PMU_CTRL, CRG_TOP_PMU_CTRL_SYS_SLEEP, 0);
 #endif
