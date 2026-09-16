@@ -525,6 +525,12 @@
 #define LCDC_OCM_8RGB565 0x05  /* Output color mode RGB565 */
 #define LCDC_OCM_8RGB888 0x07  /* Output color mode RGB888 */
 #define LCDC_LCM_RGB565 0x05   /* Layer color mode RGB565 */
+
+/* DBIB_CFG output colour modes (DBIB_COLOR_FMT field) */
+
+#define LCDC_OCM_8RGB565 0x05  /* R[4:0]G[5:3] - G[2:0]B[4:0] */
+#define LCDC_OCM_8RGB666 0x06  /* R[5:0]00 - G[5:0]00 - B[5:0]00 */
+#define LCDC_OCM_8RGB888 0x07  /* R - G - B */
 #define LCDC_LCM_RGBA8888 0x0d /* Layer color mode RGBA8888 */
 
 #endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_LCDC_H */

@@ -146,12 +146,18 @@ static void lcdc_qspi_configure(const struct da1470x_lcdc_panel_s *panel)
   uint32_t cfg;
   uint32_t clkdiv = panel->clkdiv ? panel->clkdiv : 1;
 
+  /* Output colour format on the serial interface: 8-bit RGB888 or the
+   * two-byte RGB565 packing, matching the panel's COLMOD setting.
+   */
+
   cfg = LCDC_DBIB_CFG_DBIB_INTERFACE_EN |
         LCDC_DBIB_CFG_DBIB_RESX_OUT_EN |
         LCDC_DBIB_CFG_SPI4_EN |
         LCDC_DBIB_CFG_QUAD_SPI_EN |
         LCDC_DBIB_CFG_SPI_DC_AS_SPI_SD1 |
-        LCDC_DBIB_CFG_INTERFACE_WIDTH_QSPI;
+        LCDC_DBIB_CFG_INTERFACE_WIDTH_QSPI |
+        LCDC_DBIB_CFG_DBIB_COLOR_FMT(panel->bpp == 32 ?
+                                     LCDC_OCM_8RGB888 : LCDC_OCM_8RGB565);
 
   if (!panel->te)
     {
