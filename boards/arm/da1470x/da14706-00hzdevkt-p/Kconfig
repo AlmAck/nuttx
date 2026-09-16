@@ -13,6 +13,15 @@ config DA14706_LCD_E120A390QSR
 		Register the EverDisplay E120A390QSR (Raydium RM69091) panel
 		attached to the LCDC in quad-SPI mode as the framebuffer.
 
+config DA14706_TOUCH_ZT2628
+	bool "ZT2628 touch controller of the E120A390QSR board"
+	default n
+	depends on DA1470X_I2C0 && DA1470X_GPIO_IRQ
+	select INPUT
+	select INPUT_ZT2628
+	---help---
+		Register the display board's touch controller as /dev/input0.
+
 config DA14706_OQSPI_MOUNTPOINT
 	string "Mount point of the flash data partition"
 	default "/mnt/flash"

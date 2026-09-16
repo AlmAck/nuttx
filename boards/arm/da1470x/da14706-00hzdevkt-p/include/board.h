@@ -106,25 +106,38 @@
 
 /* SPI Pins *****************************************************************/
 
-/* SPI0 on the expansion header */
+/* SPI0 on the display connector's spare serial pins (P1.13/14/16/17),
+ * free when the E120A390QSR board is fitted.
+ */
 
-#define BOARD_SPI0_SCLK_PIN (GPIO_OUTPUT | GPIO_FUNC_SPI_CLK | GPIO_PORT0 | \
-                             GPIO_PIN(28))
-#define BOARD_SPI0_MOSI_PIN (GPIO_OUTPUT | GPIO_FUNC_SPI_DO | GPIO_PORT0 | \
-                             GPIO_PIN(29))
-#define BOARD_SPI0_MISO_PIN (GPIO_INPUT | GPIO_FUNC_SPI_DI | GPIO_PORT0 | \
-                             GPIO_PIN(30))
+#define BOARD_SPI0_SCLK_PIN (GPIO_OUTPUT | GPIO_FUNC_SPI_CLK | GPIO_PORT1 | \
+                             GPIO_PIN(17))
+#define BOARD_SPI0_MOSI_PIN (GPIO_OUTPUT | GPIO_FUNC_SPI_DO | GPIO_PORT1 | \
+                             GPIO_PIN(13))
+#define BOARD_SPI0_MISO_PIN (GPIO_INPUT | GPIO_FUNC_SPI_DI | GPIO_PORT1 | \
+                             GPIO_PIN(16))
 #define BOARD_SPI0_CS_PIN   (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_FUNC_GPIO | \
-                             GPIO_PORT0 | GPIO_PIN(27))
+                             GPIO_PORT1 | GPIO_PIN(14))
 
 /* I2C Pins *****************************************************************/
 
-/* I2C0 on the expansion header */
+/* I2C0 is the touch controller bus of the display connector (P1.12 SCL,
+ * P1.11 SDA); its pull-ups are powered through BOARD_TOUCH_PWR_PIN.
+ */
 
 #define BOARD_I2C0_SCL_PIN  (GPIO_OUTPUT | GPIO_FUNC_I2C_SCL | GPIO_OPENDRAIN | \
-                             GPIO_PORT0 | GPIO_PIN(24))
+                             GPIO_PORT1 | GPIO_PIN(12))
 #define BOARD_I2C0_SDA_PIN  (GPIO_OUTPUT | GPIO_FUNC_I2C_SDA | GPIO_OPENDRAIN | \
-                             GPIO_PORT0 | GPIO_PIN(25))
+                             GPIO_PORT1 | GPIO_PIN(11))
+
+/* Touch controller (Zinitix ZT2628 on the E120A390QSR board) ***************/
+
+#define BOARD_TOUCH_PWR_PIN (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
+                             GPIO_PIN(28))
+#define BOARD_TOUCH_RST_PIN (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_FUNC_GPIO | \
+                             GPIO_PORT1 | GPIO_PIN(1))
+#define BOARD_TOUCH_INT_PIN (GPIO_INPUT | GPIO_PULLUP | GPIO_FUNC_GPIO | \
+                             GPIO_PORT1 | GPIO_PIN(3))
 
 /* LCDC / E120A390QSR display pins ******************************************/
 
@@ -152,5 +165,12 @@
                              GPIO_PIN(23))
 #define BOARD_LCDC_DCDC_PIN (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT1 | \
                              GPIO_PIN(7))
+
+/* Interface mode straps of the panel: IM[1:0] = 10 selects quad SPI */
+
+#define BOARD_LCDC_IM0_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
+                             GPIO_PIN(24))
+#define BOARD_LCDC_IM1_PIN  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_FUNC_GPIO | \
+                             GPIO_PORT1 | GPIO_PIN(0))
 
 #endif /* __BOARDS_ARM_DA1470X_DA14706_00HZDEVKT_P_INCLUDE_BOARD_H */

@@ -94,6 +94,10 @@ if(CONFIG_INPUT)
     list(APPEND SRCS gt9xx.c)
   endif()
 
+  if(CONFIG_INPUT_ZT2628)
+    list(APPEND SRCS zt2628.c)
+  endif()
+
   if(CONFIG_INPUT_BUTTONS)
     list(APPEND SRCS button_upper.c)
 

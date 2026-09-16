@@ -20,8 +20,12 @@
 
 /* Framebuffer driver for the DA1470x display controller driving a panel
  * over the DBI block in quad-SPI mode.  The LCDC fetches Layer 0 from the
- * frame buffer by DMA; each update sends the RAMWR command followed by the
- * whole frame as one chip-select burst and waits for FRAME_END.
+ * frame buffer by DMA.  Each update sets the panel window to the dirty
+ * rectangle, points the layer at that rectangle inside the frame buffer,
+ * sends the RAMWR command bound to the pixel stream as one chip-select
+ * burst and waits for FRAME_END.  The frame buffer holds one or two
+ * screens (CONFIG_DA1470X_LCDC_NBUFFERS); a client selects the second
+ * one by updating rows at yres..2*yres-1 and panning to it.
  */
 
 /****************************************************************************
@@ -42,6 +46,7 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/mutex.h>
 #include <nuttx/semaphore.h>
+#include <nuttx/wqueue.h>
 #include <nuttx/video/fb.h>
 
 #include "arm_internal.h"
@@ -58,6 +63,13 @@
 
 #define LCDC_FIFO_WAIT_LOOPS    100000
 #define LCDC_FRAME_TIMEOUT_MS   500
+#define LCDC_TE_TIMEOUT_MS      50
+
+#ifndef CONFIG_DA1470X_LCDC_NBUFFERS
+#  define CONFIG_DA1470X_LCDC_NBUFFERS 1
+#endif
+
+#define LCDC_NBUFFERS           CONFIG_DA1470X_LCDC_NBUFFERS
 
 /****************************************************************************
  * Private Types
@@ -67,11 +79,16 @@ struct da1470x_lcdc_s
 {
   struct fb_vtable_s vtable;                  /* Framebuffer interface */
   const struct da1470x_lcdc_panel_s *panel;   /* Attached panel */
-  uint8_t *fbmem;                             /* Frame buffer */
-  size_t   fblen;                             /* Frame buffer size */
+  uint8_t *fbmem;                             /* Frame buffers */
+  size_t   fblen;                             /* Size of all buffers */
+  size_t   buflen;                            /* Size of one buffer */
   uint16_t stride;                            /* Bytes per line */
   mutex_t  lock;                              /* Serialises updates */
-  sem_t    frame;                             /* FRAME_END completion */
+  sem_t    frame;                             /* FRAME_END / TE wake-up */
+  struct work_s panwork;                      /* Releases pan requests */
+  struct fb_area_s pending;                   /* Last area sent */
+  int      lastbuf;                           /* Buffer it was sent from */
+  int      shown;                             /* Buffer the panel shows */
   bool     initialized;
 };
 
@@ -85,6 +102,8 @@ static int lcdc_getplaneinfo(struct fb_vtable_s *vtable, int planeno,
                              struct fb_planeinfo_s *pinfo);
 static int lcdc_updatearea(struct fb_vtable_s *vtable,
                            const struct fb_area_s *area);
+static int lcdc_pandisplay(struct fb_vtable_s *vtable,
+                           struct fb_planeinfo_s *pinfo);
 
 /****************************************************************************
  * Private Data
@@ -97,6 +116,7 @@ static struct da1470x_lcdc_s g_lcdc =
     .getvideoinfo = lcdc_getvideoinfo,
     .getplaneinfo = lcdc_getplaneinfo,
     .updatearea   = lcdc_updatearea,
+    .pandisplay   = lcdc_pandisplay,
   },
   .lock  = NXMUTEX_INITIALIZER,
   .frame = SEM_INITIALIZER(0),
@@ -147,7 +167,8 @@ static void lcdc_qspi_configure(const struct da1470x_lcdc_panel_s *panel)
   uint32_t clkdiv = panel->clkdiv ? panel->clkdiv : 1;
 
   /* Output colour format on the serial interface: 8-bit RGB888 or the
-   * two-byte RGB565 packing, matching the panel's COLMOD setting.
+   * two-byte RGB565 packing, matching the panel's COLMOD setting.  TE
+   * detection stays disabled until a frame waits for it.
    */
 
   cfg = LCDC_DBIB_CFG_DBIB_INTERFACE_EN |
@@ -156,13 +177,9 @@ static void lcdc_qspi_configure(const struct da1470x_lcdc_panel_s *panel)
         LCDC_DBIB_CFG_QUAD_SPI_EN |
         LCDC_DBIB_CFG_SPI_DC_AS_SPI_SD1 |
         LCDC_DBIB_CFG_INTERFACE_WIDTH_QSPI |
+        LCDC_DBIB_CFG_DBIB_TE_DISABLE |
         LCDC_DBIB_CFG_DBIB_COLOR_FMT(panel->bpp == 32 ?
                                      LCDC_OCM_8RGB888 : LCDC_OCM_8RGB565);
-
-  if (!panel->te)
-    {
-      cfg |= LCDC_DBIB_CFG_DBIB_TE_DISABLE;
-    }
 
   putreg32(cfg, DA1470X_LCDC_DBIB_CFG);
 
@@ -173,19 +190,22 @@ static void lcdc_qspi_configure(const struct da1470x_lcdc_panel_s *panel)
   modifyreg32(DA1470X_LCDC_CLKCTRL, LCDC_CLKCTRL_CLK_DIV_MASK,
               LCDC_CLKCTRL_CLK_DIV(clkdiv));
 
-  /* Route the serial interface to the pads and let the LCDC drive them */
+  /* Route the serial interface to the pads and let the LCDC drive them.
+   * The panel's tearing-effect line is active high.
+   */
 
   modifyreg32(DA1470X_LCDC_GPIO, LCDC_GPIO_GPIO_OUTPUT_MODE_MASK,
               LCDC_GPIO_OUTPUT_MODE_SPI | LCDC_GPIO_GPIO_OUTPUT_EN |
-              LCDC_GPIO_GPIO_SPI_SI_ON_SD_PAD);
+              LCDC_GPIO_GPIO_SPI_SI_ON_SD_PAD | LCDC_GPIO_TE_INV);
 }
 
 /****************************************************************************
  * Name: lcdc_set_timing
  *
  * Description:
- *   Program the resolution and the minimal porch/blanking values used for
- *   serial panels (fpx=1, blx=2, bpx=1, fpy=1, bly=1, bpy=1).
+ *   Program the resolution of the next transfer and the minimal
+ *   porch/blanking values used for serial panels (fpx=1, blx=2, bpx=1,
+ *   fpy=1, bly=1, bpy=1).
  *
  ****************************************************************************/
 
@@ -207,19 +227,23 @@ static void lcdc_set_timing(uint16_t resx, uint16_t resy)
 
 /****************************************************************************
  * Name: lcdc_set_layer0
+ *
+ * Description:
+ *   Point Layer 0 at a rectangle of one frame buffer.  The layer keeps
+ *   the full line stride so any window of the buffer can be sent.
+ *
  ****************************************************************************/
 
-static void lcdc_set_layer0(struct da1470x_lcdc_s *priv)
+static void lcdc_set_layer0(struct da1470x_lcdc_s *priv, uint8_t *base,
+                            uint16_t w, uint16_t h)
 {
   const struct da1470x_lcdc_panel_s *panel = priv->panel;
   uint32_t mode;
 
-  putreg32((uint32_t)(uintptr_t)priv->fbmem, DA1470X_LCDC_LAYER0_BASEADDR);
+  putreg32((uint32_t)(uintptr_t)base, DA1470X_LCDC_LAYER0_BASEADDR);
   putreg32(LCDC_XY_PACK(0, 0), DA1470X_LCDC_LAYER0_STARTXY);
-  putreg32(LCDC_XY_PACK(panel->xres, panel->yres),
-           DA1470X_LCDC_LAYER0_SIZEXY);
-  putreg32(LCDC_XY_PACK(panel->xres, panel->yres),
-           DA1470X_LCDC_LAYER0_RESXY);
+  putreg32(LCDC_XY_PACK(w, h), DA1470X_LCDC_LAYER0_SIZEXY);
+  putreg32(LCDC_XY_PACK(w, h), DA1470X_LCDC_LAYER0_RESXY);
   putreg32(priv->stride, DA1470X_LCDC_LAYER0_STRIDE);
 
   /* Opaque copy: source factor one, destination factor zero */
@@ -237,41 +261,99 @@ static void lcdc_set_layer0(struct da1470x_lcdc_s *priv)
  * Name: lcdc_interrupt
  *
  * Description:
- *   FRAME_END: release the command/data binding and the forced chip
- *   select so the panel does not latch subsequent traffic as pixels,
- *   then wake the updater.
+ *   Either the tearing-effect edge the updater armed, or FRAME_END.  On
+ *   FRAME_END release the command/data binding and the forced chip
+ *   select so the panel does not latch subsequent traffic as pixels.
+ *   In both cases wake the updater.
  *
  ****************************************************************************/
 
 static int lcdc_interrupt(int irq, void *context, void *arg)
 {
   struct da1470x_lcdc_s *priv = (struct da1470x_lcdc_s *)arg;
+  uint32_t enabled = getreg32(DA1470X_LCDC_INTERRUPT);
 
-  modifyreg32(DA1470X_LCDC_INTERRUPT, LCDC_INTERRUPT_FE_IRQ_EN, 0);
-
-  modifyreg32(DA1470X_LCDC_DBIB_CFG,
-              LCDC_DBIB_CFG_CMD_DATA_AS_HEADER |
-              LCDC_DBIB_CFG_DBIB_CSX_CFG_EN, 0);
+  if ((enabled & LCDC_INTERRUPT_TE_IRQ_EN) != 0)
+    {
+      modifyreg32(DA1470X_LCDC_INTERRUPT, LCDC_INTERRUPT_TE_IRQ_EN, 0);
+    }
+  else
+    {
+      modifyreg32(DA1470X_LCDC_INTERRUPT, LCDC_INTERRUPT_FE_IRQ_EN, 0);
+      modifyreg32(DA1470X_LCDC_DBIB_CFG,
+                  LCDC_DBIB_CFG_CMD_DATA_AS_HEADER |
+                  LCDC_DBIB_CFG_DBIB_CSX_CFG_EN, 0);
+    }
 
   nxsem_post(&priv->frame);
   return OK;
 }
 
 /****************************************************************************
- * Name: lcdc_send_frame
+ * Name: lcdc_wait_te
  *
  * Description:
- *   Queue the RAMWR command with the frame prefix, bind it to the pixel
- *   stream with chip select held low, trigger a single frame and wait for
- *   it to complete.
+ *   Enable tearing-effect detection, wait for the next edge, disable it
+ *   again.  A missing edge only costs the timeout.
  *
  ****************************************************************************/
 
-static int lcdc_send_frame(struct da1470x_lcdc_s *priv)
+#ifdef CONFIG_DA1470X_LCDC_TE
+static void lcdc_wait_te(struct da1470x_lcdc_s *priv)
+{
+  int ret;
+
+  modifyreg32(DA1470X_LCDC_DBIB_CFG, LCDC_DBIB_CFG_DBIB_TE_DISABLE, 0);
+  modifyreg32(DA1470X_LCDC_INTERRUPT, 0, LCDC_INTERRUPT_TE_IRQ_EN);
+
+  ret = nxsem_tickwait_uninterruptible(&priv->frame,
+                                       MSEC2TICK(LCDC_TE_TIMEOUT_MS));
+  if (ret < 0)
+    {
+      lcdwarn("No tearing-effect edge\n");
+      modifyreg32(DA1470X_LCDC_INTERRUPT, LCDC_INTERRUPT_TE_IRQ_EN, 0);
+    }
+
+  modifyreg32(DA1470X_LCDC_DBIB_CFG, 0, LCDC_DBIB_CFG_DBIB_TE_DISABLE);
+}
+#endif
+
+/****************************************************************************
+ * Name: lcdc_send_region
+ *
+ * Description:
+ *   Transfer the rectangle (x, y, w, h) of frame buffer 'buf' to the same
+ *   position of the panel: set the panel window, size the transfer and
+ *   the layer, queue the RAMWR command bound to the pixel stream with
+ *   chip select held low, trigger a single frame and wait for it.
+ *
+ ****************************************************************************/
+
+static int lcdc_send_region(struct da1470x_lcdc_s *priv, int buf,
+                            uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
   const struct da1470x_lcdc_panel_s *panel = priv->panel;
+  uint8_t *base;
   uint32_t cfg;
   int ret;
+
+  if (panel->window != NULL)
+    {
+      panel->window(panel, x, y, x + w - 1, y + h - 1);
+    }
+
+  base = priv->fbmem + (size_t)buf * priv->buflen +
+         (size_t)y * priv->stride + (size_t)x * (panel->bpp / 8);
+
+  lcdc_set_timing(w, h);
+  lcdc_set_layer0(priv, base, w, h);
+
+#ifdef CONFIG_DA1470X_LCDC_TE
+  if (panel->te)
+    {
+      lcdc_wait_te(priv);
+    }
+#endif
 
   /* Hold the write-memory command so it goes out as the header of the
    * pixel burst, in one chip-select transaction.
@@ -318,6 +400,23 @@ static int lcdc_send_frame(struct da1470x_lcdc_s *priv)
 }
 
 /****************************************************************************
+ * Name: lcdc_panwork
+ *
+ * Description:
+ *   Every update is transferred synchronously, so a pan request queued by
+ *   the upper half is complete as soon as it is recorded.  Release the
+ *   queue from the work queue, after the ioctl that queued it returned.
+ *
+ ****************************************************************************/
+
+static void lcdc_panwork(void *arg)
+{
+  struct da1470x_lcdc_s *priv = (struct da1470x_lcdc_s *)arg;
+
+  while (fb_remove_paninfo(&priv->vtable, FB_NO_OVERLAY) == OK);
+}
+
+/****************************************************************************
  * Name: lcdc_getvideoinfo
  ****************************************************************************/
 
@@ -360,7 +459,7 @@ static int lcdc_getplaneinfo(struct fb_vtable_s *vtable, int planeno,
   pinfo->display      = 0;
   pinfo->bpp          = priv->panel->bpp;
   pinfo->xres_virtual = priv->panel->xres;
-  pinfo->yres_virtual = priv->panel->yres;
+  pinfo->yres_virtual = priv->panel->yres * LCDC_NBUFFERS;
   return OK;
 }
 
@@ -368,9 +467,10 @@ static int lcdc_getplaneinfo(struct fb_vtable_s *vtable, int planeno,
  * Name: lcdc_updatearea
  *
  * Description:
- *   The panel is refreshed as a whole: the RM69091-class controllers take
- *   the full frame after RAMWR, so partial windows are folded into a full
- *   update.
+ *   Send the dirty rectangle.  Rows beyond the visible height address
+ *   the second buffer.  The RM69091-class controllers need the window
+ *   to start on even coordinates with even sizes, so the rectangle is
+ *   widened to satisfy that and clamped to the panel.
  *
  ****************************************************************************/
 
@@ -379,11 +479,58 @@ static int lcdc_updatearea(struct fb_vtable_s *vtable,
 {
   struct da1470x_lcdc_s *priv = (struct da1470x_lcdc_s *)vtable;
   const struct da1470x_lcdc_panel_s *panel = priv->panel;
+  uint16_t x0;
+  uint16_t y0;
+  uint16_t x1;
+  uint16_t y1;
+  int buf;
   int ret;
 
   if (!priv->initialized)
     {
       return -ENODEV;
+    }
+
+  /* Rows beyond the visible height name the buffer explicitly; a plain
+   * area refers to the buffer currently shown.  A client that draws into
+   * the other buffer and pans afterwards gets that buffer re-sent from
+   * the pan request.
+   */
+
+  buf = area->y / panel->yres;
+  if (buf >= LCDC_NBUFFERS)
+    {
+      return -EINVAL;
+    }
+
+  if (buf == 0)
+    {
+      buf = priv->shown;
+    }
+
+  x0 = area->x;
+  y0 = area->y % panel->yres;
+  x1 = x0 + area->w;
+  y1 = y0 + area->h;
+
+  x0 &= ~1;
+  y0 &= ~1;
+  x1  = (x1 + 1) & ~1;
+  y1  = (y1 + 1) & ~1;
+
+  if (x1 > panel->xres)
+    {
+      x1 = panel->xres;
+    }
+
+  if (y1 > panel->yres)
+    {
+      y1 = panel->yres;
+    }
+
+  if (x0 >= x1 || y0 >= y1)
+    {
+      return -EINVAL;
     }
 
   ret = nxmutex_lock(&priv->lock);
@@ -392,14 +539,70 @@ static int lcdc_updatearea(struct fb_vtable_s *vtable,
       return ret;
     }
 
-  if (panel->window != NULL)
-    {
-      panel->window(panel, 0, 0, panel->xres - 1, panel->yres - 1);
-    }
+  ret = lcdc_send_region(priv, buf, x0, y0, x1 - x0, y1 - y0);
 
-  ret = lcdc_send_frame(priv);
+  priv->pending.x = x0;
+  priv->pending.y = y0;
+  priv->pending.w = x1 - x0;
+  priv->pending.h = y1 - y0;
+  priv->lastbuf   = buf;
+
   nxmutex_unlock(&priv->lock);
   return ret;
+}
+
+/****************************************************************************
+ * Name: lcdc_pandisplay
+ *
+ * Description:
+ *   The client selects the buffer to show through yoffset.  The content
+ *   has already been transferred by the preceding update, so nothing is
+ *   sent here; the pan queue entry is released from the work queue.
+ *
+ ****************************************************************************/
+
+static int lcdc_pandisplay(struct fb_vtable_s *vtable,
+                           struct fb_planeinfo_s *pinfo)
+{
+  struct da1470x_lcdc_s *priv = (struct da1470x_lcdc_s *)vtable;
+  int buf;
+  int ret;
+
+  if (!priv->initialized || pinfo == NULL ||
+      pinfo->yoffset >= priv->panel->yres * LCDC_NBUFFERS)
+    {
+      return -EINVAL;
+    }
+
+  buf = pinfo->yoffset / priv->panel->yres;
+
+  ret = nxmutex_lock(&priv->lock);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  /* The last update was taken from another buffer than the one now
+   * selected: the client drew into the new buffer before panning, so
+   * transfer the same area from it.
+   */
+
+  if (buf != priv->lastbuf && priv->pending.w != 0)
+    {
+      lcdc_send_region(priv, buf, priv->pending.x, priv->pending.y,
+                       priv->pending.w, priv->pending.h);
+      priv->lastbuf = buf;
+    }
+
+  priv->shown = buf;
+  nxmutex_unlock(&priv->lock);
+
+  if (work_available(&priv->panwork))
+    {
+      work_queue(LPWORK, &priv->panwork, lcdc_panwork, priv, 1);
+    }
+
+  return OK;
 }
 
 /****************************************************************************
@@ -507,11 +710,12 @@ int da1470x_lcdc_register(const struct da1470x_lcdc_panel_s *panel)
       return -ENODEV;
     }
 
-  /* Frame buffer */
+  /* Frame buffers */
 
   priv->panel  = panel;
   priv->stride = panel->xres * (panel->bpp / 8);
-  priv->fblen  = (size_t)priv->stride * panel->yres;
+  priv->buflen = (size_t)priv->stride * panel->yres;
+  priv->fblen  = priv->buflen * LCDC_NBUFFERS;
   priv->fbmem  = kmm_memalign(32, priv->fblen);
   if (priv->fbmem == NULL)
     {
@@ -524,7 +728,7 @@ int da1470x_lcdc_register(const struct da1470x_lcdc_panel_s *panel)
 
   lcdc_qspi_configure(panel);
   lcdc_set_timing(panel->xres, panel->yres);
-  lcdc_set_layer0(priv);
+  lcdc_set_layer0(priv, priv->fbmem, panel->xres, panel->yres);
 
   putreg32(0, DA1470X_LCDC_INTERRUPT);
   irq_attach(DA1470X_IRQ_LCD, lcdc_interrupt, priv);
@@ -553,7 +757,7 @@ int da1470x_lcdc_register(const struct da1470x_lcdc_panel_s *panel)
    * its own memory held at power-up.
    */
 
-  ret = lcdc_send_frame(priv);
+  ret = lcdc_send_region(priv, 0, 0, 0, panel->xres, panel->yres);
   if (ret < 0)
     {
       lcdwarn("Initial frame failed: %d\n", ret);

@@ -126,6 +126,18 @@ int da1470x_e120a390_initialize(void);
 #ifdef CONFIG_DA1470X_PWMLED
 int da1470x_pwmled_setup(void);
 #endif
+
+/****************************************************************************
+ * Name: da1470x_zt2628_initialize
+ *
+ * Description:
+ *   Register the display board's touch controller as /dev/input0.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_DA14706_TOUCH_ZT2628
+int da1470x_zt2628_initialize(void);
+#endif
 #endif
 
 #endif /* __ASSEMBLY__ */

@@ -237,6 +237,15 @@ int da1470x_bringup(void)
     }
 #endif
 
+#ifdef CONFIG_DA14706_TOUCH_ZT2628
+  ret = da1470x_zt2628_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to register the touch controller: %d\n",
+             ret);
+    }
+#endif
+
 #ifdef CONFIG_DA1470X_PWMLED
   ret = da1470x_pwmled_setup();
   if (ret < 0)

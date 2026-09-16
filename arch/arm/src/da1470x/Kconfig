@@ -248,6 +248,16 @@ config DA1470X_LCDC_TE
 	default n
 	depends on DA1470X_LCDC
 
+config DA1470X_LCDC_NBUFFERS
+	int "Number of frame buffers"
+	default 2
+	range 1 2
+	depends on DA1470X_LCDC
+	---help---
+		With two buffers the framebuffer reports twice the visible
+		height; clients draw into either half and pan to it, which
+		lets a renderer prepare one frame while the other is shown.
+
 config DA1470X_GPU
 	bool "GPU (D/AVE 2D) driver"
 	default n

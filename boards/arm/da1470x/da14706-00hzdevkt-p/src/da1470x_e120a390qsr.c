@@ -150,12 +150,19 @@ static int e120a390_window(const struct da1470x_lcdc_panel_s *panel,
   y0 += E120A390_OFFSETY;
   y1 += E120A390_OFFSETY;
 
+  /* One chip-select cycle per command: the panel takes only the first
+   * command of a burst.
+   */
+
   da1470x_lcdc_dcs_hold(true);
   da1470x_lcdc_dcs_cmd(DCS_CASET);
   da1470x_lcdc_dcs_data(x0 >> 8);
   da1470x_lcdc_dcs_data(x0 & 0xff);
   da1470x_lcdc_dcs_data(x1 >> 8);
   da1470x_lcdc_dcs_data(x1 & 0xff);
+  da1470x_lcdc_dcs_hold(false);
+
+  da1470x_lcdc_dcs_hold(true);
   da1470x_lcdc_dcs_cmd(DCS_RASET);
   da1470x_lcdc_dcs_data(y0 >> 8);
   da1470x_lcdc_dcs_data(y0 & 0xff);
@@ -273,6 +280,8 @@ int da1470x_e120a390_initialize(void)
 #endif
   da1470x_gpio_config(BOARD_LCDC_RST_PIN);
   da1470x_gpio_config(BOARD_LCDC_DCDC_PIN);
+  da1470x_gpio_config(BOARD_LCDC_IM0_PIN);
+  da1470x_gpio_config(BOARD_LCDC_IM1_PIN);
 
   return da1470x_lcdc_register(&g_e120a390_panel);
 }

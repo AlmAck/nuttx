@@ -560,6 +560,20 @@ config INPUT_CYPRESS_MBR3108_NPOLLWAITERS
 
 endif # INPUT_CYPRESS_MBR3108
 
+config INPUT_ZT2628
+	bool "Zinitix ZT2628 capacitive touch controller"
+	default n
+	select INPUT_TOUCHSCREEN
+	select SCHED_LPWORK
+	---help---
+		Enable support for the Zinitix ZT2628 touch panel controller
+		(I2C, single point, interrupt driven).
+
+config INPUT_ZT2628_NPOLLWAITERS
+	int "Number of waiters to poll"
+	default 2
+	depends on INPUT_ZT2628
+
 config INPUT_GT9XX
 	bool "Goodix GT9xx Driver"
 	default n
