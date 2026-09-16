@@ -18,10 +18,6 @@
  *
  ****************************************************************************/
 
-/****************************************************************************
- * Included Files
- ****************************************************************************/
-
 #ifndef __ARCH_ARM_SRC_DA1470X_DA1470X_PWMLED_H
 #define __ARCH_ARM_SRC_DA1470X_DA1470X_PWMLED_H
 
@@ -29,85 +25,50 @@
  * Included Files
  ****************************************************************************/
 
+#include <nuttx/config.h>
+
 #include <stdint.h>
-#include <sys/ioctl.h>
+
+#include <nuttx/timers/pwm.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Device Path */
-#define DA1470X_LED_DEVPATH "/dev/led_pwm"
+/* The PWMLED block drives three constant-current LED outputs (LED1..LED3)
+ * from one shared PWM period.  Channels are numbered 1..3 as the NuttX
+ * PWM upper half expects.
+ */
 
-/* Maximum number of LEDs supported */
-#define DA1470X_LED_MAX HW_LED_ID_MAX
+#define DA1470X_PWMLED_NCHANNELS   3
 
-/* IOCTL Command Definitions */
+/* Load selection: which sink each LED output drives (LED_LOAD_SEL_REG).
+ * The value is board dependent, see the datasheet PWMLED chapter.
+ */
 
-/* Base for LED IOCTL commands */
-#define LEDIOC_BASE       0xF0
+#define DA1470X_PWMLED_LOAD_MAX    7
 
-/* Define a macro to create LED IOCTL commands */
-#define LEDIOC(nr)        _IO(LEDIOC_BASE, nr)
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
 
-/* LED IOCTL Commands */
-#define LEDIOC_SET_DUTY_CYCLE      LEDIOC(0)  /* Set PWM duty cycle */
-#define LEDIOC_SET_LOAD_SEL        LEDIOC(1)  /* Set load selection */
-#define LEDIOC_GET_DUTY_CYCLE      LEDIOC(2)  /* Get PWM duty cycle */
-#define LEDIOC_GET_LOAD_SEL        LEDIOC(3)  /* Get load selection */
-#define LEDIOC_SET_CURRENT_TRIM    LEDIOC(4)  /* Set current trim */
-#define LEDIOC_SET_FREQUENCY       LEDIOC(5)  /* Set PWM frequency */
+/* Board-supplied static configuration */
 
-/* Enumeration of LED IDs */
-typedef enum
+struct da1470x_pwmled_config_s
 {
-  HW_LED_ID_LED_1 = 0,  /* LED 1 */
-  HW_LED_ID_LED_2,      /* LED 2 */
-  HW_LED_ID_LED_3,      /* LED 3 */
-  HW_LED_ID_MAX         /* Maximum number of LEDs */
-} HW_LED_ID;
-
-/* Structure for PWM Duty Cycle */
-typedef struct
-{
-  uint16_t hw_led_pwm_start;  /* PWM Start Cycle */
-  uint16_t hw_led_pwm_end;    /* PWM End Cycle */
-} hw_led_pwm_duty_cycle_t;
-
-/* Structure for LED PWM Duty Cycle IOCTL */
-struct led_pwm_duty_cycle_s
-{
-  HW_LED_ID led_id;                       /* LED Identifier */
-  hw_led_pwm_duty_cycle_t duty_cycle;      /* Duty cycle configuration */
-};
-
-/* Structure for LED Load Selection IOCTL */
-struct led_load_sel_s
-{
-  HW_LED_ID led_id;       /* LED Identifier */
-  uint8_t load_sel;       /* Load selection value */
-};
-
-/* Structure for LED Current Trim IOCTL */
-struct led_current_trim_s
-{
-  HW_LED_ID led_id;       /* LED Identifier */
-  uint32_t trim;          /* Current trim value */
-};
-
-/* Structure for LED Configuration */
-struct hw_led_config
-{
-  uint32_t leds_pwm_frequency;                     /* PWM frequency in Hz */
-  uint32_t leds_pwm_duty_cycle[DA1470X_LED_MAX];   /* PWM duty cycles for each LED */
-  uint32_t leds_pwm_start_cycle[DA1470X_LED_MAX];  /* PWM start cycles for each LED */
+  uint8_t load_sel[DA1470X_PWMLED_NCHANNELS];  /* Sink selection per LED */
+  uint8_t curr_trim[DA1470X_PWMLED_NCHANNELS]; /* Current trim, 0..15 */
+  uint8_t chmask;                              /* Channels used when
+                                                * CONFIG_PWM_MULTICHAN is
+                                                * off (bit n = LED n+1) */
 };
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
-#ifdef __cplusplus
+#undef EXTERN
+#if defined(__cplusplus)
 #define EXTERN extern "C"
 extern "C"
 {
@@ -115,21 +76,21 @@ extern "C"
 #define EXTERN extern
 #endif
 
-/**
- * @brief Register the DA1470x LED driver
+/****************************************************************************
+ * Name: da1470x_pwmled_initialize
  *
- * This function initializes the DA1470x LED driver with the specified
- * configuration and registers it with the NuttX device filesystem.
+ * Description:
+ *   Initialize the PWMLED block and return its PWM lower half, to be
+ *   passed to pwm_register().
  *
- * @param conf A pointer to the LED configuration structure
- *
- * @return Zero (OK) on success; a negated errno value on failure
- */
-int da1470x_led_register(const struct hw_led_config *conf);
+ ****************************************************************************/
+
+struct pwm_lowerhalf_s *
+da1470x_pwmled_initialize(const struct da1470x_pwmled_config_s *config);
 
 #undef EXTERN
-#ifdef __cplusplus
+#if defined(__cplusplus)
 }
 #endif
 
-#endif /* __INCLUDE_NUTTX_LEDS_DA1470X_PWMLED_H */
+#endif /* __ARCH_ARM_SRC_DA1470X_DA1470X_PWMLED_H */

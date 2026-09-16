@@ -237,6 +237,14 @@ int da1470x_bringup(void)
     }
 #endif
 
+#ifdef CONFIG_DA1470X_PWMLED
+  ret = da1470x_pwmled_setup();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to register the PWM LED driver: %d\n", ret);
+    }
+#endif
+
 #ifdef CONFIG_DA1470X_GPU
   ret = da1470x_gpu_register("/dev/gpu0");
   if (ret < 0)

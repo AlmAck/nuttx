@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/xtensa/esp32/common/src/esp32_rgbled.c
+ * boards/arm/da1470x/da14706-00hzdevkt-p/src/da1470x_pwmled.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,144 +24,68 @@
 
 #include <nuttx/config.h>
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
 #include <debug.h>
-
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/types.h>
 #include <errno.h>
 
 #include <nuttx/board.h>
-#include <arch/board/board.h>
-#include <nuttx/fs/fs.h>
 #include <nuttx/timers/pwm.h>
-#include <nuttx/leds/rgbled.h>
 
-#include "da1470x_gpio.h"
 #include "da1470x_pwmled.h"
+#include "da14706-00hzdevkt-p.h"
 
-#if defined(CONFIG_DA1470X_PWMLED) 
+#ifdef CONFIG_DA1470X_PWMLED
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+/* The devkit routes the three LED sinks to the LED1..LED3 pads; no
+ * current trim is applied.
+ */
+
+static const struct da1470x_pwmled_config_s g_pwmled_config =
+{
+  .load_sel  =
+  {
+    0, 0, 0
+  },
+  .curr_trim =
+  {
+    0, 0, 0
+  },
+  .chmask    = 0x07,
+};
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: esp32_rgbled_initialize
+ * Name: da1470x_pwmled_setup
  *
  * Description:
- *   Initialize support for RGB LED using PWM.
+ *   Register the PWMLED block as /dev/pwm0.
  *
  ****************************************************************************/
 
-int da1470x_rgbled_initialize(const char *devname)
+int da1470x_pwmled_setup(void)
 {
-  static bool initialized = false;
-  struct pwm_lowerhalf_s *ledr;
-  struct pwm_lowerhalf_s *ledg;
-  struct pwm_lowerhalf_s *ledb;
+  struct pwm_lowerhalf_s *lower;
   int ret;
 
-  /* Have we already initialized? */
-
-  if (!initialized)
+  lower = da1470x_pwmled_initialize(&g_pwmled_config);
+  if (lower == NULL)
     {
-      /* Initialize the driver */
-
-      ret = da1470x_led_init(dev, conf);
-      if (ret < 0)
-        {
-          return ret;
-        }
-
-      /* Register the character device */
-
-      ret = register_driver(DA1470X_LED_DEVPATH, &g_da1470x_led_fops,
-                            0666, dev);
-      if (ret < 0)
-        {
-          lldbg("Failed to register %s: %d\n", DA1470X_LED_DEVPATH, ret);
-          return ret;
-        }
-
-
-
-
-      ret = da1470x_led_init(RGB_LED_TIMER);
-      if (ret < 0)
-        {
-          lederr("ERROR: Failed to get the ESP32 PWM lower half to LEDR\n");
-          return -ENODEV;
-        }
-
-      /* Initialize LED R */
-
-      ledr->ops->setup(ledr);
-
-      ledg = esp32_ledc_init(RGB_LED_TIMER);
-      if (!ledg)
-        {
-          lederr("ERROR: Failed to get the ESP32 PWM lower half to LEDG\n");
-          return -ENODEV;
-        }
-
-      /* Initialize LED G */
-
-      ledg->ops->setup(ledg);
-
-      ledb = esp32_ledc_init(RGB_LED_TIMER);
-      if (!ledb)
-        {
-          lederr("ERROR: Failed to get the ESP32 PWM lower half to LEDB\n");
-          return -ENODEV;
-        }
-
-      /* Initialize LED B */
-
-      ledb->ops->setup(ledb);
-
-      /* Register the RGB LED diver at <devname> */
-
-      ret = rgbled_register(devname, ledr, ledg, ledb, RGB_R_CHANN,
-                                                       RGB_G_CHANN,
-                                                       RGB_B_CHANN);
-      if (ret < 0)
-        {
-          lederr("ERROR: rgbled_register failed: %d\n", ret);
-          return ret;
-        }
-
-      int fd = nx_open(devname, O_WRONLY);
-
-      if (fd < 0)
-        {
-          lederr("ERROR: rgbled_open failed\n");
-          return fd;
-        }
-
-      /* Turn OFF the LED */
-
-      ret = nx_write(fd, "#000000", 8);
-      nx_close(fd);
-
-      if (ret < 0)
-        {
-          lederr("ERROR: rgbled_write failed: %d\n", ret);
-          return ret;
-        }
-
-      /* Now we are initialized */
-
-      initialized = true;
+      return -ENODEV;
     }
 
-  return OK;
+  ret = pwm_register("/dev/pwm0", lower);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "pwm_register failed: %d\n", ret);
+    }
+
+  return ret;
 }
 
-#else
-#  error "RGB LED bad configuration"
-#endif
-
+#endif /* CONFIG_DA1470X_PWMLED */

@@ -114,6 +114,18 @@ int da1470x_i2cdev_initialize(void);
 
 #ifdef CONFIG_DA14706_LCD_E120A390QSR
 int da1470x_e120a390_initialize(void);
+
+/****************************************************************************
+ * Name: da1470x_pwmled_setup
+ *
+ * Description:
+ *   Register the PWMLED block as /dev/pwm0.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_DA1470X_PWMLED
+int da1470x_pwmled_setup(void);
+#endif
 #endif
 
 #endif /* __ASSEMBLY__ */

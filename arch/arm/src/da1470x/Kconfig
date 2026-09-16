@@ -284,6 +284,12 @@ config DA1470X_CMAC_FW_PATH
 config DA1470X_PWMLED
 	bool "PWM LED driver block"
 	default n
+	select PWM
+	select ARCH_HAVE_PWM_MULTICHAN
+	---help---
+		Expose the three constant-current LED outputs of the PWMLED
+		block as a NuttX PWM lower half (channels 1..3 with
+		CONFIG_PWM_MULTICHAN, shared period 31 Hz..7.8 kHz).
 
 config DA1470X_WDOG_FREEZE
 	bool "Freeze the system watchdog at boot"
