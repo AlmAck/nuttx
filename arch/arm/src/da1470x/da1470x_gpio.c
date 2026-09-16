@@ -380,9 +380,18 @@ void da1470x_gpioirq_initialize(void)
 {
   int p;
 
+  /* The wake-up controller is clocked through CLK_TMR; its registers
+   * ignore writes until then.
+   */
+
+  modifyreg32(DA1470X_CRG_TOP_CLK_TMR, 0, CRG_TOP_CLK_TMR_WAKEUPCT_ENABLE);
+  putreg32(0, DA1470X_WAKEUP_WKUP_CTRL);
+
   for (p = 0; p < DA1470X_GPIO_NPORTS; p++)
     {
       putreg32(0, DA1470X_WAKEUP_SELECT_P(p));
+      putreg32(0, DA1470X_WAKEUP_SEL_GPIO_P(p));
+      putreg32(0, DA1470X_WAKEUP_SEL1_GPIO_P(p));
       putreg32(0, DA1470X_WAKEUP_POL_P(p));
       putreg32(0xffffffff, DA1470X_WAKEUP_CLEAR_P(p));
     }
@@ -435,17 +444,21 @@ int da1470x_gpioirq_attach(da1470x_pinset_t pinset,
       modifyreg32(DA1470X_WAKEUP_POL_P(port), mask, 0);
     }
 
-  /* Clear any stale event, then select or deselect the pin */
+  /* Clear any stale event, then route the pin to the non-debounced
+   * GPIO_Px interrupt with edge sensitivity, or drop it.
+   */
 
   putreg32(mask, DA1470X_WAKEUP_CLEAR_P(port));
 
   if (handler != NULL)
     {
-      modifyreg32(DA1470X_WAKEUP_SELECT_P(port), 0, mask);
+      modifyreg32(DA1470X_WAKEUP_SEL1_GPIO_P(port), 0, mask);
+      modifyreg32(DA1470X_WAKEUP_SEL_GPIO_P(port), 0, mask);
     }
   else
     {
-      modifyreg32(DA1470X_WAKEUP_SELECT_P(port), mask, 0);
+      modifyreg32(DA1470X_WAKEUP_SEL_GPIO_P(port), mask, 0);
+      modifyreg32(DA1470X_WAKEUP_SEL1_GPIO_P(port), mask, 0);
     }
 
   leave_critical_section(flags);
@@ -469,7 +482,7 @@ void da1470x_gpioirq_enable(da1470x_pinset_t pinset)
 
   flags = enter_critical_section();
   putreg32(1u << pin, DA1470X_WAKEUP_CLEAR_P(port));
-  modifyreg32(DA1470X_WAKEUP_SELECT_P(port), 0, 1u << pin);
+  modifyreg32(DA1470X_WAKEUP_SEL_GPIO_P(port), 0, 1u << pin);
   leave_critical_section(flags);
 }
 
@@ -489,7 +502,7 @@ void da1470x_gpioirq_disable(da1470x_pinset_t pinset)
     }
 
   flags = enter_critical_section();
-  modifyreg32(DA1470X_WAKEUP_SELECT_P(port), 1u << pin, 0);
+  modifyreg32(DA1470X_WAKEUP_SEL_GPIO_P(port), 1u << pin, 0);
   leave_critical_section(flags);
 }
 
