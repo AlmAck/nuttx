@@ -222,7 +222,11 @@ static void lcdc_set_layer0(struct da1470x_lcdc_s *priv)
            DA1470X_LCDC_LAYER0_RESXY);
   putreg32(priv->stride, DA1470X_LCDC_LAYER0_STRIDE);
 
+  /* Opaque copy: source factor one, destination factor zero */
+
   mode = LCDC_LAYER0_MODE_L0_EN | LCDC_LAYER0_MODE_L0_ALPHA(0xff) |
+         LCDC_LAYER0_MODE_L0_SRC_BLEND(LCDC_BF_ONE) |
+         LCDC_LAYER0_MODE_L0_DST_BLEND(LCDC_BF_ZERO) |
          LCDC_LAYER0_MODE_L0_COLOR_MODE(panel->bpp == 32 ?
                                         LCDC_LCM_RGBA8888 :
                                         LCDC_LCM_RGB565);
@@ -245,7 +249,6 @@ static int lcdc_interrupt(int irq, void *context, void *arg)
 
   modifyreg32(DA1470X_LCDC_INTERRUPT, LCDC_INTERRUPT_FE_IRQ_EN, 0);
 
-  modifyreg32(DA1470X_LCDC_CLKCTRL, LCDC_CLKCTRL_DMA_HOLD_MASK, 0);
   modifyreg32(DA1470X_LCDC_DBIB_CFG,
               LCDC_DBIB_CFG_CMD_DATA_AS_HEADER |
               LCDC_DBIB_CFG_DBIB_CSX_CFG_EN, 0);
@@ -270,28 +273,30 @@ static int lcdc_send_frame(struct da1470x_lcdc_s *priv)
   uint32_t cfg;
   int ret;
 
-  /* Hold the DMA pump while the command is queued */
+  /* Hold the write-memory command so it goes out as the header of the
+   * pixel burst, in one chip-select transaction.
+   */
 
-  modifyreg32(DA1470X_LCDC_CLKCTRL, 0, LCDC_CLKCTRL_DMA_HOLD(1));
+  da1470x_lcdc_dcs_hold(true);
 
   lcdc_fifo_push(LCDC_DBIB_CMD_DBIB_CMD_SEND |
                  LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS |
                  panel->frame_prefix);
-  lcdc_fifo_push(LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS |
+  lcdc_fifo_push(LCDC_DBIB_CMD_DBIB_CMD_SEND |
+                 LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS |
                  LCDC_DBIB_CMD_CMD_WIDTH_24 |
                  ((uint32_t)panel->ramwr << 8));
 
-  /* Command and data as one burst, chip select forced low */
+  /* Chip select forced low for the whole frame */
 
   cfg  = getreg32(DA1470X_LCDC_DBIB_CFG);
-  cfg |= LCDC_DBIB_CFG_CMD_DATA_AS_HEADER | LCDC_DBIB_CFG_DBIB_CSX_CFG_EN;
+  cfg |= LCDC_DBIB_CFG_DBIB_CSX_CFG_EN;
   cfg &= ~LCDC_DBIB_CFG_DBIB_CSX_CFG;
   putreg32(cfg, DA1470X_LCDC_DBIB_CFG);
 
-  /* Arm FRAME_END, release the hold and fire the frame */
+  /* Arm FRAME_END and fire the frame */
 
   modifyreg32(DA1470X_LCDC_INTERRUPT, 0, LCDC_INTERRUPT_FE_IRQ_EN);
-  modifyreg32(DA1470X_LCDC_CLKCTRL, LCDC_CLKCTRL_DMA_HOLD_MASK, 0);
   modifyreg32(DA1470X_LCDC_MODE, 0, LCDC_MODE_SFRAME_UPD);
 
   ret = nxsem_tickwait_uninterruptible(&priv->frame,
@@ -415,7 +420,8 @@ void da1470x_lcdc_dcs_cmd(uint8_t cmd)
 
   lcdc_fifo_push(LCDC_DBIB_CMD_DBIB_CMD_SEND |
                  LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS | prefix);
-  lcdc_fifo_push(LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS |
+  lcdc_fifo_push(LCDC_DBIB_CMD_DBIB_CMD_SEND |
+                 LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS |
                  LCDC_DBIB_CMD_CMD_WIDTH_24 | ((uint32_t)cmd << 8));
 }
 
@@ -434,13 +440,30 @@ void da1470x_lcdc_dcs_data(uint8_t data)
 
 void da1470x_lcdc_dcs_hold(bool hold)
 {
+  int i;
+
+  /* The configuration register must not change while the command FIFO
+   * is being drained.
+   */
+
+  for (i = 0; i < LCDC_FIFO_WAIT_LOOPS; i++)
+    {
+      if ((getreg32(DA1470X_LCDC_STATUS) &
+           LCDC_STATUS_DBIB_CMD_PENDING) == 0)
+        {
+          break;
+        }
+    }
+
   if (hold)
     {
-      modifyreg32(DA1470X_LCDC_CLKCTRL, 0, LCDC_CLKCTRL_DMA_HOLD(1));
+      modifyreg32(DA1470X_LCDC_DBIB_CFG, 0,
+                  LCDC_DBIB_CFG_CMD_DATA_AS_HEADER);
     }
   else
     {
-      modifyreg32(DA1470X_LCDC_CLKCTRL, LCDC_CLKCTRL_DMA_HOLD_MASK, 0);
+      modifyreg32(DA1470X_LCDC_DBIB_CFG,
+                  LCDC_DBIB_CFG_CMD_DATA_AS_HEADER, 0);
     }
 }
 

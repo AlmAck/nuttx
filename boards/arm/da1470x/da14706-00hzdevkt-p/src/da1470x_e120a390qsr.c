@@ -37,6 +37,8 @@
 #include <nuttx/arch.h>
 #include <arch/board/board.h>
 
+#include "arm_internal.h"
+#include "hardware/da1470x_gpio.h"
 #include "da1470x_gpio.h"
 #include "da1470x_lcdc.h"
 #include "da14706-00hzdevkt-p.h"
@@ -243,9 +245,22 @@ static int e120a390_init(const struct da1470x_lcdc_panel_s *panel)
 
 int da1470x_e120a390_initialize(void)
 {
-  /* The LCDC pad mux is hard wired; the pins are plain GPIO outputs that
-   * the controller takes over.  RST and DCDC_EN stay under GPIO control.
+  /* The LCDC signals have fixed pads: each is handed to the controller
+   * through LCDC_MAP_CTRL while the pad itself stays a GPIO output.
+   * RST and DCDC_EN stay under GPIO control.
    */
+
+  modifyreg32(DA1470X_GPIO_LCDC_MAP_CTRL, 0,
+              GPIO_LCDC_MAP_CTRL_MAP_ON_P0_14_EN |
+              GPIO_LCDC_MAP_CTRL_MAP_ON_P0_15_EN |
+              GPIO_LCDC_MAP_CTRL_MAP_ON_P0_16_EN |
+              GPIO_LCDC_MAP_CTRL_MAP_ON_P0_17_EN |
+              GPIO_LCDC_MAP_CTRL_MAP_ON_P0_18_EN |
+              GPIO_LCDC_MAP_CTRL_MAP_ON_P0_22_EN
+#ifdef CONFIG_DA1470X_LCDC_TE
+              | GPIO_LCDC_MAP_CTRL_MAP_ON_P0_10_EN
+#endif
+              );
 
   da1470x_gpio_config(BOARD_LCDC_SCLK_PIN);
   da1470x_gpio_config(BOARD_LCDC_SD0_PIN);

@@ -526,6 +526,13 @@
 #define LCDC_OCM_8RGB888 0x07  /* Output color mode RGB888 */
 #define LCDC_LCM_RGB565 0x05   /* Layer color mode RGB565 */
 
+/* Layer blend factors (L0_SRC_BLEND / L0_DST_BLEND fields) */
+
+#define LCDC_BF_ZERO 0x0        /* Factor 0 */
+#define LCDC_BF_ONE 0x1         /* Factor 1 */
+#define LCDC_BF_SRCALPHA 0x2    /* Source alpha */
+#define LCDC_BF_INVSRCALPHA 0x5 /* 1 - source alpha */
+
 /* DBIB_CFG output colour modes (DBIB_COLOR_FMT field) */
 
 #define LCDC_OCM_8RGB565 0x05  /* R[4:0]G[5:3] - G[2:0]B[4:0] */
