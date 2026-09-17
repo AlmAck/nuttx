@@ -168,8 +168,10 @@ the driver translates addresses in the execute-in-place window: the
 region base and offset the boot ROM left in ``CACHE_FLASH_REG`` (the image
 starts 0x3400 into the flash) plus the flash controller's second window,
 0x20000000 above the first.  Reads from flash are latency bound (the
-controller fetches short bursts), so assets the GPU should blit fast
-belong in RAM.
+controller fetches short bursts, and a rotation reads texels in random
+order), so the LVGL draw unit copies flash-resident images to a RAM cache
+on first use (``CONFIG_LV_DA1470X_GPU_TEXCACHE_KB``, 64 KiB by default,
+least recently used copies dropped first).
 
 ``CONFIG_LV_USE_NUTTX_DA1470X_GPU`` adds an LVGL draw unit
 (``apps/graphics/lvgl/port/lv_draw_da1470x.c``) that claims blended
