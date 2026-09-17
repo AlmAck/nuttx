@@ -113,6 +113,14 @@ XRST P0.22, VCOM/FRP P0.19, RED P0.17/P0.23, GREEN P0.24/P1.00, BLUE
 P1.01/P0.21) and the panel enable is ``BOARD_JDI_PEN_PIN`` (P1.07).
 Untested on hardware.
 
+The FT2232 console needs a short USB path.  Behind a chain of hubs the
+kernel resets the devkit's internal hub on every access and opening
+``/dev/ttyUSB0`` fails with an I/O error; the chip itself answers USB
+control transfers normally in that state, so the failure is easy to
+mistake for a broken adapter or broken firmware.  Plugged into a port
+closer to the machine, both directions carry data and the shell runs at
+115200 baud.
+
 Checking the UART without wiring
 --------------------------------
 
@@ -163,14 +171,16 @@ Running an example
 Configure, build, flash, then call the example by name on the console::
 
   cd nuttx
-  ./tools/configure.sh da14706-00hzdevkt-p:lvgl_rtt
+  ./tools/configure.sh da14706-00hzdevkt-p:lvgl
   make -j
 
   tools/da1470x_flash.sh 900010639 nuttx.bin
-  tools/da1470x_console.sh 900010639
+  picocom -b 115200 /dev/ttyUSB0      # or any terminal program
 
 The serial number is the one printed by ``JLinkExe`` for the on-board
-debugger.  In the shell that comes up::
+debugger.  Build ``lvgl_rtt`` instead and use
+``tools/da1470x_console.sh 900010639`` when the FT2232 console cannot be
+opened.  In the shell that comes up::
 
   nsh> gpu2d                  # GPU fill, blit and rotation self-test
   nsh> lvgpucheck             # GPU draw unit against LVGL's renderer
