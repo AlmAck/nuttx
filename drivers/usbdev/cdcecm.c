@@ -37,7 +37,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <arpa/inet.h>
 
@@ -530,7 +530,7 @@ static void cdcecm_interrupt_work(FAR void *arg)
    * thread has been configured.
    */
 
-  net_lock();
+  netdev_lock(&self->dev);
 
   /* Check if we received an incoming packet, if so, call cdcecm_receive() */
 
@@ -558,7 +558,7 @@ static void cdcecm_interrupt_work(FAR void *arg)
       cdcecm_txdone(self);
     }
 
-  net_unlock();
+  netdev_unlock(&self->dev);
 }
 
 /****************************************************************************
@@ -666,7 +666,7 @@ static void cdcecm_txavail_work(FAR void *arg)
    * thread has been configured.
    */
 
-  net_lock();
+  netdev_lock(&self->dev);
 
   /* Ignore the notification if the interface is not yet up */
 
@@ -675,7 +675,7 @@ static void cdcecm_txavail_work(FAR void *arg)
       devif_poll(&self->dev, cdcecm_txpoll);
     }
 
-  net_unlock();
+  netdev_unlock(&self->dev);
 }
 
 /****************************************************************************
@@ -1047,6 +1047,7 @@ error:
 static int cdcecm_setinterface(FAR struct cdcecm_driver_s *self,
                                uint16_t interface, uint16_t altsetting)
 {
+  netdev_carrier_on(&self->dev);
   uinfo("interface: %hu, altsetting: %hu\n", interface, altsetting);
   return OK;
 }
@@ -1915,6 +1916,17 @@ static void cdcecm_disconnect(FAR struct usbdevclass_driver_s *driver,
                               FAR struct usbdev_s *dev)
 {
   uinfo("\n");
+
+  /* Perform the soft connect function so that we will we can be
+   * re-enumerated (unless we are part of a composite device).  The USB
+   * device controller calls CLASS_DISCONNECT() on every bus reset, which
+   * is the first step of any enumeration, so without this the device is
+   * left soft-disconnected and never enumerates on the host.
+   */
+
+#ifndef CONFIG_CDCECM_COMPOSITE
+  DEV_CONNECT(dev);
+#endif
 }
 
 /****************************************************************************

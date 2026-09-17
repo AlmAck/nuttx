@@ -28,7 +28,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/spi/spi.h>
 
@@ -51,6 +51,11 @@
 uint8_t esp_spi2_status(struct spi_dev_s *dev, uint32_t devid)
 {
   uint8_t status = 0;
+
+  if (devid == SPIDEV_MMCSD(0))
+    {
+      return SPI_STATUS_PRESENT;
+    }
 
   return status;
 }

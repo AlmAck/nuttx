@@ -57,6 +57,13 @@ config LEDS_APA102
 	---help---
 		Enable support for the APA102 LED Strip driver.
 
+config KTD2052
+	bool "KTD2052 I2C LED Driver"
+	default n
+	select I2C
+	---help---
+		Enable support for the KTD2052 LED driver
+
 config LEDS_MAX7219
 	bool "MAX7219 Numeric Display"
 	default n
@@ -67,6 +74,7 @@ config LEDS_MAX7219
 config RGBLED
 	bool "RGB LED Driver Support"
 	default n
+	depends on PWM_NCHANNELS >= 3
 	---help---
 		This selection enables building of the "upper-half" RGB LED driver.
 		See include/nuttx/rgbled.h for further PWM driver information.

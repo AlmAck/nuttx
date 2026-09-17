@@ -207,6 +207,19 @@ squash before submitting the Pull Request:
 
    It is important to include an informative commit title and a commit message.
 
+   .. note::
+
+      You can setup the Git configuration local to your cloned copy of NuttX to
+      use the provided commit template every time you commit.
+
+      .. code:: console
+
+         $ cd nuttx
+         $ git config commit.template .gitmessage
+
+      This will pre-populate the commit message in your editor with the
+      template, which you can edit as a starting point.
+
    In the commit title please include the subsystem/area related to your contribution,
    followed by a descriptive message. Some examples:
 
@@ -214,7 +227,7 @@ squash before submitting the Pull Request:
 
     .. code-block:: bash
 
-       arch/arm/stm32/: Add arch support for stm32 platform
+       arch/arm/stm32f4/: Add arch support for stm32f4 platform
 
        This patch adds initial support for stm32 platform. Please read
        the documentation included for more details how to wire the display.
@@ -251,6 +264,21 @@ squash before submitting the Pull Request:
    Get suggestions for improvements from reviewers, make changes, and push them to the branch. Once the reviewers are
    happy, they may suggest squashing and merging again to make a single commit. In this case you would repeat steps
    1 through 6.
+
+   .. note::
+
+      NuttX uses a ``CODEOWNERS`` file to help track which users are "experts"
+      on certain NuttX subsystems. Sometimes, this will result in certain
+      reviewers being automatically requested to review your PR if you have
+      modified a file they are marked as a "code owner" for. This is just to
+      help contributors get more relevant reviews from someone who knows the
+      subject area.
+
+      If you've created a new file, let's say for a driver, you can add yourself
+      as a code owner for that file by modifying ``.github/CODEOWNERS``. Read
+      the `GitHub documentation for CODEOWNERS
+      <https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners>`_
+      for more information.
 
 How to Include the Suggestions on Your Pull Request?
 ====================================================

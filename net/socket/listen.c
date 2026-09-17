@@ -29,7 +29,7 @@
 #include <sys/socket.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/fs/fs.h>
 
@@ -154,7 +154,7 @@ int listen(int sockfd, int backlog)
   if (ret == OK)
     {
       ret = psock_listen(psock, backlog);
-      fs_putfilep(filep);
+      file_put(filep);
     }
 
   if (ret < 0)

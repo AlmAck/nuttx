@@ -141,19 +141,30 @@
 #define STM32_PLLCFG_PLL2Q       RCC_PLL2DIVR_Q2(40)
 #define STM32_PLLCFG_PLL2R       RCC_PLL2DIVR_R2(3)
 
-/* PLL3 */
+/* PLL3 - 25 MHz input, enable DIVP, DIVQ, DIVR
+ *
+ *   PLL3_VCO = (25 MHz / 1) * 35 = 875 MHz
+ *
+ *   PLL3P = PLL3_VCO/2  = 875 MHz / 2   = 437.7 MHz
+ *   PLL3Q = PLL3_VCO/1  = 875 MHz / 1  = 875 MHz
+ *   PLL3R = PLL3_VCO/20  = 875 MHz / 20   = 43.75 MHz
+ */
+#define STM32_PLLCFG_PLL3CFG (RCC_PLLCFGR_PLL3VCOSEL_WIDE| \
+                              RCC_PLLCFGR_PLL3RGE_8_16_MHZ| \
+                              RCC_PLLCFGR_DIVP3EN| \
+                              RCC_PLLCFGR_DIVQ3EN| \
+                              RCC_PLLCFGR_DIVR3EN)
 
-#define STM32_PLLCFG_PLL3CFG 0
-#define STM32_PLLCFG_PLL3M   0
-#define STM32_PLLCFG_PLL3N   0
-#define STM32_PLLCFG_PLL3P   0
-#define STM32_PLLCFG_PLL3Q   0
-#define STM32_PLLCFG_PLL3R   0
+#define STM32_PLLCFG_PLL3M       RCC_PLLCKSELR_DIVM3(1)
+#define STM32_PLLCFG_PLL3N       RCC_PLL3DIVR_N3(35)
+#define STM32_PLLCFG_PLL3P       RCC_PLL3DIVR_P3(2)
+#define STM32_PLLCFG_PLL3Q       RCC_PLL3DIVR_Q3(1)
+#define STM32_PLLCFG_PLL3R       RCC_PLL3DIVR_R3(20)
 
-#define STM32_VCO3_FREQUENCY
-#define STM32_PLL3P_FREQUENCY
-#define STM32_PLL3Q_FREQUENCY
-#define STM32_PLL3R_FREQUENCY
+#define STM32_VCO3_FREQUENCY     ((STM32_HSE_FREQUENCY / 1) * 35)
+#define STM32_PLL3P_FREQUENCY    (STM32_VCO3_FREQUENCY / 2)
+#define STM32_PLL3Q_FREQUENCY    (STM32_VCO3_FREQUENCY / 1)
+#define STM32_PLL3R_FREQUENCY    (STM32_VCO3_FREQUENCY / 20)
 
 /* SYSCLK = PLL1P = 480 MHz
  * CPUCLK = SYSCLK / 1 = 480 MHz
@@ -165,7 +176,7 @@
 
 /* Configure Clock Assignments */
 
-/* AHB clock (HCLK) is SYSCLK/2 (480 MHz max)
+/* AHB clock (HCLK) is SYSCLK/2 (240 MHz max)
  * HCLK1 = HCLK2 = HCLK3 = HCLK4
  */
 
@@ -197,23 +208,23 @@
 
 /* Timers driven from APB1 will be twice PCLK1 */
 
-#define STM32_APB1_TIM2_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM3_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM4_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM5_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM6_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM7_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM12_CLKIN  (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM13_CLKIN  (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM14_CLKIN  (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM2_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM3_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM4_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM5_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM6_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM7_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM12_CLKIN  (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM13_CLKIN  (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM14_CLKIN  (2*STM32_PCLK1_FREQUENCY)
 
 /* Timers driven from APB2 will be twice PCLK2 */
 
-#define STM32_APB2_TIM1_CLKIN   (2*STM32_PCLK2_FREQUENCY)
-#define STM32_APB2_TIM8_CLKIN   (2*STM32_PCLK2_FREQUENCY)
-#define STM32_APB2_TIM15_CLKIN  (2*STM32_PCLK2_FREQUENCY)
-#define STM32_APB2_TIM16_CLKIN  (2*STM32_PCLK2_FREQUENCY)
-#define STM32_APB2_TIM17_CLKIN  (2*STM32_PCLK2_FREQUENCY)
+#define STM32_TIM1_CLKIN   (2*STM32_PCLK2_FREQUENCY)
+#define STM32_TIM8_CLKIN   (2*STM32_PCLK2_FREQUENCY)
+#define STM32_TIM15_CLKIN  (2*STM32_PCLK2_FREQUENCY)
+#define STM32_TIM16_CLKIN  (2*STM32_PCLK2_FREQUENCY)
+#define STM32_TIM17_CLKIN  (2*STM32_PCLK2_FREQUENCY)
 
 /* Kernel Clock Configuration
  *
@@ -234,7 +245,7 @@
 
 /* SPI45 clock source - APB (PCLK2?) */
 
-#define STM32_RCC_D2CCIP1R_SPI45SRC  RCC_D2CCIP1R_SPI45SEL_APB
+#define STM32_RCC_D2CCIP1R_SPI45SRC  RCC_D2CCIP1R_SPI45SEL_PLL2
 
 /* SPI6 clock source - APB (PCLK4) */
 
@@ -247,6 +258,17 @@
 /* ADC 1 2 3 clock source - pll2_pclk */
 
 #define STM32_RCC_D3CCIPR_ADCSRC     RCC_D3CCIPR_ADCSEL_PLL2
+
+/* FDCAN 1 2 clock source, use STM32_HSE_FREQUENCY  */
+
+#define STM32_RCC_D2CCIP1R_FDCANSEL  RCC_D2CCIP1R_FDCANSEL_HSE
+
+/* SDMMC 1 2 clock source, use STM32_PLL1Q_FREQUENCY  */
+
+#define STM32_RCC_D1CCIPR_SDMMCSEL  RCC_D1CCIPR_SDMMC_PLL1
+
+/* FMC clock source, use STM32_PLL1Q_FREQUENCY  */
+#define BOARD_FMC_CLK               RCC_D1CCIPR_FMCSEL_HCLK
 
 /* FLASH wait states
  *
@@ -285,6 +307,13 @@
 
 #define STM32_SDMMC_CLKCR_EDGE      STM32_SDMMC_CLKCR_NEGEDGE
 
+#define GPIO_SDMMC1_CK   (GPIO_SDMMC1_CK_0|GPIO_SPEED_100MHz)  /* PC12 */
+#define GPIO_SDMMC1_CMD  (GPIO_SDMMC1_CMD_0|GPIO_SPEED_100MHz) /* PD2 */
+#define GPIO_SDMMC1_D0   (GPIO_SDMMC1_D0_0|GPIO_SPEED_100MHz)  /* PC8 */
+#define GPIO_SDMMC1_D1   (GPIO_SDMMC1_D1_0|GPIO_SPEED_100MHz)  /* PC9 */
+#define GPIO_SDMMC1_D2   (GPIO_SDMMC1_D2_0|GPIO_SPEED_100MHz)  /* PC10 */
+#define GPIO_SDMMC1_D3   (GPIO_SDMMC1_D3_0|GPIO_SPEED_100MHz)  /* PC11 */
+
 /* LED definitions **********************************************************/
 
 /* The board has 1 user LED that could be used this diagnostic LED too.
@@ -321,7 +350,7 @@
 #define LED_SIGNAL         5 /* In a signal handler      N/C    GLOW  N/C  */
 #define LED_ASSERTION      6 /* An assertion failed      GLOW   N/C   GLOW */
 #define LED_PANIC          7 /* The system has crashed   Blink  OFF   N/C  */
-#define LED_IDLE           8 /* MCU is is sleep mode     ON     OFF   OFF  */
+#define LED_IDLE           8 /* MCU is in sleep mode     ON     OFF   OFF  */
 
 /* Thus if the Green LED is statically on, NuttX has successfully booted and
  * is, apparently, running normally.  If the Red LED is flashing at
@@ -339,6 +368,12 @@
 
 #define GPIO_USART1_RX   (GPIO_USART1_RX_1 | GPIO_SPEED_100MHz)  /* PB15 */
 #define GPIO_USART1_TX   (GPIO_USART1_TX_1 | GPIO_SPEED_100MHz)  /* PB14 */
+
+/* SPI4 LCD ST7735 (Only SCK and MOSI pins) */
+
+#define GPIO_SPI4_SCK    (GPIO_SPI4_SCK_1  | GPIO_SPEED_50MHz) /* PE12 */
+#define GPIO_SPI4_MOSI   (GPIO_SPI4_MOSI_1 | GPIO_SPEED_50MHz) /* PE14 */
+#define GPIO_SPI4_MISO   0
 
 /* OTGFS */
 

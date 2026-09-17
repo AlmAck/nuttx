@@ -28,11 +28,11 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/spi/spi.h>
 
-#include "esp32s3_gpio.h"
+#include "espressif/esp_gpio.h"
 #include "esp32s3-devkit.h"
 
 /****************************************************************************
@@ -53,6 +53,11 @@ uint8_t esp32s3_spi2_status(struct spi_dev_s *dev, uint32_t devid)
 {
   uint8_t status = 0;
 
+  if (devid == SPIDEV_MMCSD(0))
+    {
+      return SPI_STATUS_PRESENT;
+    }
+
   return status;
 }
 
@@ -72,7 +77,7 @@ int esp32s3_spi2_cmddata(struct spi_dev_s *dev, uint32_t devid, bool cmd)
        *  data bits are data or a command.
        */
 
-      esp32s3_gpiowrite(GPIO_LCD_DC, !cmd);
+      esp_gpiowrite(GPIO_LCD_DC, !cmd);
 
       return OK;
     }
@@ -95,6 +100,11 @@ uint8_t esp32s3_spi3_status(struct spi_dev_s *dev, uint32_t devid)
 {
   uint8_t status = 0;
 
+  if (devid == SPIDEV_MMCSD(0))
+    {
+      return SPI_STATUS_PRESENT;
+    }
+
   return status;
 }
 
@@ -114,7 +124,7 @@ int esp32s3_spi3_cmddata(struct spi_dev_s *dev, uint32_t devid, bool cmd)
        *  data bits are data or a command.
        */
 
-      esp32s3_gpiowrite(CONFIG_ESP32S3_SPI3_MISOPIN, !cmd);
+      esp_gpiowrite(CONFIG_ESP32S3_SPI3_MISOPIN, !cmd);
 
       return OK;
     }

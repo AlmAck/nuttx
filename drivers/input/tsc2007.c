@@ -46,8 +46,8 @@
 #include <poll.h>
 #include <errno.h>
 #include <assert.h>
-#include <debug.h>
 
+#include <nuttx/debug.h>
 #include <nuttx/irq.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/arch.h>
@@ -477,7 +477,7 @@ static int tsc2007_transfer(FAR struct tsc2007_dev_s *priv, uint8_t cmd)
    *  least 10ms before attempting to read data from the TSC2007...
    */
 
-  nxsig_usleep(10 * 1000);
+  nxsched_usleep(10 * 1000);
 
   /* "Data access begins with the master issuing a START condition followed
    *  by the address byte ... with R/W = 1.
@@ -1247,7 +1247,7 @@ int tsc2007_register(FAR struct i2c_master_s *dev,
   snprintf(devname, sizeof(devname), DEV_FORMAT, minor);
   iinfo("Registering %s\n", devname);
 
-  ret = register_driver(devname, &g_tsc2007_fops, 0666, priv);
+  ret = register_driver(devname, &g_tsc2007_fops, 0600, priv);
   if (ret < 0)
     {
       ierr("ERROR: register_driver() failed: %d\n", ret);

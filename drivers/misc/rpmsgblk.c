@@ -32,7 +32,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
@@ -1307,7 +1307,7 @@ int rpmsgblk_register(FAR const char *remotecpu, FAR const char *remotepath,
       localpath = remotepath;
     }
 
-  ret = register_blockdriver(localpath, &dev->blk, 0755, dev);
+  ret = register_blockdriver(localpath, &dev->blk, 0600, dev);
   if (ret < 0)
     {
       ferr("ERROR: register driver failed, ret=%d\n", ret);

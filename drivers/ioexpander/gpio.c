@@ -31,7 +31,7 @@
 #include <string.h>
 #include <signal.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 #include <unistd.h>
 #include <poll.h>
@@ -576,6 +576,34 @@ static int gpio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         }
         break;
 
+      /* Command:     GPIOC_SETDEBOUNCE
+       * Description: Set the GPIO pin debounce duration.
+       * Argument:    The duration of the channel debounce, uint is ns.
+       */
+
+      case GPIOC_SETDEBOUNCE:
+        {
+          DEBUGASSERT(dev->gp_ops->go_setdebounce != NULL);
+          ret = dev->gp_ops->go_setdebounce(dev, arg);
+          break;
+        }
+
+      /* Command:     GPIOC_SETMASK
+       * Description: Mask or unmask the GPIO interrupt without disabling it.
+       *              When masked, the interrupt is suppressed but the
+       *              interrupt source remains enabled.
+       * Argument:    true to mask the interrupt;
+       *              false to unmask the interrupt.
+       */
+
+    case GPIOC_IRQ_SETMASK:
+        {
+          bool mask = (bool)arg;
+          DEBUGASSERT(dev->gp_ops->go_setmask != NULL);
+          ret = dev->gp_ops->go_setmask(dev, mask);
+          break;
+        }
+
       /* Unrecognized command */
 
       default:
@@ -763,7 +791,7 @@ int gpio_pin_register_byname(FAR struct gpio_dev_s *dev,
 
   gpioinfo("Registering %s\n", devname);
 
-  return register_driver(devname, &g_gpio_drvrops, 0666, dev);
+  return register_driver(devname, &g_gpio_drvrops, 0600, dev);
 }
 
 /****************************************************************************

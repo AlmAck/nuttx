@@ -109,6 +109,12 @@
 #define _PCIBASE        (0x4100) /* Pci ioctl commands */
 #define _I3CBASE        (0x4200) /* I3C driver ioctl commands */
 #define _MSIOCBASE      (0x4300) /* Mouse ioctl commands */
+#define _I2SOCBASE      (0x4400) /* I2S driver ioctl commands */
+#define _1WIREBASE      (0x4500) /* 1WIRE ioctl commands */
+#define _EEPIOCBASE     (0x4600) /* EEPROM driver ioctl commands */
+#define _PTPBASE        (0x4700) /* PTP ioctl commands */
+#define _DSHOTIOCBASE   (0x4800) /* Dshot device ioctl commands */
+#define _PULSECOUNTBASE (0x4900) /* Pulse count driver ioctl commands */
 #define _WLIOCBASE      (0x8b00) /* Wireless modules ioctl network commands */
 
 /* boardctl() commands share the same number space */
@@ -235,7 +241,17 @@
                                            * OUT: Current file xip base address
                                            */
 
-/* NuttX file system ioctl definitions **************************************/
+#define FIOC_GETFLAGS       _FIOC(0x0016) /* IN:  None
+                                           * OUT: None
+                                           */
+#define FIOC_SETFLAGS       _FIOC(0x0017) /* IN:  The flags that need to set to file
+                                           * OUT: None
+                                           */
+#define FIOGCLEX            _FIOC(0x0018) /* IN:  FAR int *
+                                           * OUT: None
+                                           */
+
+/* NuttX character driver ioctl definitions *********************************/
 
 #define _DIOCVALID(c)   (_IOC_TYPE(c)==_DIOCBASE)
 #define _DIOC(nr)       _IOC(_DIOCBASE,nr)
@@ -764,6 +780,46 @@
 
 #define _PINCTRLIOCVALID(c) (_IOC_TYPE(c)==_PINCTRLBASE)
 #define _PINCTRLIOC(nr)     _IOC(_PINCTRLBASE,nr)
+
+/* NuttX i2s driver ioctl definitions ***************************************/
+
+/* (see nuttx/audio/i2s.h) */
+
+#define _I2SOCVALID(c) (_IOC_TYPE(c)==_I2SOCBASE)
+#define _I2SOC(nr)     _IOC(_I2SOCBASE,nr)
+
+/* 1WIRE driver ioctl definitions *******************************************/
+
+/* see nuttx/1wire/1wire.h */
+
+#define _1WIREIOCVALID(c) (_IOC_TYPE(c)==_1WIREBASE)
+#define _1WIREIOC(nr)     _IOC(_1WIREBASE,nr)
+
+/* EEPROM driver ioctl definitions ******************************************/
+
+/* (see nuttx/include/eeprom/eeprom.h */
+
+#define _EEPIOCVALID(c)    (_IOC_TYPE(c)==_EEPIOCBASE)
+#define _EEPIOC(nr)        _IOC(_EEPIOCBASE,nr)
+
+/* PTP driver ioctl definitions *********************************************/
+
+/* see nuttx/include/ptp_clock.h */
+
+#define _PTPIOCVALID(c)       (_IOC_TYPE(c)==_PTPBASE)
+#define _PTPIOC(nr)           _IOC(_PTPBASE,nr)
+
+/* DSHOT ioctl definitions (see nuttx/timers/dshot.h) ***********************/
+
+/* see nuttx/include/timers/dshot.h */
+
+#define _DSHOTIOCVALID(c)   (_IOC_TYPE(c)==_DSHOTIOCBASE)
+#define _DSHOTIOC(nr)       _IOC(_DSHOTIOCBASE,nr)
+
+/* Pulse count driver ioctl definitions *************************************/
+
+#define _PULSECOUNTIOCVALID(c) (_IOC_TYPE(c)==_PULSECOUNTBASE)
+#define _PULSECOUNTIOC(nr)     _IOC(_PULSECOUNTBASE,nr)
 
 /****************************************************************************
  * Public Type Definitions

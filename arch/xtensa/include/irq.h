@@ -71,6 +71,10 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+/* XTENSA requires at least a 16-byte stack alignment. */
+
+#define STACKFRAME_ALIGN    16
+
 /* IRQ Stack Frame Format.  Each value is a uint32_t register index */
 
 #define REG_PC              (0)  /* Return PC */
@@ -94,9 +98,16 @@
 #define REG_SAR             (18)
 #define REG_EXCCAUSE        (19)
 #define REG_EXCVADDR        (20)
-#define REG_THREADPTR       (21)
 
-#define _REG_EXTRA_START    (22)
+#ifdef CONFIG_SCHED_THREAD_LOCAL
+#  ifndef XCHAL_HAVE_THREADPTR || XCHAL_HAVE_THREADPTR == 0
+#    error architecture-specific TLS depends on ISA THREADPTR(Thread Porinter)
+#  endif
+#  define REG_THREADPTR     (21)
+#  define _REG_EXTRA_START  (22)
+#else
+#  define _REG_EXTRA_START  (21)
+#endif
 
 #if XCHAL_HAVE_S32C1I != 0
 #  define REG_SCOMPARE1       (_REG_EXTRA_START + 0)
@@ -182,6 +193,7 @@ struct xcpt_syscall_s
 
 struct xcptcontext
 {
+#ifdef CONFIG_ENABLE_ALL_SIGNALS
   /* These are saved copies of registers used during signal processing.
    *
    * REVISIT:  Because there is only one copy of these save areas,
@@ -192,10 +204,6 @@ struct xcptcontext
 
   uint32_t *saved_regs;
 
-  /* Register save area */
-
-  uint32_t *regs;
-
 #ifndef CONFIG_BUILD_FLAT
   /* This is the saved address to use when returning from a user-space
    * signal handler.
@@ -203,6 +211,10 @@ struct xcptcontext
 
   uintptr_t sigreturn;
 #endif
+#endif /* CONFIG_ENABLE_ALL_SIGNALS */
+  /* Register save area */
+
+  uint32_t *regs;
 
 #ifdef CONFIG_LIB_SYSCALL
   /* The following array holds the return address and the exc_return value
@@ -331,7 +343,16 @@ static inline_function void xtensa_disable_all(void)
   __asm__ __volatile__
   (
     "movi a2, 0\n"
-    "xsr a2, INTENABLE\n"
+    "wsr a2, INTENABLE\n"
+#if XCHAL_NUM_INTERRUPTS > 32
+    "wsr a2, INTENABLE1\n"
+#endif
+#if XCHAL_NUM_INTERRUPTS > 64
+    "wsr a2, INTENABLE2\n"
+#endif
+#if XCHAL_NUM_INTERRUPTS > 96
+    "wsr a2, INTENABLE3\n"
+#endif
     "rsync\n"
     : : : "a2"
   );
@@ -341,16 +362,60 @@ static inline_function void xtensa_disable_all(void)
  * Name: xtensa_intclear
  ****************************************************************************/
 
-static inline_function void xtensa_intclear(uint32_t mask)
+static inline_function void xtensa_intclear(uint32_t intnum)
 {
-  __asm__ __volatile__
-  (
-    "wsr %0, INTCLEAR\n"
-    "rsync\n"
-    :
-    : "r"(mask)
-    :
-  );
+  DEBUGASSERT(intnum < XCHAL_NUM_INTERRUPTS);
+
+  if (intnum < 32)
+    {
+      __asm__ __volatile__
+      (
+        "wsr %0, INTCLEAR\n"
+        "rsync\n"
+        :
+        : "r"(1 << intnum)
+        :
+      );
+    }
+#if XCHAL_NUM_INTERRUPTS > 32
+  else if (intnum < 64)
+    {
+      __asm__ __volatile__
+      (
+        "wsr %0, INTCLEAR1\n"
+        "rsync\n"
+        :
+        : "r"(1 << (intnum - 32))
+        :
+      );
+    }
+#endif
+#if XCHAL_NUM_INTERRUPTS > 64
+  else if (intnum < 96)
+    {
+      __asm__ __volatile__
+      (
+        "wsr %0, INTCLEAR2\n"
+        "rsync\n"
+        :
+        : "r"(1 << (intnum - 64))
+        :
+      );
+    }
+#endif
+#if XCHAL_NUM_INTERRUPTS > 96
+  else if (intnum < 128)
+    {
+      __asm__ __volatile__
+      (
+        "wsr %0, INTCLEAR3\n"
+        "rsync\n"
+        :
+        : "r"(1 << (intnum - 96))
+        :
+      );
+    }
+#endif
 }
 
 #ifdef __cplusplus

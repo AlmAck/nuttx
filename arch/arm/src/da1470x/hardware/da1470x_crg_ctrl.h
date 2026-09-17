@@ -18,8 +18,12 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470_CRG_CTRL_H
-#define __DA1470_CRG_CTRL_H
+/* Generated from the Renesas CMSIS device header DA1470x-00.h (SDK
+ * 10.2.6.49).  Do not edit by hand; regenerate with tools/genhdr.py.
+ */
+
+#ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_CTRL_H
+#define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_CTRL_H
 
 /****************************************************************************
  * Included Files
@@ -32,30 +36,23 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Register offsets *********************************************************/
+/* Register Offsets *********************************************************/
 
-#define DA1470_CRG_CTRL_CLK_PDCTRL_OFFSET     0x0004 /* Clock control settings for PD_CTRL */
+#define DA1470X_CRG_CTRL_CLK_PDCTRL_OFFSET 0x0004 /* Clock control settings for PD_CTRL */
 
-/* Register addresses *******************************************************/
+/* Register Addresses *******************************************************/
 
-#define DA1470_CRG_CTRL_BASE                  0x50060000 /* CRG_CTRL registers */
+#define DA1470X_CRG_CTRL_CLK_PDCTRL (DA1470X_CRG_CTRL_BASE + DA1470X_CRG_CTRL_CLK_PDCTRL_OFFSET)
 
-#define DA1470_CRG_CTRL_CLK_PDCTRL            (DA1470_CRG_CTRL_BASE + DA1470_CRG_CTRL_CLK_PDCTRL_OFFSET) /* Clock control settings for PD_CTRL */
+/* Register Bit-field Definitions *******************************************/
 
-/* Register bit definitions *************************************************/
+/* CLK_PDCTRL register */
 
+#define CRG_CTRL_CLK_PDCTRL_EMMC_CLK_DIV_SHIFT (7)    /* Bits 7-10 */
+#define CRG_CTRL_CLK_PDCTRL_EMMC_CLK_DIV_MASK (0xf << CRG_CTRL_CLK_PDCTRL_EMMC_CLK_DIV_SHIFT)
+#  define CRG_CTRL_CLK_PDCTRL_EMMC_CLK_DIV(n) ((uint32_t)(n) << CRG_CTRL_CLK_PDCTRL_EMMC_CLK_DIV_SHIFT)
+#define CRG_CTRL_CLK_PDCTRL_EMMC_ENABLE (1 << 11)     /* Bit 11 */
+#define CRG_CTRL_CLK_PDCTRL_EMMC_INV_RX_CLK (1 << 12) /* Bit 12 */
+#define CRG_CTRL_CLK_PDCTRL_EMMC_INV_TX_CLK (1 << 13) /* Bit 13 */
 
-/* CLK_PDCTRL Register */
-
-#define CRG_CTRL_EMMC_INV_TX_CLK              (1U << 13) /* Inverts the clock in the TX path */
-#define CRG_CTRL_EMMC_INV_RX_CLK              (1U << 12) /* Invert the clock in the RX path, cascaded with INV_TX_CLK */
-#define CRG_CTRL_EMMC_ENABLE                  (1U << 11) /* Enables the clock. */
-#define CRG_CTRL_EMMC_CLK_DIV_MASK            (0xF << 7) /* clock divider setting 0x0 : divide by 16 0x1 : divide by 1 0x2 : divide by 2 0x4 */
-#define CRG_CTRL_EMMC_CLK_DIV_POS             (7) /* clock divider setting 0x0 : divide by 16 0x1 : divide by 1 0x2 : divide by 2 0x4 */
-#define CRG_CTRL_SDIO_INV_TX_CLK              (1U << 6) /* Inverts the clock in the TX path */
-#define CRG_CTRL_SDIO_INV_RX_CLK              (1U << 5) /* Invert the clock in the RX path, cascaded with INV_TX_CLK */
-#define CRG_CTRL_SDIO_ENABLE                  (1U << 4) /* Enables the clock. */
-#define CRG_CTRL_SDIO_CLK_DIV_MASK            (0xF << 0) /* clock divider setting 0x0 : divide by 16 0x1 : divide by 1 0x2 : divide by 2 0x4 */
-#define CRG_CTRL_SDIO_CLK_DIV_POS             (0) /* clock divider setting 0x0 : divide by 16 0x1 : divide by 1 0x2 : divide by 2 0x4 */
-
-#endif /* __DA1470X_CRG_CTRL_H */
+#endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_CTRL_H */

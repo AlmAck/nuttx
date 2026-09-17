@@ -36,11 +36,17 @@ COMPILER_RT_OBJDIR = compiler-rt \
                      compiler-rt/compiler-rt \
                      compiler-rt/compiler-rt/lib \
                      compiler-rt/compiler-rt/lib/builtins \
-                     compiler-rt/compiler-rt/lib/builtins/$(ARCH) \
                      compiler-rt/compiler-rt/lib/profile
+
+ifneq ($(ARCH),)
+COMPILER_RT_OBJDIR += compiler-rt/compiler-rt/lib/builtins/$(ARCH)
+endif
 
 BIN_OBJDIR = $(addprefix $(BINDIR)$(DELIM),$(COMPILER_RT_OBJDIR))
 KBIN_OBJDIR = $(addprefix $(KBINDIR)$(DELIM),$(COMPILER_RT_OBJDIR))
+
+$(BIN_OBJDIR) $(KBIN_OBJDIR):
+	$(Q) mkdir -p $@
 
 ifeq ($(wildcard compiler-rt/compiler-rt/lib),)
 
@@ -51,7 +57,6 @@ compiler-rt/compiler-rt: compiler-rt-$(COMPILER_RT_VERSION).src.tar.xz
 	$(Q) tar -xf $<
 	$(Q) mv compiler-rt-$(COMPILER_RT_VERSION).src $@
 	$(call DELDIR, $<)
-	$(Q) mkdir $(BIN_OBJDIR) $(KBIN_OBJDIR)
 
 compiler-rt: compiler-rt/compiler-rt
 
@@ -60,12 +65,14 @@ endif
 ifeq ($(CONFIG_LIB_COMPILER_RT),y)
 
 .PHONY: compiler-rt
-depend:: compiler-rt
+depend:: compiler-rt $(BIN_OBJDIR) $(KBIN_OBJDIR)
 
 distclean::
 	$(call DELDIR, $(BIN_OBJDIR))
 	$(call DELDIR, $(KBIN_OBJDIR))
+ifeq ($(wildcard compiler-rt/compiler-rt/.git),)
 	$(call DELDIR, compiler-rt/compiler-rt)
+endif
 
 FLAGS += ${INCDIR_PREFIX}$(CURDIR)/compiler-rt/compiler-rt/include
 
@@ -76,18 +83,56 @@ endif
 ifeq ($(CONFIG_BUILTIN_COMPILER_RT),y)
 
 FLAGS += ${INCDIR_PREFIX}$(CURDIR)/compiler-rt/compiler-rt/lib/builtins
-FLAGS += ${INCDIR_PREFIX}$(CURDIR)/compiler-rt/compiler-rt/lib/builtins/${ARCH}
 
 FLAGS += -Wno-undef -Wno-macro-redefined
 
 CSRCS += $(wildcard compiler-rt/compiler-rt/lib/builtins/*.c)
+
+ifneq ($(ARCH),)
+FLAGS += ${INCDIR_PREFIX}$(CURDIR)/compiler-rt/compiler-rt/lib/builtins/${ARCH}
 ASRCS += $(wildcard compiler-rt/compiler-rt/lib/builtins/$(ARCH)/*.S)
 CSRCS += $(wildcard compiler-rt/compiler-rt/lib/builtins/$(ARCH)/*.c)
+endif
 
 ifeq ($(CONFIG_LIB_COMPILER_RT_HAS_BFLOAT16),)
   BFLOAT16_SRCS := compiler-rt/compiler-rt/lib/builtins/truncdfbf2.c
   BFLOAT16_SRCS += compiler-rt/compiler-rt/lib/builtins/truncsfbf2.c
   CSRCS := $(filter-out $(BFLOAT16_SRCS), $(CSRCS))
+endif
+
+ifeq ($(CONFIG_ARCH_X86_64),)
+  x86_80_BIT_SOURCES := divxc3.c extendxftf2.c fixxfdi.c fixxfti.c fixunsxfdi.c
+  x86_80_BIT_SOURCES += fixunsxfsi.c fixunsxfti.c floatdixf.c floattixf.c floatundixf.c
+  x86_80_BIT_SOURCES += floatuntixf.c mulxc3.c powixf2.c trunctfxf2.c
+  x86_80_BIT_SOURCES := $(addprefix compiler-rt/compiler-rt/lib/builtins/, $(x86_80_BIT_SOURCES))
+  CSRCS := $(filter-out $(x86_80_BIT_SOURCES), $(CSRCS))
+endif
+
+# The Arm builtins ship hand-written VFP assembly whose FPU requirements the
+# wildcard glob above ignores.  Upstream compiler-rt selects these files
+# conditionally, so assemble only the ones the configured FPU supports;
+# otherwise single-precision-FPU targets (e.g. Cortex-M33, fpv5-sp-d16) fail
+# with "selected FPU does not support instruction".  See apache/nuttx#17386.
+#   - chkstk.S / chkstk2.S are Windows/MinGW-only stack probes;
+#   - every *vfp.S needs a hardware FPU;
+#   - the double-precision *df*vfp.S routines additionally need a
+#     double-precision FPU.
+
+ifeq ($(CONFIG_ARCH_ARM),y)
+  COMPILER_RT_ARM_EXCLUDE := chkstk.S chkstk2.S
+ifneq ($(CONFIG_ARCH_FPU),y)
+  COMPILER_RT_ARM_EXCLUDE += $(notdir \
+    $(wildcard compiler-rt/compiler-rt/lib/builtins/arm/*vfp.S))
+else ifneq ($(CONFIG_ARCH_DPFPU),y)
+  COMPILER_RT_ARM_EXCLUDE += adddf3vfp.S divdf3vfp.S eqdf2vfp.S extendsfdf2vfp.S
+  COMPILER_RT_ARM_EXCLUDE += fixdfsivfp.S fixunsdfsivfp.S floatsidfvfp.S
+  COMPILER_RT_ARM_EXCLUDE += floatunssidfvfp.S gedf2vfp.S gtdf2vfp.S ledf2vfp.S
+  COMPILER_RT_ARM_EXCLUDE += ltdf2vfp.S muldf3vfp.S nedf2vfp.S subdf3vfp.S
+  COMPILER_RT_ARM_EXCLUDE += truncdfsf2vfp.S unorddf2vfp.S
+endif
+  ASRCS := $(filter-out $(addprefix \
+    compiler-rt/compiler-rt/lib/builtins/arm/, $(COMPILER_RT_ARM_EXCLUDE)), \
+    $(ASRCS))
 endif
 
 endif
@@ -102,12 +147,17 @@ FLAGS += -fno-profile-instr-generate -fno-coverage-mapping
 FLAGS += -Wno-undef -Wno-strict-prototypes  -Wno-shadow
 FLAGS += -DCOMPILER_RT_HAS_UNAME
 
+ifeq ($(CONFIG_HOST_MACOS),y)
+FLAGS += -D__APPLE__
+endif
+
 CSRCS += $(wildcard compiler-rt/compiler-rt/lib/profile/*.c)
 CPPSRCS += $(wildcard compiler-rt/compiler-rt/lib/profile/*.cpp)
 CSRCS += InstrProfilingPlatform.c
 
 else ifeq ($(CONFIG_COVERAGE_MINI)$(CONFIG_ARCH_TOOLCHAIN_CLANG),yy)
 
+FLAGS += ${INCDIR_PREFIX}$(CURDIR)/compiler-rt/compiler-rt/lib/profile
 FLAGS += -fno-profile-instr-generate -fno-coverage-mapping
 
 CSRCS += coverage.c

@@ -20,6 +20,19 @@
  *
  ****************************************************************************/
 
+/* WARNING for developers:
+ *
+ * This driver uses the legacy style of writing sensor drivers for NuttX. The
+ * project has since decided to adopt a new sensor framework in order to
+ * have a consistent API and feature-set.
+ *
+ * Sensors which use the uORB framework are typically suffixed "_uorb". You
+ * can also visit the documentation about the new sensor framework to learn
+ * more.
+ */
+
+#warning "This is a deprecated legacy sensor driver."
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -29,7 +42,7 @@
 #include <nuttx/i2c/i2c_master.h>
 #include <sys/types.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <stdio.h>
 #include <errno.h>
 #include <nuttx/kmalloc.h>
@@ -756,7 +769,7 @@ int lps25h_register(FAR const char *devpath, FAR struct i2c_master_s *i2c,
       dev->config->irq_clear(dev->config);
     }
 
-  ret = register_driver(devpath, &g_lps25hops, 0666, dev);
+  ret = register_driver(devpath, &g_lps25hops, 0600, dev);
 
   lps25h_dbg("Registered with %d\n", ret);
 

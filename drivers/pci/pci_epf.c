@@ -26,7 +26,7 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <string.h>
 
 #include <nuttx/lib/math32.h>
@@ -254,7 +254,7 @@ FAR void *pci_epf_alloc_space(FAR struct pci_epf_device_s *epf, int barno,
 
   bar = epf->bar;
 
-  space = kmm_zalloc(size);
+  space = pci_epc_dma_memalign(epf->epc, align, size);
   if (space == NULL)
     {
       pcierr("Failed to allocate mem space\n");
@@ -298,7 +298,7 @@ int pci_epf_device_register(FAR struct pci_epf_device_s *epf)
   FAR struct pci_epc_ctrl_s *epc;
   int ret;
 
-  DEBUGASSERT(epf != NULL || epf->name != NULL);
+  DEBUGASSERT(epf != NULL && epf->name != NULL);
 
   ret = nxmutex_lock(&g_pci_epf_lock);
   if (ret < 0)
@@ -499,7 +499,7 @@ int pci_epf_unregister_driver(FAR struct pci_epf_driver_s *drv)
   FAR struct pci_epf_device_s *epf;
   int ret;
 
-  DEBUGASSERT(drv != NULL || drv->remove != NULL);
+  DEBUGASSERT(drv != NULL && drv->remove != NULL);
 
   ret = nxmutex_lock(&g_pci_epf_lock);
   if (ret < 0)

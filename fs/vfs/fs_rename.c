@@ -33,13 +33,14 @@
 #include <libgen.h>
 #include <assert.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include <nuttx/fs/fs.h>
 #include <nuttx/lib/lib.h>
 
-#include "notify/notify.h"
 #include "inode/inode.h"
 #include "fs_heap.h"
+#include "vfs.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -66,22 +67,35 @@
 
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
 static int pseudorename(FAR const char *oldpath, FAR struct inode *oldinode,
+                        FAR struct inode *oldparent,
                         FAR const char *newpath)
 {
   struct inode_search_s newdesc;
+  struct inode_search_s pardesc;
   FAR struct inode *newinode;
+  FAR struct inode *parnode;
   FAR char *subdir = NULL;
 #ifdef CONFIG_FS_NOTIFY
   bool isdir = INODE_IS_PSEUDODIR(oldinode);
 #endif
   int ret;
 
+  /* SETUP_SEARCH early so RELEASE_SEARCH at errout is safe. */
+
+  SETUP_SEARCH(&newdesc, newpath, true);
+
+  /* Verify source parent write permission. */
+
+  ret = inode_checkperm(oldparent, W_OK);
+  if (ret < 0)
+    {
+      goto errout;
+    }
+
   /* According to POSIX, any new inode at this path should be removed
    * first, provided that it is not a directory.
    */
 
-next_subdir:
-  SETUP_SEARCH(&newdesc, newpath, true);
   ret = inode_find(&newdesc);
   if (ret >= 0)
     {
@@ -120,16 +134,6 @@ next_subdir:
         {
           FAR char *subdirname;
 
-          inode_release(newinode);
-
-          /* Free memory may be allocated in previous loop */
-
-          if (subdir != NULL)
-            {
-              fs_heap_free(subdir);
-              subdir = NULL;
-            }
-
           /* Yes.. In this case, the target of the rename must be a
            * subdirectory of newinode, not the newinode itself.  For
            * example: mv b a/ must move b to a/b.
@@ -145,14 +149,6 @@ next_subdir:
             }
 
           newpath = subdir;
-
-          /* This can be a recursive case, another inode may already exist
-           * at oldpth/subdirname.  In that case, we need to do this all
-           * over again.  A nasty goto is used because I am lazy.
-           */
-
-          RELEASE_SEARCH(&newdesc);
-          goto next_subdir;
         }
       else
         {
@@ -173,6 +169,30 @@ next_subdir:
         }
 
       inode_release(newinode);
+    }
+
+  /* Re-resolve the final destination parent after path rewrite. */
+
+  SETUP_SEARCH(&pardesc, newpath, true);
+  inode_find(&pardesc);   /* pardesc.parent valid even if node not found */
+  parnode = pardesc.node;
+
+  ret = inode_checkperm(pardesc.parent, W_OK);
+
+  /* inode_find() holds a reference on parnode; RELEASE_SEARCH() only
+   * frees pardesc.buffer.
+   */
+
+  if (parnode != NULL)
+    {
+      inode_release(parnode);
+    }
+
+  RELEASE_SEARCH(&pardesc);
+
+  if (ret < 0)
+    {
+      goto errout;
     }
 
   /* Create a new, empty inode at the destination location.
@@ -354,7 +374,6 @@ static int mountptrename(FAR const char *oldpath, FAR struct inode *oldinode,
     {
       struct stat buf;
 
-next_subdir:
       ret = oldinode->u.i_mops->stat(oldinode, newrelpath, &buf);
       if (ret >= 0)
         {
@@ -384,19 +403,8 @@ next_subdir:
                 }
               else
                 {
-                  /* Save subdir to free memory may be allocated in
-                   * previous loop.
-                   */
-
-                  FAR void *tmp = subdir;
-
                   ret = fs_heap_asprintf(&subdir, "%s/%s", newrelpath,
                                  subdirname);
-                  if (tmp != NULL)
-                    {
-                      lib_free(tmp);
-                    }
-
                   if (ret < 0)
                     {
                       subdir = NULL;
@@ -406,14 +414,6 @@ next_subdir:
 
                   newrelpath = subdir;
                 }
-
-              /* This can be a recursive, another directory may already
-               * exist at the newrelpath.  In that case, we need to
-               * do this all over again.  A nasty goto is used because
-               * I am lazy.
-               */
-
-              goto next_subdir;
             }
           else
             {
@@ -544,7 +544,7 @@ int rename(FAR const char *oldpath, FAR const char *newpath)
 #endif /* CONFIG_DISABLE_MOUNTPOINT */
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
     {
-      ret = pseudorename(oldpath, oldinode, newpath);
+      ret = pseudorename(oldpath, oldinode, olddesc.parent, newpath);
     }
 #else
     {

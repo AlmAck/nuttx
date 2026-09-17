@@ -33,7 +33,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <poll.h>
 #include <spawn.h>
 #include <nuttx/kmalloc.h>
@@ -1633,7 +1633,7 @@ static int cxd5610_gnss_finalize(struct cxd5610_gnss_dev_s *priv)
   /* Finalize CXD5610 device */
 
   cxd5610_gnss_core_finalize(priv);
-  nxsig_sleep(1);
+  nxsched_sleep(1);
 
   /* Terminate thread */
 
@@ -2268,7 +2268,7 @@ int cxd5610_gnss_register(const char *devpath,
 
   /* Register the character driver */
 
-  ret = register_driver(devpath, &g_cxd5610fops, 0666, priv);
+  ret = register_driver(devpath, &g_cxd5610fops, 0660, priv);
   if (ret < 0)
     {
       snerr("ERROR: Failed to register driver: %d\n", ret);

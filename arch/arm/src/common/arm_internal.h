@@ -64,6 +64,9 @@
 #  elif defined(CONFIG_RPMSG_UART_CONSOLE)
 #    undef  USE_SERIALDRIVER
 #    undef  USE_EARLYSERIALINIT
+#  elif defined(CONFIG_RPMSG_UART_RAW_CONSOLE)
+#    undef  USE_SERIALDRIVER
+#    undef  USE_EARLYSERIALINIT
 #  else
 #    define USE_SERIALDRIVER 1
 #    define USE_EARLYSERIALINIT 1
@@ -80,25 +83,13 @@
 #  define USE_SERIALDRIVER 1
 #endif
 
-/* For use with EABI and floating point, the stack must be aligned to 8-byte
- * addresses.
- */
-
-#define STACK_ALIGNMENT     8
-
-/* Stack alignment macros */
-
-#define STACK_ALIGN_MASK    (STACK_ALIGNMENT - 1)
-#define STACK_ALIGN_DOWN(a) ((a) & ~STACK_ALIGN_MASK)
-#define STACK_ALIGN_UP(a)   (((a) + STACK_ALIGN_MASK) & ~STACK_ALIGN_MASK)
-
 /* Check if an interrupt stack size is configured */
 
 #ifndef CONFIG_ARCH_INTERRUPTSTACK
 #  define CONFIG_ARCH_INTERRUPTSTACK 0
 #endif
 
-#define INTSTACK_SIZE (CONFIG_ARCH_INTERRUPTSTACK & ~STACK_ALIGN_MASK)
+#define INTSTACK_SIZE (CONFIG_ARCH_INTERRUPTSTACK & ~STACKFRAME_ALIGN_MASK)
 
 /* Toolchain dependent, linker defined section addresses */
 
@@ -171,45 +162,6 @@
 #  define _snoinit Image$$noinit$$Base
 #  define _enoinit Image$$noinit$$Limit
 #endif
-
-/* MPIDR_EL1, Multiprocessor Affinity Register */
-
-#define MPIDR_AFFLVL_MASK   (0xff)
-#define MPIDR_ID_MASK       (0x00ffffff)
-
-#define MPIDR_AFF0_SHIFT    (0)
-#define MPIDR_AFF1_SHIFT    (8)
-#define MPIDR_AFF2_SHIFT    (16)
-
-/* mpidr register, the register is define:
- *   - bit 0~7:   Aff0
- *   - bit 8~15:  Aff1
- *   - bit 16~23: Aff2
- *   - bit 24:    MT, multithreading
- *   - bit 25~29: RES0
- *   - bit 30:    U, multiprocessor/Uniprocessor
- *   - bit 31:    RES1
- *  Different ARM/ARM64 cores will use different Affn define, the mpidr
- *  value is not CPU number, So we need to change CPU number to mpid
- *  and vice versa
- */
-
-#define GET_MPIDR()             CP15_GET(MPIDR)
-
-#define MPIDR_AFFLVL(mpidr, aff_level) \
-  (((mpidr) >> MPIDR_AFF ## aff_level ## _SHIFT) & MPIDR_AFFLVL_MASK)
-
-#define MPID_TO_CORE(mpid, aff_level) \
-  (((mpid) >> MPIDR_AFF ## aff_level ## _SHIFT) & MPIDR_AFFLVL_MASK)
-
-#define CORE_TO_MPID(core, aff_level) \
-  ({ \
-    uint64_t __mpidr = GET_MPIDR(); \
-    __mpidr &= ~(MPIDR_AFFLVL_MASK << MPIDR_AFF ## aff_level ## _SHIFT); \
-    __mpidr |= (core << MPIDR_AFF ## aff_level ## _SHIFT); \
-    __mpidr &= MPIDR_ID_MASK; \
-    __mpidr; \
-  })
 
 /****************************************************************************
  * Public Types
@@ -367,12 +319,14 @@ EXTERN const void *__vector_table[];
 EXTERN const void * const _vectors[];
 #endif
 
+#ifdef CONFIG_LIB_SYSCALL
+void arm_dispatch_syscall(void);
+#endif
+
 /* Exception Handlers */
 
 int  arm_svcall(int irq, void *context, void *arg);
 int  arm_hardfault(int irq, void *context, void *arg);
-int  arm_enable_dbgmonitor(void);
-int  arm_dbgmonitor(int irq, void *context, void *arg);
 
 #  if defined(CONFIG_ARCH_ARMV7M) || defined(CONFIG_ARCH_ARMV8M)
 
@@ -504,6 +458,21 @@ void arm_netinitialize(void);
 #  define arm_netinitialize()
 #endif
 
+/****************************************************************************
+ * Name: arm_timer_secondary_init
+ *
+ * Description:
+ *   Initialize the ARM timer for secondary CPUs.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_SMP
+void arm_timer_secondary_init(unsigned int freq);
+#endif
+
 /* USB **********************************************************************/
 
 #ifdef CONFIG_USBDEV
@@ -520,6 +489,13 @@ size_t arm_stack_check(void *stackbase, size_t nbytes);
 void arm_stack_color(void *stackbase, size_t nbytes);
 #endif
 
+#if defined(CONFIG_STACK_COLORATION) &&\
+    defined(CONFIG_ARCH_INTERRUPTSTACK) && CONFIG_ARCH_INTERRUPTSTACK > 3
+void arm_color_intstack(void);
+#else
+#  define arm_color_intstack()
+#endif
+
 #ifdef CONFIG_ARCH_TRUSTZONE_SECURE
 int arm_gen_nonsecurefault(int irq, uint32_t *regs);
 #else
@@ -532,6 +508,11 @@ void arm_stack_check_init(void) noinstrument_function;
 
 #ifdef CONFIG_ARM_COREDUMP_REGION
   void arm_coredump_add_region(void);
+#endif
+
+#ifdef CONFIG_ARCH_HAVE_DEBUG
+int arm_enable_dbgmonitor(void);
+int arm_dbgmonitor(int irq, void *context, void *arg);
 #endif
 
 #undef EXTERN

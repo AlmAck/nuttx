@@ -30,15 +30,11 @@ if(CONFIG_USERLED)
   list(APPEND SRCS stm32_userled.c)
 endif()
 
-if(CONFIG_BOARDCTL)
-  list(APPEND SRCS stm32_appinitialize.c)
-endif()
-
-if(CONFIG_STM32H7_OTGFS)
+if(CONFIG_STM32_OTGFS)
   list(APPEND SRCS stm32_usb.c)
 endif()
 
-if(CONFIG_STM32H7_SDMMC)
+if(CONFIG_STM32_SDMMC)
   list(APPEND SRCS stm32_sdmmc.c)
 endif()
 
@@ -54,10 +50,6 @@ if(CONFIG_PWM)
   list(APPEND SRCS stm32_pwm.c)
 endif()
 
-if(CONFIG_AUDIO_TONE)
-  list(APPEND SRCS stm32_tone.c)
-endif()
-
 if(CONFIG_MTD_W25QXXXJV)
   list(APPEND SRCS stm32_w25q.c)
 endif()
@@ -66,15 +58,11 @@ if(CONFIG_USBMSC)
   list(APPEND SRCS stm32_usbmsc.c)
 endif()
 
-if(CONFIG_SENSORS_QENCODER)
-  list(APPEND SRCS stm32_qencoder.c)
-endif()
-
 if(CONFIG_CL_MFRC522)
   list(APPEND SRCS stm32_mfrc522.c)
 endif()
 
-if(CONFIG_STM32H7_LTDC)
+if(CONFIG_STM32_LTDC)
   list(APPEND SRCS stm32_lcd.c)
 endif()
 

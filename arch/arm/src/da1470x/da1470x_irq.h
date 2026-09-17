@@ -26,6 +26,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <arch/irq.h>
 
 /****************************************************************************
  * Public Function Prototypes
@@ -35,8 +36,7 @@
  * Name: da1470x_clrpend
  *
  * Description:
- *   Clear a pending interrupt at the NVIC.  This does not seem to be
- *   required for most interrupts.
+ *   Clear a pending interrupt at the NVIC.
  *
  ****************************************************************************/
 

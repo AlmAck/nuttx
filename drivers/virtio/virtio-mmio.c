@@ -26,7 +26,7 @@
 
 #include <nuttx/config.h>
 
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 #include <stdint.h>
 #include <sys/param.h>
@@ -344,17 +344,17 @@ static int virtio_mmio_config_virtqueue(FAR struct metal_io_region *io,
       metal_io_write32(io, VIRTIO_MMIO_QUEUE_NUM, vq->vq_nentries);
 
       addr = (uint64_t)((uintptr_t)
-                        kasan_reset_tag((FAR void *)vq->vq_ring.desc));
+                        kasan_clear_tag((FAR void *)vq->vq_ring.desc));
       metal_io_write32(io, VIRTIO_MMIO_QUEUE_DESC_LOW, addr);
       metal_io_write32(io, VIRTIO_MMIO_QUEUE_DESC_HIGH, addr >> 32);
 
       addr = (uint64_t)((uintptr_t)
-                        kasan_reset_tag((FAR void *)vq->vq_ring.avail));
+                        kasan_clear_tag((FAR void *)vq->vq_ring.avail));
       metal_io_write32(io, VIRTIO_MMIO_QUEUE_AVAIL_LOW, addr);
       metal_io_write32(io, VIRTIO_MMIO_QUEUE_AVAIL_HIGH, addr >> 32);
 
       addr = (uint64_t)((uintptr_t)
-                        kasan_reset_tag((FAR void *)vq->vq_ring.used));
+                        kasan_clear_tag((FAR void *)vq->vq_ring.used));
       metal_io_write32(io, VIRTIO_MMIO_QUEUE_USED_LOW, addr);
       metal_io_write32(io, VIRTIO_MMIO_QUEUE_USED_HIGH, addr >> 32);
 
@@ -755,8 +755,7 @@ static int virtio_mmio_interrupt(int irq, FAR void *context, FAR void *arg)
       for (i = 0; i < vmdev->vdev.vrings_num; i++)
         {
           vq = vrings_info[i].vq;
-          if (vq->vq_used_cons_idx != vq->vq_ring.used->idx &&
-              vq->callback != NULL)
+          if (vq->callback != NULL && virtqueue_nused(vq) > 0)
             {
               vq->callback(vq);
             }
@@ -853,7 +852,6 @@ static int virtio_mmio_init_device(FAR struct virtio_mmio_device_s *vmdev,
 
   /* Reset the virtio device and set ACK */
 
-  virtio_mmio_set_status(vdev, VIRTIO_CONFIG_STATUS_RESET);
   virtio_mmio_set_status(vdev, VIRTIO_CONFIG_STATUS_ACK);
   return OK;
 }

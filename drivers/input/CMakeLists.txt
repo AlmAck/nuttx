@@ -94,6 +94,10 @@ if(CONFIG_INPUT)
     list(APPEND SRCS gt9xx.c)
   endif()
 
+  if(CONFIG_INPUT_ZT2628)
+    list(APPEND SRCS zt2628.c)
+  endif()
+
   if(CONFIG_INPUT_BUTTONS)
     list(APPEND SRCS button_upper.c)
 
@@ -104,6 +108,19 @@ if(CONFIG_INPUT)
 
   if(CONFIG_INPUT_KEYBOARD)
     list(APPEND SRCS keyboard_upper.c)
+    list(APPEND SRCS virtio_key_decode.c)
+  endif()
+
+  if(CONFIG_INPUT_KMATRIX)
+    list(APPEND SRCS kmatrix.c)
+  endif()
+
+  if(CONFIG_INPUT_KMATRIX_I2C)
+    list(APPEND SRCS kmatrix_i2c.c)
+  endif()
+
+  if(CONFIG_INPUT_SBUTTON)
+    list(APPEND SRCS sbutton.c)
   endif()
 
   if(CONFIG_INPUT_DJOYSTICK)
@@ -124,6 +141,10 @@ if(CONFIG_INPUT)
 
   if(CONFIG_INPUT_GOLDFISH_EVENTS)
     list(APPEND SRCS goldfish_events.c)
+  endif()
+
+  if(CONFIG_INPUT_MPR121_KEYPAD)
+    list(APPEND SRCS mpr121.c)
   endif()
 
   target_sources(drivers PRIVATE ${SRCS})

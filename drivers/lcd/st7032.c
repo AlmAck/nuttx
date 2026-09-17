@@ -30,7 +30,7 @@
 
 #include <stdlib.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <string.h>
 
 #include <nuttx/kmalloc.h>
@@ -154,7 +154,7 @@ static inline void st7032_write_inst(FAR struct st7032_dev_s *priv,
 
   /* Delay 30us */
 
-  nxsig_usleep(30);
+  nxsched_usleep(30);
 }
 
 /****************************************************************************
@@ -195,7 +195,7 @@ static inline void st7032_write_data(FAR struct st7032_dev_s *priv,
 
   /* Delay 30us */
 
-  nxsig_usleep(30);
+  nxsched_usleep(30);
 }
 
 static inline void st7032_setcontrast(FAR struct st7032_dev_s *priv,
@@ -1020,7 +1020,7 @@ int st7032_register(FAR const char *devpath, FAR struct i2c_master_s *i2c)
 
   /* Register the driver */
 
-  ret = register_driver(devpath, &g_st7032fops, 0666, priv);
+  ret = register_driver(devpath, &g_st7032fops, 0600, priv);
   if (ret < 0)
     {
       snerr("ERROR: Failed to register driver: %d\n", ret);

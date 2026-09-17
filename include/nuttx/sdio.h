@@ -693,6 +693,20 @@
  *   status.  The driver implementation should verify the correctness of
  *   the remaining, non-returned bits (CRCs, CMD index, etc.).
  *
+ *   SDIO_RECVR2 (136-bit response): The 136-bit response has format: start
+ *   bit (1), transmission bit (0), 6 reserved bits (all 1), 128 bits of
+ *   CID/CSD data, 7-bit CRC, and end bit (1). The upper-half expects the
+ *   buffer to contain exactly 128 bits of payload in the standard layout
+ *   (e.g., r2[0] contains bits 127-96, r2[1] bits 95-64, etc.).
+ *
+ *   The upper-half does not verify the CRC; that is the responsibility of
+ *   the lower-half. If the SDMMC controller hardware removes the trailing
+ *   CRC byte before storing the response, the resulting 128 bits will be
+ *   misaligned (often shifted right by 8 bits with leading zeros). In this
+ *   case, the lower-half implementation MUST shift the four 32-bit words
+ *   left by one byte to restore the expected 128-bit payload alignment.
+ *   See bcm2711_sdio.c or imx9_usdhc.c for examples of this byte-shifting.
+ *
  * Input Parameters:
  *   dev    - An instance of the SDIO device interface
  *   Rx - Buffer in which to receive the response
@@ -928,9 +942,10 @@ enum sdio_clock_e
 {
   CLOCK_SDIO_DISABLED = 0, /* Clock is disabled */
   CLOCK_IDMODE,            /* Initial ID mode clocking (<400KHz) */
-  CLOCK_MMC_TRANSFER,      /* MMC normal operation clocking */
+  CLOCK_MMC_TRANSFER,      /* MMC normal operation clocking (narrow 1-bit mode) */
   CLOCK_SD_TRANSFER_1BIT,  /* SD normal operation clocking (narrow 1-bit mode) */
-  CLOCK_SD_TRANSFER_4BIT   /* SD normal operation clocking (wide 4-bit mode) */
+  CLOCK_SD_TRANSFER_4BIT,  /* SD normal operation clocking (wide 4-bit mode) */
+  CLOCK_MMC_TRANSFER_4BIT  /* MMC normal operation clocking (wide 4-bit mode) */
 };
 
 /* Event set.  A uint8_t is big enough to hold a set of 8-events.  If more

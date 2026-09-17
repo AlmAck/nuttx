@@ -32,7 +32,7 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
@@ -344,7 +344,7 @@ static int spidrvr_unlink(FAR struct inode *inode)
  *     where N is the minor number
  *
  * Returned Value:
- *   OK if the driver was successfully register; A negated errno value is
+ *   OK if the driver was successfully registered; A negated errno value is
  *   returned on any failure.
  *
  ****************************************************************************/
@@ -374,7 +374,7 @@ int spi_register(FAR struct spi_dev_s *spi, int bus)
       /* Create the character device name */
 
       snprintf(devname, sizeof(devname), DEVNAME_FMT, bus);
-      ret = register_driver(devname, &g_spidrvr_fops, 0666, priv);
+      ret = register_driver(devname, &g_spidrvr_fops, 0600, priv);
       if (ret < 0)
         {
           /* Free the device structure if we failed to create the character

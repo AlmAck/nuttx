@@ -35,7 +35,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 
 #include "cxd56_icc.h"
@@ -162,5 +162,5 @@ void cxd56_sysctlinitialize(void)
 {
   cxd56_iccinit(CXD56_PROTO_SYSCTL);
   cxd56_iccregisterhandler(CXD56_PROTO_SYSCTL, sysctl_rxhandler, NULL);
-  register_driver("/dev/sysctl", &g_sysctlfops, 0666, NULL);
+  register_driver("/dev/sysctl", &g_sysctlfops, 0600, NULL);
 }

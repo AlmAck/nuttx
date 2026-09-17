@@ -30,7 +30,7 @@
 #include <string.h>
 #include <signal.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 #include <unistd.h>
 #include <nuttx/fs/fs.h>
@@ -752,7 +752,7 @@ int phyplus_stub_register(void)
 {
   char devname[16];
   snprintf(devname, sizeof(devname), "/dev/phyplus");
-  return register_driver(devname, &g_stub_drvrops, 0666, NULL);
+  return register_driver(devname, &g_stub_drvrops, 0600, NULL);
 }
 
 /****************************************************************************

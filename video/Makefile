@@ -21,7 +21,14 @@
 ############################################################################
 
 include $(TOPDIR)/Make.defs
+
 include videomode/Make.defs
+
+# Add dummy.c to ensure that we have at least one object.
+# On some platforms like macOS, we can't create an empty archive.
+ifeq ($(strip $(ASRCS) $(CSRCS)),)
+  CSRCS = dummy.c
+endif
 
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 COBJS = $(CSRCS:.c=$(OBJEXT))
@@ -41,7 +48,7 @@ $(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
 $(BIN): $(OBJS)
-	$(call ARCHIVE, $@, $(OBJS))
+	$(call ARCHIVE_REBUILD, $@, $(OBJS))
 
 makedepfile: $(CSRCS:.c=.ddc) $(ASRCS:.S=.dds)
 	$(call CATFILE, Make.dep, $^)
@@ -58,6 +65,7 @@ clean:
 	$(call CLEAN)
 
 distclean: clean
+	$(call DELFILE, $(CSRCS:.c=.ddc) $(ASRCS:.S=.dds))
 	$(call DELFILE, Make.dep)
 	$(call DELFILE, .depend)
 

@@ -29,7 +29,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <poll.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/compiler.h>
 #include <nuttx/fs/fs.h>
@@ -648,7 +648,7 @@ void setmdac(struct fusb302_dev_s *priv, enum src_current_e thresh)
   regval |= MEASURE_MDAC(src_mdac_val[thresh]);
 
   fusb302_putreg(priv, FUSB302_MEASURE_REG, regval);
-  nxsig_usleep(150);
+  nxsched_usleep(150);
 }
 
 /****************************************************************************
@@ -1920,7 +1920,7 @@ int fusb302_register(FAR const char *devpath,
 
   /* Register the character driver */
 
-  ret = register_driver(devpath, &g_fusb302ops, 0666, priv);
+  ret = register_driver(devpath, &g_fusb302ops, 0600, priv);
   if (ret < 0)
     {
       fusb302_err("ERROR: Failed to register driver: %d\n", ret);

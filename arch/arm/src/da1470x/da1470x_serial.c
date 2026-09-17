@@ -24,18 +24,18 @@
 
 #include <nuttx/config.h>
 
-#include <sys/types.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <unistd.h>
-#include <string.h>
 #include <assert.h>
-#include <errno.h>
 #include <debug.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-#include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/fs/ioctl.h>
+#include <nuttx/irq.h>
 #include <nuttx/serial/serial.h>
 
 #ifdef CONFIG_SERIAL_TERMIOS
@@ -47,84 +47,94 @@
 #include "arm_internal.h"
 #include "chip.h"
 #include "da1470x_config.h"
-#include "hardware/da1470x_uart.h"
-#include "da1470x_clockconfig.h"
+#include "da1470x_irq.h"
 #include "da1470x_lowputc.h"
 #include "da1470x_serial.h"
+#include "hardware/da1470x_uart.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* How many UARTs are supported */
-
-#ifdef HAVE_UART2
-#  define DA1470X_NUART 3
-#elif HAVE_UART1
-#  define DA1470X_NUART 2
-#else
-#  define DA1470X_NUART 1
-#endif
-
-/* Some sanity checks *******************************************************/
-
-/* Is there at least one UART enabled and configured as a RS-232 device? */
-
-#ifndef HAVE_UART_DEVICE
-#  warning "No UARTs enabled"
-#endif
-
-/* If we are not using the serial driver for the console, then we still must
- * provide some minimal implementation of up_putc.
- */
-
 #if defined(HAVE_UART_DEVICE) && defined(USE_SERIALDRIVER)
 
-/* Which UART with be tty0/console and which tty1-4?  The console will
- * always be ttyS0.  If there is no console then will use the lowest
- * numbered UART.
- */
+/* Which UART with be tty0/console and which tty1-2? */
 
-#ifdef CONFIG_UART0_SERIAL_CONSOLE
-#  define CONSOLE_DEV         g_uart0port /* UART0 is console */
-#  define TTYS0_DEV           g_uart0port /* UART0 is ttyS0 */
+#if defined(CONFIG_UART0_SERIAL_CONSOLE)
+#  define CONSOLE_DEV         g_uart0port
+#  define TTYS0_DEV           g_uart0port
+#  define UART0_ASSIGNED      1
 #elif defined(CONFIG_UART1_SERIAL_CONSOLE)
-#  define CONSOLE_DEV         g_uart1port /* UART1 is console */
-#  define TTYS0_DEV           g_uart1port /* UART1 is ttyS0 */
+#  define CONSOLE_DEV         g_uart1port
+#  define TTYS0_DEV           g_uart1port
+#  define UART1_ASSIGNED      1
+#elif defined(CONFIG_UART2_SERIAL_CONSOLE)
+#  define CONSOLE_DEV         g_uart2port
+#  define TTYS0_DEV           g_uart2port
+#  define UART2_ASSIGNED      1
+#else
+#  undef CONSOLE_DEV
+#  if defined(HAVE_UART0)
+#    define TTYS0_DEV         g_uart0port
+#    define UART0_ASSIGNED    1
+#  elif defined(HAVE_UART1)
+#    define TTYS0_DEV         g_uart1port
+#    define UART1_ASSIGNED    1
+#  elif defined(HAVE_UART2)
+#    define TTYS0_DEV         g_uart2port
+#    define UART2_ASSIGNED    1
+#  endif
+#endif
+
+/* Pick ttyS1 */
+
+#if defined(HAVE_UART0) && !defined(UART0_ASSIGNED)
+#  define TTYS1_DEV           g_uart0port
+#  define UART0_ASSIGNED      1
+#elif defined(HAVE_UART1) && !defined(UART1_ASSIGNED)
+#  define TTYS1_DEV           g_uart1port
+#  define UART1_ASSIGNED      1
+#elif defined(HAVE_UART2) && !defined(UART2_ASSIGNED)
+#  define TTYS1_DEV           g_uart2port
+#  define UART2_ASSIGNED      1
+#endif
+
+/* Pick ttyS2 */
+
+#if defined(HAVE_UART0) && !defined(UART0_ASSIGNED)
+#  define TTYS2_DEV           g_uart0port
+#  define UART0_ASSIGNED      1
+#elif defined(HAVE_UART1) && !defined(UART1_ASSIGNED)
+#  define TTYS2_DEV           g_uart1port
+#  define UART1_ASSIGNED      1
+#elif defined(HAVE_UART2) && !defined(UART2_ASSIGNED)
+#  define TTYS2_DEV           g_uart2port
+#  define UART2_ASSIGNED      1
+#endif
+
+#ifndef BOARD_UART1_RTS_PIN
+#  define BOARD_UART1_RTS_PIN 0
+#endif
+#ifndef BOARD_UART1_CTS_PIN
+#  define BOARD_UART1_CTS_PIN 0
+#endif
+#ifndef BOARD_UART2_RTS_PIN
+#  define BOARD_UART2_RTS_PIN 0
+#endif
+#ifndef BOARD_UART2_CTS_PIN
+#  define BOARD_UART2_CTS_PIN 0
 #endif
 
 /****************************************************************************
  * Private Types
  ****************************************************************************/
 
-/* This structure provides the state of one UART device */
-
 struct da1470x_dev_s
 {
-  uintptr_t uartbase;     /* Base address of UART registers */
-  uint8_t   irq;          /* IRQ associated with this UART */
-  bool      rx_available; /* rx byte available */
-
-  /* UART configuration */
-
-  struct uart_config_s config;
+  uintptr_t uartbase;             /* Base address of UART registers */
+  uint8_t   irq;                  /* IRQ associated with this UART */
+  struct uart_config_s config;    /* Line configuration */
 };
-
-/**
- * \brief Interrupt Identification codes
- *
- */
-
-typedef enum
-  {
-          HW_UART_INT_MODEM_STAT         = 0,
-          HW_UART_INT_NO_INT_PEND        = 1,
-          HW_UART_INT_THR_EMPTY          = 2,
-          HW_UART_INT_RECEIVED_AVAILABLE = 4,
-          HW_UART_INT_RECEIVE_LINE_STAT  = 6,
-          HW_UART_INT_BUSY_DETECTED      = 7,
-          HW_UART_INT_TIMEOUT            = 12,
-  } HW_UART_INT;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -139,6 +149,10 @@ static int  da1470x_ioctl(struct file *filep, int cmd, unsigned long arg);
 static int  da1470x_receive(struct uart_dev_s *dev, unsigned int *status);
 static void da1470x_rxint(struct uart_dev_s *dev, bool enable);
 static bool da1470x_rxavailable(struct uart_dev_s *dev);
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+static bool da1470x_rxflowcontrol(struct uart_dev_s *dev,
+                                  unsigned int nbuffered, bool upper);
+#endif
 static void da1470x_send(struct uart_dev_s *dev, int ch);
 static void da1470x_txint(struct uart_dev_s *dev, bool enable);
 static bool da1470x_txready(struct uart_dev_s *dev);
@@ -159,7 +173,7 @@ static const struct uart_ops_s g_uart_ops =
   .rxint          = da1470x_rxint,
   .rxavailable    = da1470x_rxavailable,
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
-  .rxflowcontrol  = NULL,
+  .rxflowcontrol  = da1470x_rxflowcontrol,
 #endif
   .send           = da1470x_send,
   .txint          = da1470x_txint,
@@ -189,19 +203,12 @@ static struct da1470x_dev_s g_uart0priv =
 {
   .uartbase       = DA1470X_UART0_BASE,
   .irq            = DA1470X_IRQ_UART0,
-  .rx_available   = false,
   .config         =
   {
     .baud         = CONFIG_UART0_BAUD,
     .parity       = CONFIG_UART0_PARITY,
     .bits         = CONFIG_UART0_BITS,
     .stopbits2    = CONFIG_UART0_2STOP,
-#ifdef CONFIG_UART0_IFLOWCONTROL
-    .iflow        = true,
-#endif
-#ifdef CONFIG_UART0_OFLOWCONTROL
-    .oflow        = true,
-#endif
     .txpin        = BOARD_UART0_TX_PIN,
     .rxpin        = BOARD_UART0_RX_PIN,
   }
@@ -231,7 +238,6 @@ static struct da1470x_dev_s g_uart1priv =
 {
   .uartbase       = DA1470X_UART1_BASE,
   .irq            = DA1470X_IRQ_UART1,
-  .rx_available   = false,
   .config         =
   {
     .baud         = CONFIG_UART1_BAUD,
@@ -246,6 +252,8 @@ static struct da1470x_dev_s g_uart1priv =
 #endif
     .txpin        = BOARD_UART1_TX_PIN,
     .rxpin        = BOARD_UART1_RX_PIN,
+    .rtspin       = BOARD_UART1_RTS_PIN,
+    .ctspin       = BOARD_UART1_CTS_PIN,
   }
 };
 
@@ -273,7 +281,6 @@ static struct da1470x_dev_s g_uart2priv =
 {
   .uartbase       = DA1470X_UART2_BASE,
   .irq            = DA1470X_IRQ_UART2,
-  .rx_available   = false,
   .config         =
   {
     .baud         = CONFIG_UART2_BAUD,
@@ -288,6 +295,8 @@ static struct da1470x_dev_s g_uart2priv =
 #endif
     .txpin        = BOARD_UART2_TX_PIN,
     .rxpin        = BOARD_UART2_RX_PIN,
+    .rtspin       = BOARD_UART2_RTS_PIN,
+    .ctspin       = BOARD_UART2_CTS_PIN,
   }
 };
 
@@ -308,24 +317,25 @@ static uart_dev_t g_uart2port =
 };
 #endif
 
-/* This table lets us iterate over the configured UARTs */
-
-static struct uart_dev_s * const g_uart_devs[DA1470X_NUART] =
-{
-#ifdef HAVE_UART0
-  [0] = &g_uart0port,
-#endif
-#ifdef HAVE_UART1
-  [1] = &g_uart1port
-#endif
-#ifdef HAVE_UART2
-  [2] = &g_uart2port
-#endif
-};
-
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: da1470x_serialin / da1470x_serialout
+ ****************************************************************************/
+
+static inline uint32_t da1470x_serialin(struct da1470x_dev_s *priv,
+                                        uint32_t offset)
+{
+  return getreg32(priv->uartbase + offset);
+}
+
+static inline void da1470x_serialout(struct da1470x_dev_s *priv,
+                                     uint32_t offset, uint32_t value)
+{
+  putreg32(value, priv->uartbase + offset);
+}
 
 /****************************************************************************
  * Name: da1470x_setup
@@ -341,20 +351,15 @@ static int da1470x_setup(struct uart_dev_s *dev)
 #ifndef CONFIG_SUPPRESS_UART_CONFIG
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
 
-  /* TODO: Configure the UART as an RS-232 UART */
-
-  /* REVISIT: If da1470x_usart_configure() called 2nd time uart stops working.
-   * Rx interrupt keeps firing.
-   * configuring is done on __start
-   *
-   * UPDATE 19.12.2019: No problems described above were observed,
-   * but just in case we leave the above note for some time.
+  /* The console was configured by da1470x_lowsetup(); reconfiguring it
+   * here would corrupt boot output still in the FIFO.
    */
 
-  da1470x_uart_configure(priv->uartbase, &priv->config);
+  if (!dev->isconsole)
+    {
+      da1470x_uart_configure(priv->uartbase, &priv->config);
+    }
 #endif
-
-  /* TODO: configure UART if not selected as console */
 
   return OK;
 }
@@ -363,8 +368,8 @@ static int da1470x_setup(struct uart_dev_s *dev)
  * Name: da1470x_shutdown
  *
  * Description:
- *   Disable the UART.  This method is called when the serial
- *   port is closed
+ *   Disable the UART.  This method is called when the serial port is
+ *   closed.
  *
  ****************************************************************************/
 
@@ -372,11 +377,8 @@ static void da1470x_shutdown(struct uart_dev_s *dev)
 {
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
 
-  /* Disable interrupts */
-
-  /* Reset hardware and disable Rx and Tx */
-
-  da1470x_uart_disable(priv->uartbase, &priv->config);
+  da1470x_serialout(priv, DA1470X_UART_IER_DLH_OFFSET, 0);
+  da1470x_uart_disable(priv->uartbase);
 }
 
 /****************************************************************************
@@ -385,13 +387,8 @@ static void da1470x_shutdown(struct uart_dev_s *dev)
  * Description:
  *   Configure the UART to operation in interrupt driven mode.  This method
  *   is called when the serial port is opened.  Normally, this is just after
- *   the the setup() method is called, however, the serial console may
- *   operate in a non-interrupt driven mode during the boot phase.
- *
- *   RX and TX interrupts are not enabled when by the attach method (unless
- *   the hardware supports multiple levels of interrupt enabling).
- *   The RX and TX interrupts are not enabled until the txint() and rxint()
- *   methods are called.
+ *   the setup() method is called, however, the serial console may operate
+ *   in a non-interrupt driven mode during the boot phase.
  *
  ****************************************************************************/
 
@@ -399,10 +396,6 @@ static int da1470x_attach(struct uart_dev_s *dev)
 {
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
   int ret;
-
-  /* Attach and enable the IRQ(s).  The interrupts are (probably) still
-   * disabled in the C2 register.
-   */
 
   ret = irq_attach(priv->irq, da1470x_interrupt, dev);
   if (ret == OK)
@@ -419,7 +412,6 @@ static int da1470x_attach(struct uart_dev_s *dev)
  * Description:
  *   Detach UART interrupts.  This method is called when the serial port is
  *   closed normally just before the shutdown method is called.
- *   The exception is the serial console which is never shutdown.
  *
  ****************************************************************************/
 
@@ -427,13 +419,8 @@ static void da1470x_detach(struct uart_dev_s *dev)
 {
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
 
-  /* Disable interrupts */
-
-  putreg32(UART_IIR_FCR, priv->uartbase + DA1470_UART_IIR_FCR_OFFSET);
+  da1470x_serialout(priv, DA1470X_UART_IER_DLH_OFFSET, 0);
   up_disable_irq(priv->irq);
-
-  /* Detach from the interrupt(s) */
-
   irq_detach(priv->irq);
 }
 
@@ -443,9 +430,7 @@ static void da1470x_detach(struct uart_dev_s *dev)
  * Description:
  *   This is the UART interrupt handler.  It will be invoked when an
  *   interrupt is received on the 'irq'.  It should call uart_xmitchars or
- *   uart_recvchars to perform the appropriate data transfers.  The
- *   interrupt handling logic must be able to map the 'arg' to the
- *   appropriate uart_dev_s structure in order to call these functions.
+ *   uart_recvchars to perform the appropriate data transfers.
  *
  ****************************************************************************/
 
@@ -453,46 +438,61 @@ static int da1470x_interrupt(int irq, void *context, void *arg)
 {
   struct uart_dev_s *dev = (struct uart_dev_s *)arg;
   struct da1470x_dev_s *priv;
-  HW_UART_INT int_id;
+  uint32_t iir;
+  int passes;
 
   DEBUGASSERT(dev != NULL && dev->priv != NULL);
   priv = (struct da1470x_dev_s *)dev->priv;
 
-  /* Check RX event */
+  /* Loop until there are no further pending interrupts, bounded so that a
+   * stuck source cannot hang the system.
+   */
 
-  int_id = getreg32(priv->uartbase + DA1470_UART_IIR_FCR_OFFSET) & 0xf;
-
-  if (int_id == HW_UART_INT_RECEIVED_AVAILABLE)
+  for (passes = 0; passes < 256; passes++)
     {
-      priv->rx_available = true;
-      uart_recvchars(dev);
+      iir = da1470x_serialin(priv, DA1470X_UART_IIR_FCR_OFFSET) &
+            UART_IIR_IID_MASK;
+
+      switch (iir)
+        {
+          case UART_IIR_IID_NONE:
+            return OK;
+
+          case UART_IIR_IID_RLS:
+
+            /* Line status: cleared by reading LSR */
+
+            da1470x_serialin(priv, DA1470X_UART_LSR_OFFSET);
+            break;
+
+          case UART_IIR_IID_RDA:
+          case UART_IIR_IID_CTI:
+            uart_recvchars(dev);
+            break;
+
+          case UART_IIR_IID_THRE:
+            uart_xmitchars(dev);
+            break;
+
+          case UART_IIR_IID_BUSY:
+
+            /* Busy detect: cleared by reading USR */
+
+            da1470x_serialin(priv, DA1470X_UART_USR_OFFSET);
+            break;
+
+          case UART_IIR_IID_MODEM:
+          default:
+
+            /* Modem status: cleared by reading MSR (offset 0x18) */
+
+            da1470x_serialin(priv, 0x18);
+            break;
+        }
     }
-
-  /* Clear errors */
-
-  /* Read Line Status Register once because errors are cleared after reading it. */
-
-  uint32_t lsr = getreg32(priv->uartbase + DA1470_UART_LSR_OFFSET);
 
   return OK;
 }
-
-/****************************************************************************
- * Name: da1470x_set_format
- *
- * Description:
- *   Set the serial line format and speed.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_SERIAL_TERMIOS
-void da1470x_set_format(struct uart_dev_s *dev)
-{
-  struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
-
-  da1470x_usart_setformat(priv->uartbase, &priv->config);
-}
-#endif
 
 /****************************************************************************
  * Name: da1470x_ioctl
@@ -505,12 +505,12 @@ void da1470x_set_format(struct uart_dev_s *dev)
 static int da1470x_ioctl(struct file *filep, int cmd, unsigned long arg)
 {
 #ifdef CONFIG_SERIAL_TERMIOS
-  struct inode         *inode  = filep->f_inode;
-  struct uart_dev_s    *dev    = inode->i_private;
-  struct da1470x_dev_s   *priv   = (struct da1470x_dev_s *)dev->priv;
+  struct inode *inode = filep->f_inode;
+  struct uart_dev_s *dev = inode->i_private;
+  struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
   struct uart_config_s *config = &priv->config;
 #endif
-  int                   ret    = OK;
+  int ret = OK;
 
   switch (cmd)
     {
@@ -519,15 +519,15 @@ static int da1470x_ioctl(struct file *filep, int cmd, unsigned long arg)
         {
           struct termios *termiosp = (struct termios *)arg;
 
-          if (!termiosp)
+          if (termiosp == NULL)
             {
               ret = -EINVAL;
               break;
             }
 
-          termiosp->c_cflag = ((config->parity != 0) ? PARENB : 0)
-                              | ((config->parity == 1) ? PARODD : 0)
-                              | ((config->stopbits2) ? CSTOPB : 0) |
+          termiosp->c_cflag = ((config->parity != 0) ? PARENB : 0) |
+                              ((config->parity == 1) ? PARODD : 0) |
+                              ((config->stopbits2) ? CSTOPB : 0) |
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
                               ((config->oflow) ? CCTS_OFLOW : 0) |
 #endif
@@ -536,48 +536,59 @@ static int da1470x_ioctl(struct file *filep, int cmd, unsigned long arg)
 #endif
                               CS8;
 
-          cfsetispeed(termiosp, config->baud);
+          switch (config->bits)
+            {
+              case 5:
+                termiosp->c_cflag = (termiosp->c_cflag & ~CSIZE) | CS5;
+                break;
 
-          break;
+              case 6:
+                termiosp->c_cflag = (termiosp->c_cflag & ~CSIZE) | CS6;
+                break;
+
+              case 7:
+                termiosp->c_cflag = (termiosp->c_cflag & ~CSIZE) | CS7;
+                break;
+
+              default:
+                break;
+            }
+
+          cfsetispeed(termiosp, config->baud);
         }
+        break;
 
       case TCSETS:
         {
           struct termios *termiosp = (struct termios *)arg;
 
-          if (!termiosp)
+          if (termiosp == NULL)
             {
               ret = -EINVAL;
               break;
             }
 
-          /* Perform some sanity checks before accepting any changes */
-
-          if ((termiosp->c_cflag & CSIZE) != CS8)
+          switch (termiosp->c_cflag & CSIZE)
             {
-              ret = -EINVAL;
-              break;
+              case CS5:
+                config->bits = 5;
+                break;
+
+              case CS6:
+                config->bits = 6;
+                break;
+
+              case CS7:
+                config->bits = 7;
+                break;
+
+              case CS8:
+              default:
+                config->bits = 8;
+                break;
             }
 
-#ifndef HAVE_UART_STOPBITS
-          if ((termiosp->c_cflag & CSTOPB) != 0)
-            {
-              ret = -EINVAL;
-              break;
-            }
-#endif
-
-          if (termiosp->c_cflag & PARODD)
-            {
-              ret = -EINVAL;
-              break;
-            }
-
-          /* TODO: CCTS_OFLOW and CRTS_IFLOW */
-
-          /* Parity */
-
-          if (termiosp->c_cflag & PARENB)
+          if ((termiosp->c_cflag & PARENB) != 0)
             {
               config->parity = (termiosp->c_cflag & PARODD) ? 1 : 2;
             }
@@ -586,31 +597,25 @@ static int da1470x_ioctl(struct file *filep, int cmd, unsigned long arg)
               config->parity = 0;
             }
 
-#ifdef HAVE_UART_STOPBITS
-          /* Stop bits */
-
           config->stopbits2 = (termiosp->c_cflag & CSTOPB) != 0;
-#endif
 
-          /* Note that only cfgetispeed is used because we have knowledge
-           * that only one speed is supported.
-           */
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
+          config->oflow = (termiosp->c_cflag & CCTS_OFLOW) != 0;
+#endif
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+          config->iflow = (termiosp->c_cflag & CRTS_IFLOW) != 0;
+#endif
 
           config->baud = cfgetispeed(termiosp);
 
-          /* Effect the changes */
-
-          da1470x_set_format(dev);
-
-          break;
+          da1470x_uart_setformat(priv->uartbase, config);
         }
-#endif
+        break;
+#endif /* CONFIG_SERIAL_TERMIOS */
 
       default:
-        {
-          ret = -ENOTTY;
-          break;
-        }
+        ret = -ENOTTY;
+        break;
     }
 
   return ret;
@@ -629,23 +634,13 @@ static int da1470x_ioctl(struct file *filep, int cmd, unsigned long arg)
 static int da1470x_receive(struct uart_dev_s *dev, unsigned int *status)
 {
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
-  uint32_t data;
 
-  /* Get input data along with receiver control information */
-
-  data = getreg32(priv->uartbase + DA1470_UART_RBR_THR_DLL_OFFSET);
-  priv->rx_available = false;
-
-  /* Return receiver control information */
-
-  if (status)
+  if (status != NULL)
     {
-      *status = 0x00;
+      *status = da1470x_serialin(priv, DA1470X_UART_LSR_OFFSET);
     }
 
-  /* Then return the actual received data. */
-
-  return data;
+  return da1470x_serialin(priv, DA1470X_UART_RBR_THR_DLL_OFFSET) & 0xff;
 }
 
 /****************************************************************************
@@ -659,26 +654,25 @@ static int da1470x_receive(struct uart_dev_s *dev, unsigned int *status)
 static void da1470x_rxint(struct uart_dev_s *dev, bool enable)
 {
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
+  irqstate_t flags;
+  uint32_t ier;
 
-  putreg32(enable << UART_IER_DLH_ERBFI_DLH0, priv->uartbase + DA1470_UART_IER_DLH_OFFSET);
+  flags = enter_critical_section();
+  ier   = da1470x_serialin(priv, DA1470X_UART_IER_DLH_OFFSET);
 
-//   if (enable)
-//     {
-// #ifndef CONFIG_SUPPRESS_SERIAL_INTS
-//       /* Receive an interrupt when their is anything in the Rx data register
-//        * (or an Rx timeout occurs).
-//        */
+  if (enable)
+    {
+#ifndef CONFIG_SUPPRESS_SERIAL_INTS
+      ier |= UART_IER_DLH_ERBFI_DLH0 | UART_IER_DLH_ELSI_DLH2;
+#endif
+    }
+  else
+    {
+      ier &= ~(UART_IER_DLH_ERBFI_DLH0 | UART_IER_DLH_ELSI_DLH2);
+    }
 
-//       putreg32(UART_INT_RXDRDY, priv->uartbase + DA1470X_UART_INTENSET_OFFSET);
-//       putreg32(1, priv->uartbase + DA1470X_UART_TASKS_STARTRX_OFFSET);
-
-// #endif
-//     }
-//   else
-//     {
-//       putreg32(UART_INT_RXDRDY, priv->uartbase + DA1470X_UART_INTENCLR_OFFSET);
-//       putreg32(1, priv->uartbase + DA1470X_UART_TASKS_STOPRX_OFFSET);
-//     }
+  da1470x_serialout(priv, DA1470X_UART_IER_DLH_OFFSET, ier);
+  leave_critical_section(flags);
 }
 
 /****************************************************************************
@@ -693,16 +687,58 @@ static bool da1470x_rxavailable(struct uart_dev_s *dev)
 {
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
 
-  /* Return true if the receive buffer/fifo is not "empty." */
-
-  return priv->rx_available;
+  return (da1470x_serialin(priv, DA1470X_UART_USR_OFFSET) &
+          UART_USR_RFNE) != 0;
 }
+
+/****************************************************************************
+ * Name: da1470x_rxflowcontrol
+ *
+ * Description:
+ *   Called when Rx buffer is full (or exceeds configured watermark levels
+ *   if CONFIG_SERIAL_IFLOWCONTROL_WATERMARKS is defined).
+ *   Return true if UART activated RX flow control to block more incoming
+ *   data
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+static bool da1470x_rxflowcontrol(struct uart_dev_s *dev,
+                                  unsigned int nbuffered, bool upper)
+{
+  struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
+
+  if (priv->config.iflow && priv->uartbase != DA1470X_UART0_BASE)
+    {
+      /* With auto flow control the hardware deasserts RTS when the RX
+       * FIFO reaches its trigger level.  Emulate software control by
+       * driving the RTS bit directly.
+       */
+
+      uint32_t mcr = da1470x_serialin(priv, DA1470X_UART_MCR_OFFSET);
+
+      if (upper)
+        {
+          mcr &= ~UART_MCR_RTS;
+        }
+      else
+        {
+          mcr |= UART_MCR_RTS;
+        }
+
+      da1470x_serialout(priv, DA1470X_UART_MCR_OFFSET, mcr);
+      return upper;
+    }
+
+  return false;
+}
+#endif
 
 /****************************************************************************
  * Name: da1470x_send
  *
  * Description:
- *   This method will send one byte on the UART.
+ *   This method will send one byte on the UART
  *
  ****************************************************************************/
 
@@ -710,13 +746,7 @@ static void da1470x_send(struct uart_dev_s *dev, int ch)
 {
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
 
-// Wait if Transmit Holding Register is full
-
-  putreg32(ch, priv->uartbase + DA1470_UART_RBR_THR_DLL_OFFSET);
-  // while (getreg32(priv->uartbase + DA1470X_UART_EVENTS_TXDRDY_OFFSET) == 0)
-  //   {
-  //   }
-
+  da1470x_serialout(priv, DA1470X_UART_RBR_THR_DLL_OFFSET, (uint32_t)ch);
 }
 
 /****************************************************************************
@@ -730,37 +760,36 @@ static void da1470x_send(struct uart_dev_s *dev, int ch)
 static void da1470x_txint(struct uart_dev_s *dev, bool enable)
 {
   struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
+  irqstate_t flags;
+  uint32_t ier;
 
-  /* Read the current value of the IER_DLH register */
-
-  uint16_t ier_dlh_reg = getreg32(priv->uartbase + DA1470_UART_IER_DLH_OFFSET);
-
-  irqstate_t flags = enter_critical_section();
-
-  /* Modify the required fields */
+  flags = enter_critical_section();
+  ier   = da1470x_serialin(priv, DA1470X_UART_IER_DLH_OFFSET);
 
   if (enable)
     {
-      /* Enable the TX interrupt */
+#ifndef CONFIG_SUPPRESS_SERIAL_INTS
+      /* Plain ETBEI: fires once when the THR/FIFO becomes empty.  PTIME
+       * would keep the interrupt asserted while the FIFO is empty and
+       * storm the CPU.
+       */
 
-      ier_dlh_reg |= (UART_IER_DLH_ETBEI_DLH1 | UART_IER_DLH_PTIME_DLH7);
+      ier |= UART_IER_DLH_ETBEI_DLH1;
+      da1470x_serialout(priv, DA1470X_UART_IER_DLH_OFFSET, ier);
 
       /* Fake a TX interrupt here by just calling uart_xmitchars() with
        * interrupts disabled (note this may recurse).
        */
 
       uart_xmitchars(dev);
+#endif
     }
   else
     {
-      /* Disable the TX interrupt */
-
-      ier_dlh_reg &= ~(UART_IER_DLH_ETBEI_DLH1 | UART_IER_DLH_PTIME_DLH7);
+      ier &= ~(UART_IER_DLH_ETBEI_DLH1 | UART_IER_DLH_PTIME_DLH7);
+      da1470x_serialout(priv, DA1470X_UART_IER_DLH_OFFSET, ier);
     }
 
-  /* Write the updated value back to the register */
-
-  putreg32(ier_dlh_reg, priv->uartbase + DA1470_UART_IER_DLH_OFFSET);
   leave_critical_section(flags);
 }
 
@@ -768,34 +797,32 @@ static void da1470x_txint(struct uart_dev_s *dev, bool enable)
  * Name: da1470x_txready
  *
  * Description:
- *   Return true if the tranmsit data register is empty
+ *   Return true if the transmit FIFO is not full
  *
  ****************************************************************************/
 
 static bool da1470x_txready(struct uart_dev_s *dev)
 {
-  /* struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv; */
+  struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
 
-  /* Return true if the transmit FIFO is "not full." */
-
-  return true;
+  return (da1470x_serialin(priv, DA1470X_UART_USR_OFFSET) &
+          UART_USR_TFNF) != 0;
 }
 
 /****************************************************************************
  * Name: da1470x_txempty
  *
  * Description:
- *   Return true if the transmit data register is empty
+ *   Return true if the transmit FIFO is empty
  *
  ****************************************************************************/
 
 static bool da1470x_txempty(struct uart_dev_s *dev)
 {
-  /* struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv; */
+  struct da1470x_dev_s *priv = (struct da1470x_dev_s *)dev->priv;
 
-  /* Return true if the transmit FIFO is "empty." */
-
-  return true;
+  return (da1470x_serialin(priv, DA1470X_UART_USR_OFFSET) &
+          UART_USR_TFE) != 0;
 }
 
 /****************************************************************************
@@ -807,21 +834,17 @@ static bool da1470x_txempty(struct uart_dev_s *dev)
  *
  * Description:
  *   Performs the low level UART initialization early in debug so that the
- *   serial console will be available during bootup.  This must be called
- *   before da1470x_serialinit.  NOTE:  This function depends on GPIO pin
- *   configuration performed in da1470x_lowsetup() and main clock
- *   initialization performed in da1470_clock_configure().
+ *   serial console will be available during boot up.  This must be called
+ *   before arm_serialinit.
  *
  ****************************************************************************/
 
 #ifdef USE_EARLYSERIALINIT
 void da1470x_earlyserialinit(void)
 {
-  /* Configuration whichever one is the console */
-
-#ifdef HAVE_UART_CONSOLE
+#ifdef CONSOLE_DEV
   CONSOLE_DEV.isconsole = true;
-  //da1470x_setup(&CONSOLE_DEV);
+  da1470x_setup(&CONSOLE_DEV);
 #endif
 }
 #endif
@@ -833,53 +856,22 @@ void da1470x_earlyserialinit(void)
  *   Register serial console and serial ports.  This assumes
  *   that da1470x_earlyserialinit was called previously.
  *
- * Input Parameters:
- *   None
- *
- * Returns Value:
- *   None
- *
  ****************************************************************************/
 
 void arm_serialinit(void)
 {
-  unsigned minor = 0;
-  unsigned i     = 0;
-  char devname[16];
-
-#ifdef HAVE_UART_CONSOLE
-  /* Register the serial console */
-
+#ifdef CONSOLE_DEV
   uart_register("/dev/console", &CONSOLE_DEV);
-  uart_register("/dev/ttyS0", &TTYS0_DEV);
-  minor = 1;
 #endif
-
-  /* Register all remaining UARTs */
-
-  strlcpy(devname, "/dev/ttySx", sizeof(devname));
-
-  for (i = 0; i < DA1470X_NUART; i++)
-    {
-      /* Don't create a device for non-configured ports. */
-
-      if (g_uart_devs[i] == NULL)
-        {
-          continue;
-        }
-
-      /* Don't create a device for the console - we did that above */
-
-      if (g_uart_devs[i]->isconsole)
-        {
-          continue;
-        }
-
-      /* Register USARTs as devices in increasing order */
-
-      devname[9] = '0' + minor++;
-      uart_register(devname, g_uart_devs[i]);
-    }
+#ifdef TTYS0_DEV
+  uart_register("/dev/ttyS0", &TTYS0_DEV);
+#endif
+#ifdef TTYS1_DEV
+  uart_register("/dev/ttyS1", &TTYS1_DEV);
+#endif
+#ifdef TTYS2_DEV
+  uart_register("/dev/ttyS2", &TTYS2_DEV);
+#endif
 }
 
 /****************************************************************************
@@ -892,15 +884,9 @@ void arm_serialinit(void)
 
 void up_putc(int ch)
 {
-#ifdef HAVE_UART_CONSOLE
-  /* struct da1470x_dev_s *priv = (struct da1470x_dev_s *)CONSOLE_DEV.priv; */
-
-  /* Check for LF */
-
+#ifdef CONSOLE_DEV
   if (ch == '\n')
     {
-      /* Add CR */
-
       arm_lowputc('\r');
     }
 
@@ -908,25 +894,17 @@ void up_putc(int ch)
 #endif
 }
 
-#else /* USE_SERIALDRIVER */
+#else /* HAVE_UART_DEVICE && USE_SERIALDRIVER */
 
 /****************************************************************************
  * Name: up_putc
- *
- * Description:
- *   Provide priority, low-level access to support OS debug writes
- *
  ****************************************************************************/
 
 void up_putc(int ch)
 {
 #ifdef HAVE_UART_CONSOLE
-  /* Check for LF */
-
   if (ch == '\n')
     {
-      /* Add CR */
-
       arm_lowputc('\r');
     }
 

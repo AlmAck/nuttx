@@ -28,7 +28,7 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/signal.h>
@@ -203,7 +203,7 @@ static int pca9635pw_open(FAR struct file *filep)
    * was left.
    */
 
-  nxsig_usleep(500);
+  nxsched_usleep(500);
 
   /* Turn all led drivers to mode 2 in which the led brightness is controlled
    * by the individual pwm registers.
@@ -356,7 +356,7 @@ int pca9635pw_register(FAR const char *devpath, FAR struct i2c_master_s *i2c,
 
   /* Register the character driver */
 
-  int const ret = register_driver(devpath, &g_pca9635pw_fileops, 0222, priv);
+  int const ret = register_driver(devpath, &g_pca9635pw_fileops, 0200, priv);
   if (ret != OK)
     {
       lcderr("ERROR: Failed to register driver: %d\n", ret);

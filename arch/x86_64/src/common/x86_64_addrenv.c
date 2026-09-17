@@ -60,7 +60,7 @@
 
 #include <errno.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/addrenv.h>
 #include <nuttx/arch.h>
@@ -69,6 +69,8 @@
 #include <nuttx/pgalloc.h>
 
 #include <nuttx/spinlock.h>
+
+#include <arch/arch.h>
 
 #include "addrenv.h"
 #include "pgalloc.h"
@@ -192,10 +194,18 @@ static int create_spgtables(arch_addrenv_t *addrenv)
 static void copy_kernel_mappings(arch_addrenv_t *addrenv)
 {
   uintptr_t *pdpt = (uintptr_t *)x86_64_pgvaddr(addrenv->spgtables[1]);
+  int        i;
 
   /* Kernel mapping - lower 1GB maps to 4GB-5GB */
 
   pdpt[4] = X86_PDPT_KERNEL_MAP;
+
+  /* Inherit the boot identity mapping of the low 4GB. */
+
+  for (i = 0; i < X86_MMU_LOWMEM_PDPTS; i++)
+    {
+      pdpt[i] = g_pdpt[i];
+    }
 }
 
 /****************************************************************************

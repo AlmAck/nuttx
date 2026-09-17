@@ -9,6 +9,7 @@
 *.dSYM
 *.elf
 *.exe
+etctmp/
 *.gcno
 *.gcda
 *.hex
@@ -25,6 +26,8 @@
 *.rel
 *.src
 *.srec
+*.swn
+*.swo
 *.swp
 *.sym
 *.wsp
@@ -34,6 +37,10 @@
 *.pyc
 *.mapfile
 *.SystemMap
+*.ld.tmp
+*.script.tmp
+*.script.dfu.tmp
+*.linkcmd.tmp
 *~
 \#*\#
 .\#*
@@ -53,6 +60,7 @@
 /_SAVED_APPS_config
 /cscope.*
 /defconfig
+/defconfig.tmp.bak
 /Make.defs
 /nuttx
 /nuttx32
@@ -60,7 +68,7 @@
 /nuttx.*
 /nuttx_user*
 /staging
-/tags
+**/tags
 /TAGS
 core
 Make*.dep
@@ -73,9 +81,11 @@ uImage
 .dirlinks
 .fakelnk
 .vscode
+.idea
+.vscode-ctags
 .DS_Store
 tools/gdb/__pycache__
-/build
+/build*
 .ccls-cache
 compile_commands.json
 imx9-sdimage.img
@@ -85,3 +95,4 @@ SAVEconfig
 .aider*
 imx9-norimage.img
 config.txt
+dump_error

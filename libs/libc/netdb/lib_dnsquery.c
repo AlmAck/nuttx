@@ -44,7 +44,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <assert.h>
 
 #include <arpa/inet.h>
@@ -694,6 +694,19 @@ static int dns_recv_response(int sd, FAR union dns_addr_u *addr, int naddr,
           break;
         }
 
+      /* Verify that a complete answer header (10 bytes: type, class,
+       * ttl[2], len) is available before casting to dns_answer_s.
+       * Without this check, accessing ans->ttl and ans->type/class/len
+       * would be an OOB read if fewer than 10 bytes remain.
+       */
+
+      if (nameptr + sizeof(struct dns_answer_s) > endofbuffer)
+        {
+          ret = -EILSEQ;
+          nwarn("DNS answer header truncated\n");
+          break;
+        }
+
       ans = (FAR struct dns_answer_s *)nameptr;
 
       ninfo("Answer: type=%04x, class=%04x, ttl=%06x, length=%04x\n",
@@ -843,7 +856,7 @@ static void dns_query_error(FAR const char *prompt, int ret,
  ****************************************************************************/
 
 static int dns_query_callback(FAR void *arg, FAR struct sockaddr *addr,
-                              FAR socklen_t addrlen)
+                              socklen_t addrlen)
 {
   FAR struct dns_query_data_s *qdata = arg;
   FAR struct dns_query_s      *query = &qdata->query;
@@ -854,12 +867,15 @@ static int dns_query_callback(FAR void *arg, FAR struct sockaddr *addr,
   bool stream = false;
 
   /* Loop while receive timeout errors occur and there are remaining
-   * retries.
+   * retries. Use progressive timeout strategy.
    */
 
   for (retries = 0; retries < CONFIG_NETDB_DNSCLIENT_RETRIES; retries++)
     {
       bool should_try_stream;
+
+      ninfo("INFO: DNS query retry %d/%d\n",
+            retries + 1, CONFIG_NETDB_DNSCLIENT_RETRIES);
 
 try_stream:
 #ifdef CONFIG_NET_IPv6
@@ -867,7 +883,7 @@ try_stream:
         {
           /* Send the IPv6 query */
 
-          sd = dns_bind(addr->sa_family, stream);
+          sd = dns_bind(addr->sa_family, stream, retries);
           if (sd < 0)
             {
               query->result = sd;
@@ -922,7 +938,7 @@ try_stream:
         {
           /* Send the IPv4 query */
 
-          sd = dns_bind(addr->sa_family, stream);
+          sd = dns_bind(addr->sa_family, stream, retries);
           if (sd < 0)
             {
               query->result = sd;

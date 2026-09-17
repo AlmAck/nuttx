@@ -29,7 +29,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/config.h>
 
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 #include <nuttx/mutex.h>
 #include <nuttx/semaphore.h>
@@ -1402,6 +1402,6 @@ void sx126x_register(FAR struct spi_dev_s *spi,
 
   sx126x_attachirq0(dev, sx126x_irq0handler, dev);
 
-  (void)register_driver(path, &sx126x_ops, 0666,
+  (void)register_driver(path, &sx126x_ops, 0600,
                         dev);
 }

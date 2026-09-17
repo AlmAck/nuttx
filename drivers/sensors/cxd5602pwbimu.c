@@ -20,6 +20,19 @@
  *
  ****************************************************************************/
 
+/* WARNING for developers:
+ *
+ * This driver uses the legacy style of writing sensor drivers for NuttX. The
+ * project has since decided to adopt a new sensor framework in order to
+ * have a consistent API and feature-set.
+ *
+ * Sensors which use the uORB framework are typically suffixed "_uorb". You
+ * can also visit the documentation about the new sensor framework to learn
+ * more.
+ */
+
+#warning "This is a deprecated legacy sensor driver."
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -31,7 +44,7 @@
 #include <fixedmath.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <stdio.h>
 #include <poll.h>
 #include <fcntl.h>
@@ -1800,7 +1813,7 @@ int cxd5602pwbimu_register(FAR const char *devpath,
   nxsem_init(&priv->dataready, 0, 0);
   nxsem_init(&priv->bufsem, 0, 1);
 
-  ret = register_driver(devpath, &g_cxd5602pwbimufops, 0666, priv);
+  ret = register_driver(devpath, &g_cxd5602pwbimufops, 0600, priv);
   if (ret < 0)
     {
       snerr("Failed to register driver: %d\n", ret);

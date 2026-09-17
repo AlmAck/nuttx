@@ -24,7 +24,8 @@
 
 #include <stdlib.h>
 #include <assert.h>
-#include <debug.h>
+
+#include <nuttx/debug.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/himem/himem.h>
 #include <nuttx/spinlock.h>
@@ -1069,7 +1070,7 @@ int esp_himem_init(void)
 
   /* Register the character driver */
 
-  ret = register_driver("/dev/himem", &g_himemfops, 0666, NULL);
+  ret = register_driver("/dev/himem", &g_himemfops, 0600, NULL);
   if (ret < 0)
     {
       merr("ERROR: Failed to register driver: %d\n", ret);

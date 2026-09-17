@@ -35,6 +35,7 @@ CHIP_CSRCS += mpfs_lowputc.c mpfs_serial.c
 CHIP_CSRCS += mpfs_start.c mpfs_timerisr.c
 CHIP_CSRCS += mpfs_gpio.c mpfs_systemreset.c
 CHIP_CSRCS += mpfs_plic.c mpfs_dsn.c
+CHIP_CSRCS += mpfs_perf.c
 
 ifeq ($(CONFIG_MPFS_CLKINIT),y)
 CHIP_CSRCS += mpfs_clockconfig.c
@@ -86,6 +87,10 @@ endif
 
 ifeq (${CONFIG_MPFS_HAVE_COREPWM},y)
 CHIP_CSRCS += mpfs_corepwm.c
+endif
+
+ifeq (${CONFIG_MPFS_MSS_CAN}, y)
+CHIP_CSRCS += mpfs_can.c
 endif
 
 ifeq (${CONFIG_MPFS_DDR_INIT},y)

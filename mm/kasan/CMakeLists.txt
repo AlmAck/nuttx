@@ -25,7 +25,18 @@ if(CONFIG_MM_KASAN)
   list(APPEND FLAGS ${NO_LTO})
   list(APPEND FLAGS -fno-builtin)
   list(APPEND FLAGS -fno-sanitize=kernel-address)
+
+  if(NOT "${CONFIG_MM_KASAN_MARK_LOCATION}" STREQUAL "")
+    target_compile_definitions(
+      mm PRIVATE -DMM_KASAN_MARK_LOCATION="${CONFIG_MM_KASAN_MARK_LOCATION}")
+  endif()
+
 endif()
 
 target_sources(mm PRIVATE ${SRCS})
-target_compile_options(mm PRIVATE ${FLAGS})
+
+if(CONFIG_BUILD_FLAT)
+  target_compile_options(mm PRIVATE ${FLAGS})
+else()
+  target_compile_options(kmm PRIVATE ${FLAGS})
+endif()

@@ -24,8 +24,19 @@
 
 set(SRCS)
 
+if(CONFIG_ARCH_LOWPUTC)
+  list(APPEND SRCS syslog_early.c)
+endif()
+
 if(CONFIG_SYSLOG)
-  list(APPEND SRCS vsyslog.c syslog_channel.c syslog_write.c syslog_flush.c)
+
+  if(CONFIG_SYSLOG_RFC5424)
+    list(APPEND SRCS vsyslog_rfc5424.c)
+  else()
+    list(APPEND SRCS vsyslog.c)
+  endif()
+
+  list(APPEND SRCS syslog_channel.c syslog_write.c syslog_flush.c)
 endif()
 
 if(CONFIG_SYSLOG_INTBUFFER)

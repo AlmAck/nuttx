@@ -35,7 +35,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <fcntl.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 
 #include "arm_internal.h"
@@ -233,7 +233,7 @@ static ssize_t uart0_write(struct file *filep,
 
 int cxd56_uart0initialize(const char *devname)
 {
-  return register_driver(devname, &g_uart0fops, 0666, NULL);
+  return register_driver(devname, &g_uart0fops, 0600, NULL);
 }
 
 /****************************************************************************

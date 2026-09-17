@@ -1,7 +1,5 @@
 /****************************************************************************
- * arch/arm/src/da1470x/hardware/da1470x_pmu.h
- *
- * Power Management Unit (PMU) Register Definitions for DA1470x
+ * arch/arm/src/da1470x/da1470x_pmu.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -29,52 +27,80 @@
 
 #include <nuttx/config.h>
 
+#include <stdbool.h>
+#include <stdint.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-// /* Register Base Addresses */
+/* POWER_LVL_REG encodings */
 
-// #define DA1470_CRG_TOP_POWER_CTRL        0x500000F0
-// #define DA1470_CRG_TOP_POWER_LVL         0x500000F8
-// #define DA1470_CRG_TOP_ANA_STATUS        0x500000EC
+#define DA1470X_V12_LEVEL_0P75V    0x0
+#define DA1470X_V12_LEVEL_0P90V    0x1
+#define DA1470X_V12_LEVEL_1P20V    0x2
+#define DA1470X_V30_LEVEL_3P00V    0x8
+#define DA1470X_V30_LEVEL_3P30V    0xa
 
-// /* POWER_CTRL_REG Bit Definitions */
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
 
-// #define CRG_TOP_POWER_CTRL_DCDC_V12_EN   (1 << 1)
-// #define CRG_TOP_POWER_CTRL_DCDC_V18_EN   (1 << 3)
-// #define CRG_TOP_POWER_CTRL_LDO_V30_EN    (1 << 5)
+/* Power-domain identifiers.  Each domain is gated through a
+ * PMU_CTRL.<x>_SLEEP bit, readiness is reported by SYS_STAT.<x>_IS_UP.
+ * PD_SYS hosts the M33 and is handled by the PM code only; PD_MEM follows
+ * PD_SYS and has no SLEEP bit.
+ */
 
-// /* POWER_LVL_REG Field Positions and Masks */
-
-#define POWER_LVL_REG_V12_LEVEL_POS      0
-#define POWER_LVL_REG_V12_LEVEL_MASK     (0xF << POWER_LVL_REG_V12_LEVEL_POS)
-#define POWER_LVL_REG_V12_LEVEL_1P2V     0x3
-
-#define POWER_LVL_REG_V18_LEVEL_POS      4
-#define POWER_LVL_REG_V18_LEVEL_MASK     (0xF << POWER_LVL_REG_V18_LEVEL_POS)
-#define POWER_LVL_REG_V18_LEVEL_1P8V     0x5
-
-#define POWER_LVL_REG_V30_LEVEL_POS      8
-#define POWER_LVL_REG_V30_LEVEL_MASK     (0xF << POWER_LVL_REG_V30_LEVEL_POS)
-#define POWER_LVL_REG_V30_LEVEL_3P0V     0xA
-
-// /* ANA_STATUS_REG Bit Definitions */
-
-// #define CRG_TOP_BUCK_DCDC_V12_OK         (1 << 1)
-// #define CRG_TOP_BUCK_DCDC_V18_OK         (1 << 3)
-// #define CRG_TOP_LDO_V30_OK               (1 << 5)
+enum da1470x_pd_e
+{
+  DA1470X_PD_SNC = 0,   /* Sensor node: UART, SPI, I2C, DMA, GPADC */
+  DA1470X_PD_TIM,       /* General purpose timers, PWM LED */
+  DA1470X_PD_AUD,       /* Audio */
+  DA1470X_PD_GPU,       /* GPU and LCD controller */
+  DA1470X_PD_CTRL,      /* External memory controller (QSPIC2 PSRAM) */
+  DA1470X_PD_RAD,       /* Radio and CMAC */
+  DA1470X_NPD
+};
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
-/* Initialize power domains (V12, V18, V30) for DA1470x */
+/****************************************************************************
+ * Name: da1470x_pwr_init
+ *
+ * Description:
+ *   Enable the V12, V18 and V30 rails at their nominal levels and wait for
+ *   them to settle.  Called once from __start before any peripheral is
+ *   touched.
+ *
+ ****************************************************************************/
 
 void da1470x_pwr_init(void);
 
-void da1470x_pmu_set_1v2_max(void);
+/****************************************************************************
+ * Name: da1470x_pmu_set_v12
+ *
+ * Description:
+ *   Program the V12 rail level (DA1470X_V12_LEVEL_*) and wait until the
+ *   DCDC reports the rail OK.  1.2 V is required for RCHS_64/96 and PLL.
+ *
+ ****************************************************************************/
 
-void da1470x_pmu_enable_v12_if_needed(void);
+int da1470x_pmu_set_v12(uint32_t level);
+
+/****************************************************************************
+ * Name: da1470x_pd_enable / da1470x_pd_disable / da1470x_pd_is_up
+ *
+ * Description:
+ *   Power-domain control.  da1470x_pd_enable() blocks (bounded) until the
+ *   domain reports IS_UP and returns -ETIMEDOUT if it never does.
+ *
+ ****************************************************************************/
+
+int  da1470x_pd_enable(enum da1470x_pd_e pd);
+void da1470x_pd_disable(enum da1470x_pd_e pd);
+bool da1470x_pd_is_up(enum da1470x_pd_e pd);
 
 #endif /* __ARCH_ARM_SRC_DA1470X_DA1470X_PMU_H */

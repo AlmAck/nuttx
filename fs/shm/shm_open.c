@@ -29,9 +29,10 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/stat.h>
 
 #include "inode/inode.h"
-#include "notify/notify.h"
+#include "vfs/vfs.h"
 #include "shm/shmfs.h"
 
 /****************************************************************************
@@ -111,6 +112,16 @@ static int file_shm_open(FAR struct file *shm, FAR const char *name,
           goto errout_with_sem;
         }
 
+#ifdef CONFIG_PSEUDOFS_ATTRIBUTES
+      if (((oflags & O_ACCMODE) != O_RDONLY && !(inode->i_mode & S_IWUSR)) ||
+          ((oflags & O_ACCMODE) != O_WRONLY && !(inode->i_mode & S_IRUSR)))
+        {
+          ret = -EACCES;
+          inode_release(inode);
+          goto errout_with_sem;
+        }
+#endif
+
       /* If the shared memory object already exists, truncate it to
        * zero bytes.
        */
@@ -150,8 +161,7 @@ static int file_shm_open(FAR struct file *shm, FAR const char *name,
 
   /* Associate the inode with a file structure */
 
-  memset(shm, 0, sizeof(*shm));
-  shm->f_oflags = oflags | O_CLOEXEC | O_NOFOLLOW;
+  shm->f_oflags = oflags | O_NOFOLLOW;
   shm->f_inode = inode;
 
 errout_with_sem:
@@ -173,24 +183,33 @@ errout_with_sem:
 
 int shm_open(FAR const char *name, int oflag, mode_t mode)
 {
-  struct file shm;
+  FAR struct file *shm;
   int ret;
+  int fd;
 
-  ret = file_shm_open(&shm, name, oflag, mode);
+  shm = file_allocate();
+  if (shm == NULL)
+    {
+      set_errno(ENOMEM);
+      return ERROR;
+    }
+
+  ret = file_shm_open(shm, name, oflag, mode);
   if (ret < 0)
     {
+      file_deallocate(shm);
       set_errno(-ret);
       return ERROR;
     }
 
-  ret = file_allocate(shm.f_inode, shm.f_oflags, shm.f_pos, shm.f_priv, 0,
-                      false);
-  if (ret < 0)
+  fd = file_dup(shm, 0, oflag | O_CLOEXEC);
+  if (fd < 0)
     {
-      set_errno(-ret);
-      file_close(&shm);
+      file_close(shm);
+      file_deallocate(shm);
+      set_errno(-fd);
       return ERROR;
     }
 
-  return ret;
+  return fd;
 }

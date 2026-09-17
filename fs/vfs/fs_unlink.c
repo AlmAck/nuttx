@@ -33,8 +33,8 @@
 
 #include <nuttx/fs/fs.h>
 
-#include "notify/notify.h"
 #include "inode/inode.h"
+#include "vfs.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -118,6 +118,14 @@ int nx_unlink(FAR const char *pathname)
       if (inode->i_child != NULL)
         {
           ret = -ENOTEMPTY;
+          goto errout_with_inode;
+        }
+
+      /* Verify parent-directory write permission before unlink. */
+
+      ret = inode_checkperm(desc.parent, W_OK);
+      if (ret < 0)
+        {
           goto errout_with_inode;
         }
 

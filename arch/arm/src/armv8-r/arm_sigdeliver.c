@@ -29,8 +29,8 @@
 #include <stdint.h>
 #include <sched.h>
 #include <assert.h>
-#include <debug.h>
 
+#include <nuttx/debug.h>
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/board.h>
@@ -153,9 +153,7 @@ retry:
 
   board_autoled_off(LED_SIGNAL);
 #ifdef CONFIG_SMP
-  rtcb->irqcount++;
-  leave_critical_section(regs[REG_CPSR]);
-  rtcb->irqcount--;
+  leave_critical_section(up_irq_save());
 #endif
 
   rtcb->xcp.regs = rtcb->xcp.saved_regs;

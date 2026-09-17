@@ -35,7 +35,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 
 #include "arm_internal.h"
@@ -226,7 +226,7 @@ static inline int cxd56_sphdevinit(const char *devname, int num)
 
   snprintf(fullpath, sizeof(fullpath), "/dev/%s%d", devname, num);
 
-  ret = register_driver(fullpath, &g_sph_fops, 0666, (void *)priv);
+  ret = register_driver(fullpath, &g_sph_fops, 0600, (void *)priv);
   if (ret != 0)
     {
       return ERROR;

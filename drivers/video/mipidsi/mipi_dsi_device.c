@@ -27,7 +27,7 @@
 #include <nuttx/config.h>
 
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -422,10 +422,10 @@ ssize_t mipi_dsi_dcs_write_buffer(FAR struct mipi_dsi_device *device,
 {
   struct mipi_dsi_msg msg;
 
+  memset(&msg, 0, sizeof(msg));
   msg.channel = device->channel;
   msg.tx_buf = data;
   msg.tx_len = len;
-  msg.flags = 0;
 
   switch (len)
     {
@@ -998,8 +998,8 @@ int mipi_dsi_dcs_get_display_brightness(FAR struct mipi_dsi_device *device,
  *   channel - The channel used by dsi device
  *
  * Returned Value:
- *   struct mipi_dsi_device* if the driver was successfully register; NULL is
- *   returned on any failure.
+ *   struct mipi_dsi_device* if the driver was successfully registered;
+ *   NULL is returned on any failure.
  *
  ****************************************************************************/
 

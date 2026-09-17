@@ -33,14 +33,15 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/himem/himem.h>
 
 #include "esp32_i2c.h"
-#include "esp32_gpio.h"
+#include "espressif/esp_gpio.h"
 #include "esp32_partition.h"
+#include "esp32_start.h"
 
 #include <arch/board/board.h>
 
@@ -68,7 +69,7 @@
 #  include "esp32_ble.h"
 #endif
 
-#ifdef CONFIG_ESPRESSIF_WLAN
+#ifdef CONFIG_ESPRESSIF_WIFI
 #  include "esp32_board_wlan.h"
 #endif
 
@@ -92,20 +93,24 @@
 #  include <nuttx/video/fb.h>
 #endif
 
-#ifdef CONFIG_ESP32_RT_TIMER
-#  include "esp32_rt_timer.h"
-#endif
-
 #ifdef CONFIG_LCD_DEV
 #  include <nuttx/lcd/lcd_dev.h>
 #endif
 
 #ifdef CONFIG_RTC_DRIVER
-#  include "esp32_rtc_lowerhalf.h"
+#  include "espressif/esp_rtc.h"
+#endif
+
+#ifdef CONFIG_ESPRESSIF_HR_TIMER
+#  include "espressif/esp_hr_timer.h"
 #endif
 
 #ifdef CONFIG_LCD_BACKPACK
 #  include "esp32_lcd_backpack.h"
+#endif
+
+#ifdef CONFIG_MMCSD_SPI
+#  include "esp32_board_sdmmc.h"
 #endif
 
 #include "esp32-audio-kit.h"
@@ -122,9 +127,6 @@
  *
  *   CONFIG_BOARD_LATE_INITIALIZE=y :
  *     Called from board_late_initialize().
- *
- *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_BOARDCTL=y :
- *     Called from the NSH library
  *
  ****************************************************************************/
 
@@ -172,8 +174,8 @@ int esp32_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_MMCSD
-  ret = esp32_mmcsd_initialize(0);
+#ifdef CONFIG_MMCSD_SPI
+  ret = board_sdmmc_initialize();
   if (ret < 0)
     {
       syslog(LOG_ERR, "Failed to initialize SD slot: %d\n", ret);
@@ -197,14 +199,6 @@ int esp32_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_ESP32_RT_TIMER
-  ret = esp32_rt_timer_init();
-  if (ret < 0)
-    {
-      syslog(LOG_ERR, "Failed to initialize RT timer: %d\n", ret);
-    }
-#endif
-
 #ifdef CONFIG_ESPRESSIF_BLE
   ret = esp32_ble_initialize();
   if (ret)
@@ -213,12 +207,20 @@ int esp32_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_ESPRESSIF_WLAN
+#ifdef CONFIG_ESPRESSIF_WIFI
   ret = board_wlan_init();
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: Failed to initialize wlan subsystem=%d\n",
              ret);
+    }
+#endif
+
+#ifdef CONFIG_ESPRESSIF_HR_TIMER
+  ret = esp_hr_timer_init();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: esp_hr_timer_init() failed: %d\n", ret);
     }
 #endif
 
@@ -228,7 +230,7 @@ int esp32_bringup(void)
 
 #ifdef CONFIG_TIMER
 
-#if defined(CONFIG_ESP32_TIMER0) && !defined(CONFIG_ESP32_RT_TIMER)
+#if defined(CONFIG_ESP32_TIMER0) && !defined(CONFIG_ESPRESSIF_HR_TIMER)
   ret = esp32_timer_initialize("/dev/timer0", TIMER0);
   if (ret < 0)
     {
@@ -305,14 +307,12 @@ int esp32_bringup(void)
 #endif
 
 #ifdef CONFIG_DEV_GPIO
-  ret = esp32_gpio_init();
+  ret = esp_gpio_init();
   if (ret < 0)
     {
       syslog(LOG_ERR, "Failed to initialize GPIO Driver: %d\n", ret);
     }
 #endif
-
-#ifdef CONFIG_I2C_DRIVER
 
 #ifdef CONFIG_ESP32_I2C0
   ret = esp32_i2c_register(0);
@@ -332,8 +332,6 @@ int esp32_bringup(void)
     }
 #endif
 
-#endif
-
 #ifdef CONFIG_ESPRESSIF_I2S
 
 #ifdef CONFIG_ESPRESSIF_I2S0
@@ -344,8 +342,8 @@ int esp32_bringup(void)
 
   /* Configure ES8388 audio on I2C0 and I2S0 */
 
-  esp32_configgpio(SPEAKER_ENABLE_GPIO, OUTPUT);
-  esp32_gpiowrite(SPEAKER_ENABLE_GPIO, true);
+  esp_configgpio(SPEAKER_ENABLE_GPIO, OUTPUT);
+  esp_gpiowrite(SPEAKER_ENABLE_GPIO, true);
 
   ret = esp32_es8388_initialize(ESP32_I2C0, ES8388_I2C_ADDR,
                                 ES8388_I2C_FREQ, ESP32_I2S0);
@@ -428,7 +426,7 @@ int esp32_bringup(void)
 #ifdef CONFIG_RTC_DRIVER
   /* Instantiate the ESP32 RTC driver */
 
-  ret = esp32_rtc_driverinit();
+  ret = esp_rtc_driverinit();
   if (ret < 0)
     {
       syslog(LOG_ERR,

@@ -30,7 +30,7 @@
  ****************************************************************************/
 
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <string.h>
@@ -117,6 +117,11 @@ static_assert((CONFIG_NET_LL_GUARDSIZE % 4) == 2,
 #define RNDIS_MAXSTRLEN         (RNDIS_MXDESCLEN-2)
 #define RNDIS_CTRLREQ_LEN       (256)
 #define RNDIS_RESP_QUEUE_WORDS  (64)
+
+/* NDIS maximum frame size excludes the Ethernet header. */
+
+#define RNDIS_MAX_FRAME_SIZE    (CONFIG_NET_ETH_PKTSIZE - ETH_HDRLEN)
+#define RNDIS_MAX_TOTAL_SIZE    CONFIG_NET_ETH_PKTSIZE
 
 #define RNDIS_BUFFER_SIZE       CONFIG_NET_ETH_PKTSIZE
 #define RNDIS_BUFFER_COUNT      4
@@ -520,7 +525,7 @@ static const struct rndis_oid_value_s g_rndis_oid_values[] =
     sizeof(g_rndis_supported_oids), 0,
     g_rndis_supported_oids
   },
-  {RNDIS_OID_GEN_MAXIMUM_FRAME_SIZE,    4, CONFIG_NET_ETH_PKTSIZE,  NULL},
+  {RNDIS_OID_GEN_MAXIMUM_FRAME_SIZE,    4, RNDIS_MAX_FRAME_SIZE,    NULL},
 #if defined(CONFIG_USBDEV_DUALSPEED) || defined(CONFIG_USBDEV_SUPERSPEED)
   {RNDIS_OID_GEN_LINK_SPEED,            4, 100000,              NULL},
 #else
@@ -531,7 +536,7 @@ static const struct rndis_oid_value_s g_rndis_oid_values[] =
   {RNDIS_OID_GEN_VENDOR_ID,             4, 0x00ffffff,          NULL},
   {RNDIS_OID_GEN_VENDOR_DESCRIPTION,    6, 0,                   "RNDIS"},
   {RNDIS_OID_GEN_CURRENT_PACKET_FILTER, 4, 0,                   NULL},
-  {RNDIS_OID_GEN_MAXIMUM_TOTAL_SIZE,    4, 2048,                NULL},
+  {RNDIS_OID_GEN_MAXIMUM_TOTAL_SIZE,    4, RNDIS_MAX_TOTAL_SIZE,    NULL},
   {RNDIS_OID_GEN_XMIT_OK,               4, 0,                   NULL},
   {RNDIS_OID_GEN_RCV_OK,                4, 0,                   NULL},
   {RNDIS_OID_802_3_PERMANENT_ADDRESS,   6, 0,                   NULL},
@@ -1022,7 +1027,7 @@ static void rndis_rxdispatch(FAR void *arg)
   FAR struct eth_hdr_s *hdr;
   irqstate_t flags;
 
-  net_lock();
+  netdev_lock(&priv->netdev);
   flags = enter_critical_section();
   rndis_giverxreq(priv);
   priv->netdev.d_len = priv->current_rx_datagram_size;
@@ -1099,7 +1104,7 @@ static void rndis_rxdispatch(FAR void *arg)
       rndis_freenetreq(priv);
     }
 
-  net_unlock();
+  netdev_unlock(&priv->netdev);
 }
 
 /****************************************************************************
@@ -1164,6 +1169,7 @@ static int rndis_transmit(FAR struct rndis_dev_s *priv)
 
 static int rndis_ifup(FAR struct net_driver_s *dev)
 {
+  netdev_carrier_on(dev);
   return OK;
 }
 
@@ -1177,6 +1183,7 @@ static int rndis_ifup(FAR struct net_driver_s *dev)
 
 static int rndis_ifdown(FAR struct net_driver_s *dev)
 {
+  netdev_carrier_off(dev);
   return OK;
 }
 
@@ -1192,7 +1199,7 @@ static void rndis_txavail_work(FAR void *arg)
 {
   FAR struct rndis_dev_s *priv = (FAR struct rndis_dev_s *)arg;
 
-  net_lock();
+  netdev_lock(&priv->netdev);
 
   if (rndis_allocnetreq(priv))
     {
@@ -1203,7 +1210,7 @@ static void rndis_txavail_work(FAR void *arg)
         }
     }
 
-  net_unlock();
+  netdev_unlock(&priv->netdev);
 }
 
 /****************************************************************************
@@ -1845,6 +1852,7 @@ static void usbclass_ep0incomplete(FAR struct usbdev_ep_s *ep,
         priv->response_queue_words -= len_words;
         memcpy(priv->response_queue, priv->response_queue + len_words,
                priv->response_queue_words * sizeof(uint32_t));
+        rndis_send_encapsulated_response(priv, 0);
       }
     }
 }
@@ -2604,15 +2612,26 @@ static int usbclass_setup(FAR struct usbdevclass_driver_s *driver,
                   }
                 else
                   {
-                    /* Retrieve a single reply from the response queue to
-                     * control request buffer.
+                    /* Reply info as many as possible, if host read less than
+                     * cached, just send one msg to avoid msg truncation
                      */
 
                     FAR struct rndis_response_header *hdr =
                       (struct rndis_response_header *)priv->response_queue;
-                    memcpy(ctrlreq->buf, hdr, hdr->msglen);
+                    ret = priv->response_queue_words * sizeof(uint32_t);
+                    if (ret > len)
+                      {
+                        if (hdr->msglen > len)
+                          {
+                            ret = -EMSGSIZE;
+                            break;
+                          }
+
+                        ret = hdr->msglen;
+                      }
+
+                    memcpy(ctrlreq->buf, hdr, ret);
                     ctrlreq->priv = priv;
-                    ret = hdr->msglen;
                   }
               }
           }
@@ -2748,6 +2767,22 @@ static void usbclass_resetconfig(FAR struct rndis_dev_s *priv)
 }
 
 /****************************************************************************
+ * Name: rndis_carrier_on_work
+ *
+ * Description:
+ *   Schedule to work queue because netdev_carrier_on API can't be used in
+ *   interrupt context
+ *
+ ****************************************************************************/
+
+static void rndis_carrier_on_work(FAR void *arg)
+{
+  FAR struct rndis_dev_s *priv = arg;
+
+  netdev_carrier_on(&priv->netdev);
+}
+
+/****************************************************************************
  * Name: usbclass_setconfig
  *
  * Description:
@@ -2855,10 +2890,16 @@ static int usbclass_setconfig(FAR struct rndis_dev_s *priv, uint8_t config)
   /* We are successfully configured */
 
   priv->config = config;
-  if (priv->netdev.d_ifup(&priv->netdev) == OK)
-    {
-      priv->netdev.d_flags |= IFF_UP;
-    }
+
+  priv->netdev.d_flags |= IFF_UP;
+
+  /* Schedule to work queue because netdev_carrier_on API can't be used in
+   * interrupt context. Since the current network card is not yet RUNNING,
+   * it will not be selected to trigger rndis_txavail, so pollwork can be
+   * reused.
+   */
+
+  work_queue(LPWORK, &priv->pollwork, rndis_carrier_on_work, priv, 0);
 
   return OK;
 

@@ -42,12 +42,19 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Address <--> Context Save Areas */
+/* MTCR and MFCR - move to / from Core Special Function Register */
 
-#define tricore_csa2addr(csa) ((uintptr_t *)((((csa) & 0x000F0000) << 12) \
-                                             | (((csa) & 0x0000FFFF) << 6)))
-#define tricore_addr2csa(addr) ((uintptr_t)(((((uintptr_t)(addr)) & 0xF0000000) >> 12) \
-                                            | (((uintptr_t)(addr) & 0x003FFFC0) >> 6)))
+#define tricore_mtcr(reg, val)                                         \
+  ({                                                                   \
+    __asm__ volatile ("mtcr %0,%1\n\t"::"i"(reg),"d"(val):"memory");   \
+  })
+
+#define tricore_mfcr(reg)                                              \
+  ({                                                                   \
+    uint32_t __val;                                                    \
+    __asm__ volatile ("mfcr %0,%1": "=d" (__val) :"i"(reg): "memory"); \
+    __val;                                                             \
+  })
 
 /****************************************************************************
  * Public Types

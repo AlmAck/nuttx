@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
@@ -248,7 +248,7 @@ int dat31r5sp_register(FAR const char *devpath,
 
   /* Register the character driver */
 
-  ret = register_driver(devpath, &g_dat31r5sp_fops, 0666, priv);
+  ret = register_driver(devpath, &g_dat31r5sp_fops, 0600, priv);
   if (ret < 0)
     {
       snerr("ERROR: Failed to register driver: %d\n", ret);

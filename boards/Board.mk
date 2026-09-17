@@ -30,11 +30,23 @@ $(RCOBJS): $(ETCDIR)$(DELIM)%: %
 	$(Q) mkdir -p $(dir $@)
 	$(call PREPROCESS, $<, $@)
 
-$(ETCSRC): $(foreach raw,$(RCRAWS), $(if $(wildcard $(BOARD_DIR)$(DELIM)src$(DELIM)$(raw)), $(BOARD_DIR)$(DELIM)src$(DELIM)$(raw), $(if $(wildcard $(BOARD_COMMON_DIR)$(DELIM)$(raw)), $(BOARD_COMMON_DIR)$(DELIM)$(raw), $(BOARD_DIR)$(DELIM)src$(DELIM)$(raw)))) $(RCOBJS)
+$(ETCSRC): $(foreach raw,$(RCRAWS), $(if $(wildcard $(BOARD_DIR)$(DELIM)src$(DELIM)$(raw)), $(BOARD_DIR)$(DELIM)src$(DELIM)$(raw), $(if $(wildcard $(BOARD_COMMON_DIR)$(DELIM)$(raw)), $(BOARD_COMMON_DIR)$(DELIM)$(raw), $(BOARD_DIR)$(DELIM)src$(DELIM)$(raw)))) $(RCOBJS) $(TOPDIR)$(DELIM).config
 	$(foreach raw, $(RCRAWS), \
 	  $(shell rm -rf $(ETCDIR)$(DELIM)$(raw)) \
 	  $(shell mkdir -p $(dir $(ETCDIR)$(DELIM)$(raw))) \
 	  $(shell cp -rfp $(if $(wildcard $(BOARD_DIR)$(DELIM)src$(DELIM)$(raw)), $(BOARD_DIR)$(DELIM)src$(DELIM)$(raw), $(if $(wildcard $(BOARD_COMMON_DIR)$(DELIM)$(raw)), $(BOARD_COMMON_DIR)$(DELIM)$(raw), $(BOARD_DIR)$(DELIM)src$(DELIM)$(raw))) $(ETCDIR)$(DELIM)$(raw)))
+ifeq ($(CONFIG_BOARD_ETC_ROMFS_PASSWD_ENABLE),y)
+	$(Q) set -e; \
+	mkdir -p $(ETCDIR)$(DELIM)$(CONFIG_ETC_ROMFSMOUNTPT); \
+	$(TOPDIR)$(DELIM)tools$(DELIM)board_romfs_mkpasswd.sh \
+		$(TOPDIR) $(ETCDIR)$(DELIM).romfs_passwd.txt \
+		$(TOPDIR)$(DELIM)tools$(DELIM)mkpasswd$(HOSTEXEEXT) \
+		$(ETCDIR)$(DELIM)$(CONFIG_ETC_ROMFSMOUNTPT)$(DELIM)passwd \
+		--user $(CONFIG_BOARD_ETC_ROMFS_PASSWD_USER) \
+		--uid $(CONFIG_BOARD_ETC_ROMFS_PASSWD_UID) \
+		--gid $(CONFIG_BOARD_ETC_ROMFS_PASSWD_GID) \
+		--home $(CONFIG_BOARD_ETC_ROMFS_PASSWD_HOME)
+endif
 	$(Q) genromfs -f romfs.img -d $(ETCDIR)$(DELIM)$(CONFIG_ETC_ROMFSMOUNTPT) -V "NSHInitVol"
 	$(Q) echo "#include <nuttx/compiler.h>" > $@
 	$(Q) xxd -i romfs.img | sed -e "s/^unsigned char/const unsigned char aligned_data(4)/g" >> $@

@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 
 #include <nuttx/kmalloc.h>
@@ -324,7 +324,7 @@ static int rd_geometry(FAR struct inode *inode,
 
       finfo("available: true mediachanged: false writeenabled: %s\n",
             geometry->geo_writeenabled ? "true" : "false");
-      finfo("nsectors: %" PRIuOFF " sectorsize: %" PRIi16 "\n",
+      finfo("nsectors: %" PRIuOFF " sectorsize: %" PRId32 "\n",
             geometry->geo_nsectors, geometry->geo_sectorsize);
 
       return OK;

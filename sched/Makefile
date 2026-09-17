@@ -43,6 +43,7 @@ include timer/Make.defs
 include tls/Make.defs
 include wdog/Make.defs
 include wqueue/Make.defs
+include hrtimer/Make.defs
 
 CFLAGS += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)sched
 
@@ -64,7 +65,7 @@ $(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
 $(BIN): $(OBJS)
-	$(call ARCHIVE, $@, $(OBJS))
+	$(call ARCHIVE_REBUILD, $@, $(OBJS))
 
 makedepfile: $(CSRCS:.c=.ddc) $(ASRCS:.S=.dds)
 	$(call CATFILE, Make.dep, $^)
@@ -81,6 +82,7 @@ clean:
 	$(call CLEAN)
 
 distclean: clean
+	$(call DELFILE, $(CSRCS:.c=.ddc) $(ASRCS:.S=.dds))
 	$(call DELFILE, Make.dep)
 	$(call DELFILE, .depend)
 

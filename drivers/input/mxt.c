@@ -42,8 +42,8 @@
 #include <poll.h>
 #include <errno.h>
 #include <assert.h>
-#include <debug.h>
 
+#include <nuttx/debug.h>
 #include <nuttx/irq.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/mutex.h>
@@ -1742,7 +1742,7 @@ static int mxt_hwinitialize(FAR struct mxt_dev_s *priv)
       goto errout_with_objtab;
     }
 
-  nxsig_usleep(MXT_RESET_TIME);
+  nxsched_usleep(MXT_RESET_TIME);
 
   /* Update matrix size in the info structure */
 
@@ -1883,7 +1883,7 @@ int mxt_register(FAR struct i2c_master_s *i2c,
   snprintf(devname, sizeof(devname), DEV_FORMAT, minor);
   iinfo("Registering %s\n", devname);
 
-  ret = register_driver(devname, &g_mxt_fops, 0666, priv);
+  ret = register_driver(devname, &g_mxt_fops, 0600, priv);
   if (ret < 0)
     {
       ierr("ERROR: register_driver() failed: %d\n", ret);

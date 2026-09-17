@@ -28,7 +28,7 @@
 
 #include <sys/mount.h>
 #include <sys/types.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/input/buttons.h>
 #include <nuttx/leds/userled.h>
@@ -54,9 +54,6 @@
  *
  *   CONFIG_BOARD_LATE_INITIALIZE=y :
  *     Called from board_late_initialize().
- *
- *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_BOARDCTL=y :
- *     Called from the NSH library
  *
  ****************************************************************************/
 
@@ -109,6 +106,54 @@ int stm32_bringup(void)
       syslog(LOG_ERR, "ERROR: stm32_adc_setup failed: %d\n", ret);
     }
 #endif /* CONFIG_ADC*/
+
+#ifdef CONFIG_STM32_DTS
+  /* devno == 0 creates /dev/sensor_temp0 */
+
+  ret = stm32_dts_setup(0);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: stm32_adc_setup failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_STM32_FDCAN_CHARDRIVER
+  /* Initialize CAN and register the CAN driver. */
+# ifdef CONFIG_STM32_FDCAN1
+  ret = stm32_can_setup(1);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: FDCAN1 stm32_fdcan_setup failed: %d\n", ret);
+    }
+# endif
+
+# ifdef CONFIG_STM32_FDCAN2
+  ret = stm32_can_setup(2);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: FDCAN2 stm32_fdcan_setup failed: %d\n", ret);
+    }
+# endif
+#endif
+
+#ifdef CONFIG_PWM
+  /* Initialize PWM and register the PWM device. */
+
+  ret = stm32_pwm_setup();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: stm32_pwm_setup() failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_USBHOST
+  ret = stm32_usbhost_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to initialize USB host: %d\n", ret);
+      return ret;
+    }
+#endif
 
   UNUSED(ret);
   return OK;

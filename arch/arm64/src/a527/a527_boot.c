@@ -27,7 +27,7 @@
 #include <nuttx/config.h>
 #include <stdint.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/compiler.h>
 #include <nuttx/cache.h>
@@ -237,10 +237,6 @@ void arm64_chip_boot(void)
   /* Map the RAM and I/O Memory, enable the MMU */
 
   arm64_mmu_init(true);
-
-  /* Optional: Enable the Memory Tagging Extension */
-
-  arm64_enable_mte();
 
 #if defined(CONFIG_ARM64_PSCI)
   /* Init the Power State Coordination Interface */

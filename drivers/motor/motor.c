@@ -34,7 +34,7 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/fs/fs.h>
@@ -535,7 +535,7 @@ errout:
  *           as the driver persists.
  *
  * Returned Value:
- *   OK if the driver was successfully register; A negated errno value is
+ *   OK if the driver was successfully registered; A negated errno value is
  *   returned on any failure.
  *
  ****************************************************************************/
@@ -587,7 +587,7 @@ int motor_register(FAR const char *path,
 
   /* Register the motor character driver */
 
-  ret = register_driver(path, &g_motor_fops, 0666, upper);
+  ret = register_driver(path, &g_motor_fops, 0600, upper);
   if (ret < 0)
     {
       nxmutex_destroy(&upper->closelock);

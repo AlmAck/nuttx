@@ -20,6 +20,19 @@
  *
  ****************************************************************************/
 
+/* WARNING for developers:
+ *
+ * This driver uses the legacy style of writing sensor drivers for NuttX. The
+ * project has since decided to adopt a new sensor framework in order to
+ * have a consistent API and feature-set.
+ *
+ * Sensors which use the uORB framework are typically suffixed "_uorb". You
+ * can also visit the documentation about the new sensor framework to learn
+ * more.
+ */
+
+#warning "This is a deprecated legacy sensor driver."
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -145,11 +158,11 @@ static ssize_t bmi160_read(FAR struct file *filep, FAR char *buffer,
       return 0;
     }
 
+  /* Set sensor_time to the lower 24 bits of SENSORTIME. */
+
+  p->sensor_time = 0;
+
   bmi160_getregs(priv, BMI160_DATA_8, (FAR uint8_t *)buffer, 15);
-
-  /* Adjust sensing time into 24 bit */
-
-  p->sensor_time >>= 8;
 
   return len;
 }
@@ -283,7 +296,7 @@ int bmi160_register(FAR const char *devpath, FAR struct spi_dev_s *dev)
 
   bmi160_putreg8(priv, BMI160_PMU_TRIGGER, 0);
 
-  ret = register_driver(devpath, &g_bmi160fops, 0666, priv);
+  ret = register_driver(devpath, &g_bmi160fops, 0600, priv);
   if (ret < 0)
     {
       snerr("Failed to register driver: %d\n", ret);

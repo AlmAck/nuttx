@@ -36,7 +36,7 @@
 #include <poll.h>
 #include <errno.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <arch/irq.h>
 
@@ -490,7 +490,7 @@ int usrsock_request(FAR struct iovec *iov, unsigned int iovcnt)
 
   /* Set outstanding request for daemon to handle. */
 
-  net_mutex_lock(&dev->devlock);
+  usrsock_mutex_timedlock(&dev->devlock, UINT_MAX);
 
   if (usrsockdev_is_opened(dev))
     {
@@ -523,7 +523,7 @@ int usrsock_request(FAR struct iovec *iov, unsigned int iovcnt)
 
 void usrsock_register(void)
 {
-  register_driver("/dev/usrsock", &g_usrsockdevops, 0666,
+  register_driver("/dev/usrsock", &g_usrsockdevops, 0600,
                   &g_usrsockdev);
 }
 

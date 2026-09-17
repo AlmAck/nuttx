@@ -35,7 +35,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <time.h>
 #include <sys/time.h>
 #include <sys/param.h>
@@ -54,16 +54,16 @@
 #include "esp_i2c_slave.h"
 #include "xtensa.h"
 #if defined(CONFIG_ARCH_CHIP_ESP32S3)
-#include "esp32s3_gpio.h"
-#include "esp32s3_irq.h"
+#include "esp_gpio.h"
+#include "esp_irq.h"
 #include "hardware/esp32s3_gpio_sigmap.h"
 #elif defined(CONFIG_ARCH_CHIP_ESP32S2)
-#include "esp32s2_gpio.h"
-#include "esp32s2_irq.h"
+#include "espressif/esp_gpio.h"
+#include "espressif/esp_irq.h"
 #include "esp32s2_gpio_sigmap.h"
 #else
-#include "esp32_gpio.h"
-#include "esp32_irq.h"
+#include "esp_gpio.h"
+#include "esp_irq.h"
 #include "esp32_gpio_sigmap.h"
 #endif
 
@@ -73,7 +73,7 @@
 #include "hal/i2c_ll.h"
 #include "soc/system_reg.h"
 #include "soc/gpio_sig_map.h"
-#include "soc/i2c_periph.h"
+#include "hal/i2c_periph.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -85,48 +85,21 @@
 #define CONFIG_ESPRESSIF_I2C1_SCLPIN               CONFIG_ESP32S3_I2C1_SCLPIN
 #define CONFIG_ESPRESSIF_I2C1_SDAPIN               CONFIG_ESP32S3_I2C1_SDAPIN
 #define ESP_IRQ_I2C_EXT0                           ESP32S3_IRQ_I2C_EXT0
-#define ESP_IRQ_TRIGGER_LEVEL                      ESP32S3_CPUINT_LEVEL
 #define ESP_IRQ_PRIORITY_DEFAULT                   ESP32S3_INT_PRIO_DEF
-#define esp_setup_irq                              esp32s3_setup_irq
-#define esp_teardown_irq                           esp32s3_teardown_irq
-#define esp_gpiowrite(pin, value)                  esp32s3_gpiowrite(pin, value)
-#define esp_configgpio(pin, attr)                  esp32s3_configgpio(pin, attr)
-#define esp_gpio_matrix_in(pin, idx, inv)          esp32s3_gpio_matrix_in(pin, \
-                                                          idx, inv)
-#define esp_gpio_matrix_out(pin, idx, inv, en_inv) esp32s3_gpio_matrix_out(pin, \
-                                                          idx, inv, en_inv)
 #elif defined(CONFIG_ARCH_CHIP_ESP32S2)
 #define CONFIG_ESPRESSIF_I2C0_SCLPIN               CONFIG_ESP32S2_I2C0_SCLPIN
 #define CONFIG_ESPRESSIF_I2C0_SDAPIN               CONFIG_ESP32S2_I2C0_SDAPIN
 #define CONFIG_ESPRESSIF_I2C1_SCLPIN               CONFIG_ESP32S2_I2C1_SCLPIN
 #define CONFIG_ESPRESSIF_I2C1_SDAPIN               CONFIG_ESP32S2_I2C1_SDAPIN
 #define ESP_IRQ_I2C_EXT0                           ESP32S2_IRQ_I2C_EXT0
-#define ESP_IRQ_TRIGGER_LEVEL                      ESP32S2_CPUINT_LEVEL
 #define ESP_IRQ_PRIORITY_DEFAULT                   ESP32S2_INT_PRIO_DEF
-#define esp_setup_irq                              esp32s2_setup_irq
-#define esp_teardown_irq                           esp32s2_teardown_irq
-#define esp_gpiowrite(pin, value)                  esp32s2_gpiowrite(pin, value)
-#define esp_configgpio(pin, attr)                  esp32s2_configgpio(pin, attr)
-#define esp_gpio_matrix_in(pin, idx, inv, en_inv)  esp32s2_gpio_matrix_in(pin, \
-                                                          idx, inv, en_inv)
-#define esp_gpio_matrix_out(pin, idx, inv, en_inv) esp32s2_gpio_matrix_out(pin, \
-                                                          idx, inv, en_inv)
 #else
 #define CONFIG_ESPRESSIF_I2C0_SCLPIN       CONFIG_ESP32_I2C0_SCLPIN
 #define CONFIG_ESPRESSIF_I2C0_SDAPIN       CONFIG_ESP32_I2C0_SDAPIN
 #define CONFIG_ESPRESSIF_I2C1_SCLPIN       CONFIG_ESP32_I2C1_SCLPIN
 #define CONFIG_ESPRESSIF_I2C1_SDAPIN       CONFIG_ESP32_I2C1_SDAPIN
 #define ESP_IRQ_I2C_EXT0                   ESP32_IRQ_I2C_EXT0
-#define ESP_IRQ_TRIGGER_LEVEL              ESP32_CPUINT_LEVEL
 #define ESP_IRQ_PRIORITY_DEFAULT           1
-#define esp_setup_irq                      esp32_setup_irq
-#define esp_teardown_irq                   esp32_teardown_irq
-#define esp_gpiowrite(pin, value)          esp32_gpiowrite(pin, value)
-#define esp_configgpio(pin, attr)          esp32_configgpio(pin, attr)
-#define esp_gpio_matrix_in(pin, idx, inv)  esp32_gpio_matrix_in(pin, \
-                                                          idx, inv)
-#define esp_gpio_matrix_out(pin, idx, inv) esp32_gpio_matrix_out(pin, \
-                                                          idx, inv)
 #endif
 
 #define I2C_FIFO_FULL_THRESH_VAL      28
@@ -137,6 +110,12 @@
 #define I2C_SLAVE_BUFF_SIZE           1024
 #ifdef CONFIG_I2C_POLLED
 #define I2C_SLAVE_POLL_RATE           10
+#endif
+
+#if !SOC_RCC_IS_INDEPENDENT
+#  define I2C_RCC_ATOMIC() PERIPH_RCC_ATOMIC()
+#else
+#  define I2C_RCC_ATOMIC()
 #endif
 
 /****************************************************************************
@@ -599,7 +578,11 @@ static void esp_i2c_slave_init(struct esp_i2c_priv_s *priv)
 
   /* Enable I2C hardware */
 
-  periph_module_enable(i2c_periph_signal[priv->id].module);
+  I2C_RCC_ATOMIC()
+    {
+      i2c_ll_enable_bus_clock(priv->id, true);
+      i2c_ll_reset_register(priv->id);
+    }
 
   i2c_hal_init(priv->ctx, priv->id);
 
@@ -610,7 +593,7 @@ static void esp_i2c_slave_init(struct esp_i2c_priv_s *priv)
   /* Initialize I2C Slave */
 
   i2c_hal_slave_init(priv->ctx);
-  i2c_ll_slave_tx_auto_start_en(priv->ctx->dev, true);
+  i2c_ll_slave_enable_auto_start(priv->ctx->dev, true);
   i2c_ll_set_source_clk(priv->ctx->dev, I2C_CLK_SRC_DEFAULT);
   i2c_ll_set_slave_addr(priv->ctx->dev, priv->addr, false);
   i2c_ll_set_rxfifo_full_thr(priv->ctx->dev, I2C_FIFO_FULL_THRESH_VAL);
@@ -642,7 +625,10 @@ static void esp_i2c_slave_deinit(struct esp_i2c_priv_s *priv)
   const struct esp_i2c_config_s *config = priv->config;
 
   i2c_hal_deinit(priv->ctx);
-  periph_module_disable(i2c_periph_signal[priv->id].module);
+  I2C_RCC_ATOMIC()
+    {
+      i2c_ll_enable_bus_clock(priv->id, false);
+    }
 }
 
 /****************************************************************************
@@ -708,7 +694,7 @@ static int esp_i2c_slave_polling_waitdone(struct esp_i2c_priv_s *priv)
   current = clock_systime_ticks();
   timeout = current + SEC2TICK(I2C_SLAVE_POLL_RATE);
 
-  while ((sclock_t)(current - timeout) < 0)
+  while (current - timeout < 0)
     {
       /* Check if any interrupt triggered, clear them
        * process the operation.
@@ -765,14 +751,14 @@ static int esp_i2c_slave_thread(int argc, char **argv)
       (struct esp_i2c_priv_s *)((uintptr_t)strtoul(argv[1], NULL, 16));
   int ret;
 
-  nxsig_usleep(1000);
+  nxsched_usleep(1000);
   while (true)
     {
       esp_i2c_slave_polling_waitdone(priv);
 
       /* Sleeping thread before checking i2c peripheral */
 
-      nxsig_usleep(100);
+      nxsched_usleep(100);
     }
 
   return OK;
@@ -922,41 +908,17 @@ struct i2c_slave_s *esp_i2cbus_slave_initialize(int port, int addr)
       /* Disable the previous IRQ */
 
       up_disable_irq(config->irq);
-      esp_teardown_irq(
-#ifndef CONFIG_ARCH_CHIP_ESP32S2
-                       this_cpu(),
-#endif
-                       config->periph, priv->cpuint);
+      esp_teardown_irq(config->periph, priv->cpuint);
     }
 
-  priv->cpuint = esp_setup_irq(
-#ifndef CONFIG_ARCH_CHIP_ESP32S2
-                               this_cpu(),
-#endif
-                               config->periph,
+  priv->cpuint = esp_setup_irq(config->periph,
                                ESP_IRQ_PRIORITY_DEFAULT,
-                               ESP_IRQ_TRIGGER_LEVEL);
+                               ESP_IRQ_TRIGGER_LEVEL,
+                               esp_i2c_slave_irq, priv);
   if (priv->cpuint < 0)
     {
       /* Failed to allocate a CPU interrupt of this type. */
 
-      priv->refs--;
-      nxmutex_unlock(&priv->lock);
-
-      return NULL;
-    }
-
-  ret = irq_attach(config->irq, esp_i2c_slave_irq, priv);
-  if (ret != OK)
-    {
-      /* Failed to attach IRQ, free the allocated CPU interrupt */
-
-      esp_teardown_irq(
-#ifndef CONFIG_ARCH_CHIP_ESP32S2
-                       this_cpu(),
-#endif
-                       config->periph, priv->cpuint);
-      priv->cpuint = -ENOMEM;
       priv->refs--;
       nxmutex_unlock(&priv->lock);
 

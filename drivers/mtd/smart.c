@@ -39,7 +39,7 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/crc8.h>
 #include <nuttx/crc16.h>
@@ -951,7 +951,7 @@ static ssize_t smart_write(FAR struct inode *inode,
 
   /* I think maybe we need to lock on a mutex here */
 
-  /* Get the aligned block.  Here is is assumed: (1) The number of R/W blocks
+  /* Get the aligned block.  Here it is assumed: (1) The number of R/W blocks
    * per erase block is a power of 2, and (2) the erase begins with that same
    * alignment.
    */
@@ -1074,7 +1074,7 @@ static int smart_geometry(FAR struct inode *inode,
 
       finfo("available: true mediachanged: false writeenabled: %s\n",
             geometry->geo_writeenabled ? "true" : "false");
-      finfo("nsectors: %" PRIuOFF " sectorsize: %" PRIi16 "\n",
+      finfo("nsectors: %" PRIuOFF " sectorsize: %" PRId32 "\n",
             geometry->geo_nsectors, geometry->geo_sectorsize);
 
       return OK;
@@ -4150,7 +4150,7 @@ errout:
  * Name: smart_write_wearstatus
  *
  * Description:  Writes the wear leveling status bits to sector zero (and
- *               possibly others if it doesn't fit) such that is is persisted
+ *               possibly others if it doesn't fit) such that it is persisted
  *               across OS reboots.
  *
  ****************************************************************************/
@@ -4271,7 +4271,7 @@ errout:
  * Name: smart_read_wearstatus
  *
  * Description:  Reads the wear leveling status bits from sector zero (and
- *               possibly others if it doesn't fit) such that is is persisted
+ *               possibly others if it doesn't fit) such that it is persisted
  *               across OS reboots.
  *
  ****************************************************************************/
@@ -6346,7 +6346,7 @@ errout:
 #ifdef CONFIG_SMART_DEV_LOOP
 int smart_loop_register_driver(void)
 {
-  return register_driver("/dev/smart", &g_fops, 0666, NULL);
+  return register_driver("/dev/smart", &g_fops, 0600, NULL);
 }
 #endif
 

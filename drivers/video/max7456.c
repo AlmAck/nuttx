@@ -71,7 +71,7 @@
 #include <nuttx/config.h>
 
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <string.h>
 #include <limits.h>
 
@@ -1662,7 +1662,7 @@ int max7456_register(FAR const char *path, FAR struct mx7_config_s *config)
 
   for (n = 0; ret >= 0 && n < NODE_MAP_LEN; n++)
     {
-      ret = add_interface(path, node_map[n].path, &g_mx7_fops, 0666, dev);
+      ret = add_interface(path, node_map[n].path, &g_mx7_fops, 0600, dev);
     }
 
 #if defined(DEBUG)
@@ -1675,7 +1675,7 @@ int max7456_register(FAR const char *path, FAR struct mx7_config_s *config)
   for (n = 0; ret >= 0 && n < REG_NAME_MAP_LEN; n++)
     {
       ret = add_interface(path, reg_name_map[n].path, &g_mx7_debug_fops,
-                          0666, dev);
+                          0600, dev);
     }
 #endif
 

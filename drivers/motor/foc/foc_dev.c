@@ -28,7 +28,7 @@
 
 #include <stdio.h>
 #include <fcntl.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 #include <assert.h>
 
@@ -915,7 +915,7 @@ int foc_register(FAR const char *path, FAR struct foc_dev_s *dev)
 
   /* Register the FOC character driver */
 
-  ret = register_driver(path, &g_foc_fops, 0666, dev);
+  ret = register_driver(path, &g_foc_fops, 0600, dev);
   if (ret < 0)
     {
       nxmutex_destroy(&dev->closelock);

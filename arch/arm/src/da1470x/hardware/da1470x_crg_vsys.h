@@ -18,8 +18,12 @@
  *
  ****************************************************************************/
 
-#ifndef __DA1470X_CRG_VSYS_H
-#define __DA1470X_CRG_VSYS_H
+/* Generated from the Renesas CMSIS device header DA1470x-00.h (SDK
+ * 10.2.6.49).  Do not edit by hand; regenerate with tools/genhdr.py.
+ */
+
+#ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_VSYS_H
+#define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_VSYS_H
 
 /****************************************************************************
  * Included Files
@@ -32,55 +36,58 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Register offsets *********************************************************/
+/* Register Offsets *********************************************************/
 
-#define DA1470_CRG_VSYS_VSYS_GEN_CTRL_OFFSET        0x0000 /* No description available. */
-#define DA1470_CRG_VSYS_VSYS_GEN_IRQ_CLEAR_OFFSET   0x0008 /* No description available. */
-#define DA1470_CRG_VSYS_VSYS_GEN_IRQ_MASK_OFFSET    0x000C /* No description available. */
-#define DA1470_CRG_VSYS_VSYS_GEN_IRQ_STATUS_OFFSET  0x0004 /* No description available. */
+#define DA1470X_CRG_VSYS_VSYS_GEN_CTRL_OFFSET 0x0000       /* VSYS_GEN_CTRL_REG */
+#define DA1470X_CRG_VSYS_VSYS_GEN_IRQ_STATUS_OFFSET 0x0004 /* VSYS_GEN_IRQ_STATUS_REG */
+#define DA1470X_CRG_VSYS_VSYS_GEN_IRQ_CLEAR_OFFSET 0x0008  /* VSYS_GEN_IRQ_CLEAR_REG */
+#define DA1470X_CRG_VSYS_VSYS_GEN_IRQ_MASK_OFFSET 0x000c   /* VSYS_GEN_IRQ_MASK_REG */
 
-/* Register addresses *******************************************************/
+/* Register Addresses *******************************************************/
 
-#define DA1470_CRG_VSYS_BASE                        0x50000B00 /* CRG_VSYS registers */
+#define DA1470X_CRG_VSYS_VSYS_GEN_CTRL (DA1470X_CRG_VSYS_BASE + DA1470X_CRG_VSYS_VSYS_GEN_CTRL_OFFSET)
+#define DA1470X_CRG_VSYS_VSYS_GEN_IRQ_STATUS (DA1470X_CRG_VSYS_BASE + DA1470X_CRG_VSYS_VSYS_GEN_IRQ_STATUS_OFFSET)
+#define DA1470X_CRG_VSYS_VSYS_GEN_IRQ_CLEAR (DA1470X_CRG_VSYS_BASE + DA1470X_CRG_VSYS_VSYS_GEN_IRQ_CLEAR_OFFSET)
+#define DA1470X_CRG_VSYS_VSYS_GEN_IRQ_MASK (DA1470X_CRG_VSYS_BASE + DA1470X_CRG_VSYS_VSYS_GEN_IRQ_MASK_OFFSET)
 
-#define DA1470_CRG_VSYS_VSYS_GEN_CTRL               (DA1470_CRG_VSYS_BASE + DA1470_CRG_VSYS_VSYS_GEN_CTRL_OFFSET) /* No description available. */
-#define DA1470_CRG_VSYS_VSYS_GEN_IRQ_CLEAR          (DA1470_CRG_VSYS_BASE + DA1470_CRG_VSYS_VSYS_GEN_IRQ_CLEAR_OFFSET) /* No description available. */
-#define DA1470_CRG_VSYS_VSYS_GEN_IRQ_MASK           (DA1470_CRG_VSYS_BASE + DA1470_CRG_VSYS_VSYS_GEN_IRQ_MASK_OFFSET) /* No description available. */
-#define DA1470_CRG_VSYS_VSYS_GEN_IRQ_STATUS         (DA1470_CRG_VSYS_BASE + DA1470_CRG_VSYS_VSYS_GEN_IRQ_STATUS_OFFSET) /* No description available. */
+/* Register Bit-field Definitions *******************************************/
 
-/* Register bit definitions *************************************************/
+/* VSYS_GEN_CTRL register */
 
+#define CRG_VSYS_VSYS_GEN_CTRL_EN_CURLIM (1 << 0)               /* Bit 0 */
+#define CRG_VSYS_VSYS_GEN_CTRL_CURLIM_SET_SHIFT (1)             /* Bits 1-7 */
+#define CRG_VSYS_VSYS_GEN_CTRL_CURLIM_SET_MASK (0x7f << CRG_VSYS_VSYS_GEN_CTRL_CURLIM_SET_SHIFT)
+#  define CRG_VSYS_VSYS_GEN_CTRL_CURLIM_SET(n) ((uint32_t)(n) << CRG_VSYS_VSYS_GEN_CTRL_CURLIM_SET_SHIFT)
+#define CRG_VSYS_VSYS_GEN_CTRL_CURLIM_GAIN_TRIM_SHIFT (8)       /* Bits 8-12 */
+#define CRG_VSYS_VSYS_GEN_CTRL_CURLIM_GAIN_TRIM_MASK (0x1f << CRG_VSYS_VSYS_GEN_CTRL_CURLIM_GAIN_TRIM_SHIFT)
+#  define CRG_VSYS_VSYS_GEN_CTRL_CURLIM_GAIN_TRIM(n) ((uint32_t)(n) << CRG_VSYS_VSYS_GEN_CTRL_CURLIM_GAIN_TRIM_SHIFT)
+#define CRG_VSYS_VSYS_GEN_CTRL_CURLIM_OFFSET_TRIM_SHIFT (13)    /* Bits 13-17 */
+#define CRG_VSYS_VSYS_GEN_CTRL_CURLIM_OFFSET_TRIM_MASK (0x1f << CRG_VSYS_VSYS_GEN_CTRL_CURLIM_OFFSET_TRIM_SHIFT)
+#  define CRG_VSYS_VSYS_GEN_CTRL_CURLIM_OFFSET_TRIM(n) ((uint32_t)(n) << CRG_VSYS_VSYS_GEN_CTRL_CURLIM_OFFSET_TRIM_SHIFT)
+#define CRG_VSYS_VSYS_GEN_CTRL_EN_HEADROOM (1 << 18)            /* Bit 18 */
+#define CRG_VSYS_VSYS_GEN_CTRL_LDO_TEMP_PROTECT_MODE_SHIFT (19) /* Bits 19-20 */
+#define CRG_VSYS_VSYS_GEN_CTRL_LDO_TEMP_PROTECT_MODE_MASK (0x3 << CRG_VSYS_VSYS_GEN_CTRL_LDO_TEMP_PROTECT_MODE_SHIFT)
+#  define CRG_VSYS_VSYS_GEN_CTRL_LDO_TEMP_PROTECT_MODE(n) ((uint32_t)(n) << CRG_VSYS_VSYS_GEN_CTRL_LDO_TEMP_PROTECT_MODE_SHIFT)
+#define CRG_VSYS_VSYS_GEN_CTRL_FORCE_LDO_ENABLE_SHIFT (21)      /* Bits 21-22 */
+#define CRG_VSYS_VSYS_GEN_CTRL_FORCE_LDO_ENABLE_MASK (0x3 << CRG_VSYS_VSYS_GEN_CTRL_FORCE_LDO_ENABLE_SHIFT)
+#  define CRG_VSYS_VSYS_GEN_CTRL_FORCE_LDO_ENABLE(n) ((uint32_t)(n) << CRG_VSYS_VSYS_GEN_CTRL_FORCE_LDO_ENABLE_SHIFT)
+#define CRG_VSYS_VSYS_GEN_CTRL_FORCE_VBAT_VSYS_SW_SHIFT (23)    /* Bits 23-24 */
+#define CRG_VSYS_VSYS_GEN_CTRL_FORCE_VBAT_VSYS_SW_MASK (0x3 << CRG_VSYS_VSYS_GEN_CTRL_FORCE_VBAT_VSYS_SW_SHIFT)
+#  define CRG_VSYS_VSYS_GEN_CTRL_FORCE_VBAT_VSYS_SW(n) ((uint32_t)(n) << CRG_VSYS_VSYS_GEN_CTRL_FORCE_VBAT_VSYS_SW_SHIFT)
 
-/* VSYS_GEN_CTRL Register */
+/* VSYS_GEN_IRQ_STATUS register */
 
-#define CRG_VSYS_FORCE_VBAT_VSYS_SW_MASK            (0x3 << 23) /* 0x0,0x1: VBAT_VSYS set to ideal diode 0x2: Forces VBAT_VSYS switch to be opened  */
-#define CRG_VSYS_FORCE_VBAT_VSYS_SW_POS             (23) /* 0x0,0x1: VBAT_VSYS set to ideal diode 0x2: Forces VBAT_VSYS switch to be opened  */
-#define CRG_VSYS_FORCE_LDO_ENABLE_MASK              (0x3 << 21) /* 0x0,0x1: LDO VSYS will be enabled when COMP_VBUS_OK & COMP_VBUS_ABOVE_VSYS. 0x2: */
-#define CRG_VSYS_FORCE_LDO_ENABLE_POS               (21) /* 0x0,0x1: LDO VSYS will be enabled when COMP_VBUS_OK & COMP_VBUS_ABOVE_VSYS. 0x2: */
-#define CRG_VSYS_LDO_TEMP_PROTECT_MODE_MASK         (0x3 << 19) /* 0x0: LDO_VSYS is muted (disabled) when temperature is too high, when temperature */
-#define CRG_VSYS_LDO_TEMP_PROTECT_MODE_POS          (19) /* 0x0: LDO_VSYS is muted (disabled) when temperature is too high, when temperature */
-#define CRG_VSYS_EN_HEADROOM                        (1U << 18) /* Enables the voltage headroom loop in the LDO_VSYS. */
-#define CRG_VSYS_CURLIM_OFFSET_TRIM_MASK            (0x1F << 13) /* For adjusting the offset of the curlim range ( +/- 78 mA) 0x0 = maximum positive */
-#define CRG_VSYS_CURLIM_OFFSET_TRIM_POS             (13) /* For adjusting the offset of the curlim range ( +/- 78 mA) 0x0 = maximum positive */
-#define CRG_VSYS_CURLIM_GAIN_TRIM_MASK              (0x1F << 8) /* For adjusting the gain of the curlim range ( +/- 20%) 0x0 = maximum gain. 0x10 = */
-#define CRG_VSYS_CURLIM_GAIN_TRIM_POS               (8) /* For adjusting the gain of the curlim range ( +/- 20%) 0x0 = maximum gain. 0x10 = */
-#define CRG_VSYS_CURLIM_SET_MASK                    (0x7F << 1) /* Sets the level of the LDO_VSYS current limiter in 10 mA steps. It is reset when  */
-#define CRG_VSYS_CURLIM_SET_POS                     (1) /* Sets the level of the LDO_VSYS current limiter in 10 mA steps. It is reset when  */
-#define CRG_VSYS_EN_CURLIM                          (1U << 0) /* Enables the current limiter in the LDO_VSYS */
+#define CRG_VSYS_VSYS_GEN_IRQ_STATUS_LDO_VSYS_HIGH_TEMP_IRQ_STATUS (1 << 0) /* Bit 0 */
+#define CRG_VSYS_VSYS_GEN_IRQ_STATUS_VBUS_LOW_DRIVE_IRQ_STATUS (1 << 1)     /* Bit 1 */
 
-/* VSYS_GEN_IRQ_CLEAR Register */
+/* VSYS_GEN_IRQ_CLEAR register */
 
-#define CRG_VSYS_VBUS_LOW_DRIVE_IRQ_CLEAR           (1U << 1) /* Clears VBUS_LOW_DRIVE_IRQ */
-#define CRG_VSYS_LDO_VSYS_HIGH_TEMP_IRQ_CLEAR       (1U << 0) /* Clears LDO_VSYS_HIGH_TEMP_IRQ */
+#define CRG_VSYS_VSYS_GEN_IRQ_CLEAR_LDO_VSYS_HIGH_TEMP_IRQ_CLEAR (1 << 0) /* Bit 0 */
+#define CRG_VSYS_VSYS_GEN_IRQ_CLEAR_VBUS_LOW_DRIVE_IRQ_CLEAR (1 << 1)     /* Bit 1 */
 
-/* VSYS_GEN_IRQ_MASK Register */
+/* VSYS_GEN_IRQ_MASK register */
 
-#define CRG_VSYS_VBUS_LOW_DRIVE_IRQ_MASK            (1U << 1) /* Masks VBUS_LOW_DRIVE_IRQ interrupt. It is reset when vbus is not plugged in (COM */
-#define CRG_VSYS_LDO_VSYS_HIGH_TEMP_IRQ_MASK        (1U << 0) /* Masks LDO_VSYS_HIGH_TEMP_IRQ interrupt */
+#define CRG_VSYS_VSYS_GEN_IRQ_MASK_LDO_VSYS_HIGH_TEMP_IRQ_MASK (1 << 0) /* Bit 0 */
+#define CRG_VSYS_VSYS_GEN_IRQ_MASK_VBUS_LOW_DRIVE_IRQ_MASK (1 << 1)     /* Bit 1 */
 
-/* VSYS_GEN_IRQ_STATUS Register */
-
-#define CRG_VSYS_VBUS_LOW_DRIVE_IRQ_STATUS          (1U << 1) /* Indicates vbus drive strength is not enough to keep vbus up with the set limit o */
-#define CRG_VSYS_LDO_VSYS_HIGH_TEMP_IRQ_STATUS      (1U << 0) /* Indicates that a high temperature has been detected at ldo_vsys */
-
-#endif /* __DA1470X_CRG_VSYS_H */
+#endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_VSYS_H */

@@ -29,9 +29,9 @@
 
 #include <nuttx/config.h>
 
-#if defined(CONFIG_RW_SPINLOCK) || defined(CONFIG_TICKET_SPINLOCK)
-#include <nuttx/atomic.h>
-#endif
+/****************************************************************************
+ * Public Type Definitions
+ ****************************************************************************/
 
 #undef EXTERN
 #if defined(__cplusplus)
@@ -43,7 +43,7 @@ extern "C"
 #endif
 
 #if defined(CONFIG_RW_SPINLOCK)
-typedef atomic_t rwlock_t;
+typedef uint32_t rwlock_t;
 #  define RW_SP_UNLOCKED      0
 #  define RW_SP_READ_LOCKED   1
 #  define RW_SP_WRITE_LOCKED -1
@@ -58,8 +58,8 @@ typedef uint8_t spinlock_t;
 
 typedef struct spinlock_s
 {
-  atomic_t owner;
-  atomic_t next;
+  uint32_t owner;
+  uint32_t next;
 } spinlock_t;
 
 #  define SP_UNLOCKED (spinlock_t){0, 0}
@@ -80,6 +80,28 @@ typedef struct spinlock_s
 #include <arch/spinlock.h>
 
 #endif /* CONFIG_SPINLOCK */
+
+#define RSPINLOCK_CPU_INVALID (-1)
+#define RSPINLOCK_INITIALIZER {0}
+
+typedef union rspinlock_u
+{
+  /* Which cpu is holding spinlock, and taking recursive count */
+
+  uint32_t val;
+  struct
+    {
+      uint16_t owner;
+      uint16_t count;
+    };
+} rspinlock_t;
+
+#define SEQLOCK_INITIALIZER { 0u }
+
+typedef struct seqcount_s
+{
+  uint32_t sequence;
+} seqcount_t;
 
 #undef EXTERN
 #if defined(__cplusplus)

@@ -31,7 +31,7 @@
 #include <fixedmath.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <arch/types.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
@@ -376,7 +376,7 @@ int bh1721fvc_register(const char *devpath, int minor,
   /* Register the character driver */
 
   snprintf(path, sizeof(path), "%s%d", devpath, minor);
-  ret = register_driver(path, &g_bh1721fvcfops, 0666, priv);
+  ret = register_driver(path, &g_bh1721fvcfops, 0660, priv);
   if (ret < 0)
     {
       snerr("Failed to register driver: %d\n", ret);

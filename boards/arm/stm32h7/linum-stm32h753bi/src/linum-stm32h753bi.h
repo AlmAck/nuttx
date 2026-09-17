@@ -86,7 +86,7 @@
  * PD7  Enable power supply SD Card pin
  */
 
-#if defined(CONFIG_STM32H7_SDMMC1)
+#if defined(CONFIG_STM32_SDMMC1)
 #  define HAVE_SDIO
 #endif
 
@@ -104,11 +104,7 @@
 /* PWM */
 
 #define BUZZER_PWMTIMER    4
-
-/* OneShot Timer */
-
-#define BOARD_TONE_ONESHOT_TIM     17  /* Timer 17 - Oneshot timer for note timings */
-#define BOARD_TONE_ONESHOT_TIM_RES 10  /* Timer 17 - Oneshot timer resolution (us)  */
+#define BUZZER_PWMCHANNEL  2
 
 /* Ethernet
  *
@@ -148,10 +144,6 @@
  *   CONFIG_BOARD_LATE_INITIALIZE=y :
  *     Called from board_late_initialize().
  *
- *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_BOARDCTL=y &&
- *   CONFIG_NSH_ARCHINIT:
- *     Called from the NSH library
- *
  ****************************************************************************/
 
 int stm32_bringup(void);
@@ -165,7 +157,7 @@ int stm32_bringup(void);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_STM32H7_OTGFS
+#ifdef CONFIG_STM32_OTGFS
 void weak_function stm32_usbinitialize(void);
 #endif
 
@@ -228,7 +220,7 @@ int stm32_pwm_setup(void);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_STM32H7_SPI
+#ifdef CONFIG_STM32_SPI
 void stm32_spidev_initialize(void);
 #endif
 
@@ -243,16 +235,6 @@ void stm32_spidev_initialize(void);
 #ifdef CONFIG_MTD_W25QXXXJV
 int stm32_w25qxxx_setup(void);
 #endif
-
-/****************************************************************************
- * Name: board_qencoder_initialize
- *
- * Description:
- *   Initialize the quadrature encoder driver for the given timer
- *
- ****************************************************************************/
-
-int board_qencoder_initialize(int devno, int timerno);
 
 /****************************************************************************
  * Name: stm32_mfrc522initialize
@@ -270,21 +252,6 @@ int board_qencoder_initialize(int devno, int timerno);
 
 #ifdef CONFIG_CL_MFRC522
 int stm32_mfrc522initialize(const char *devpath);
-#endif
-
-/****************************************************************************
- * Name: board_tone_initialize
- *
- * Input Parameters:
- *   devno - The device number, used to build the device path as /dev/toneN
- *
- * Description:
- *   Configure and initialize the tone generator.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_AUDIO_TONE
-int board_tone_initialize(int devno);
 #endif
 
 /****************************************************************************

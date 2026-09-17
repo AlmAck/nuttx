@@ -25,6 +25,13 @@ config MM_CUSTOMIZE_MANAGER
 
 endchoice
 
+config MM_UMM_CUSTOMIZE_MANAGER
+	bool "Customized heap manager"
+	default n
+	---help---
+		Customized memory manager policy. The build will fail
+		if the umm heap module not defined by customer.
+
 config MM_KERNEL_HEAP
 	bool "Kernel dedicated heap"
 	default BUILD_PROTECTED || BUILD_KERNEL
@@ -68,6 +75,13 @@ config MM_DEFAULT_ALIGNMENT
 		The memory default alignment in bytes, if this value is 0, the real
 		memory default alignment is equal to sizoef(uintptr), if this value
 		is not 0, this value must be 2^n and at least sizeof(uintptr).
+
+config MM_NODE_GUARDSIZE
+	int "Memory node guard size"
+	default 0
+	---help---
+		After it is enabled, the front and rear nodes will maintain a safety
+		distance of at least CONFIG_MM_NODE_GUARDSIZE.
 
 config MM_SMALL
 	bool "Small memory model"
@@ -131,6 +145,11 @@ config MM_BACKTRACE_DEFAULT
 	default n
 	depends on MM_BACKTRACE > 0
 
+config MM_BACKTRACE_SEQNO
+	bool "Record sequence number in memory block"
+	default y
+	depends on MM_BACKTRACE >= 0
+
 config MM_DUMP_ON_FAILURE
 	bool "Dump heap info on allocation failure"
 	default n
@@ -174,6 +193,16 @@ config MM_HEAP_MEMPOOL_THRESHOLD
 		 < 0 Disable pool feature.
 
 if MM_HEAP_MEMPOOL_THRESHOLD > 0
+
+config MM_HEAP_MEMPOOL_WAIT_RELEASE
+	bool "If wait for other tasks to release memory"
+	default n
+	---help---
+		If the macro is set to true, when the memory pool fails to allocate
+		available memory, the current task will block and wait for other tasks
+		to release memory. Once memory is released by other tasks, the blocked
+		task will be awakened and re-attempt to allocate memory from
+		the memory pool.
 
 config MM_HEAP_MEMPOOL_EXPAND_SIZE
 	int "The expand size for each mempool in multiple mempool"

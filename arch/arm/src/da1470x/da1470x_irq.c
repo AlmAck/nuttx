@@ -24,16 +24,14 @@
 
 #include <nuttx/config.h>
 
+#include <inttypes.h>
 #include <stdint.h>
-#include <assert.h>
 #include <debug.h>
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <arch/irq.h>
-#include <arch/armv8-m/nvicpri.h>
 
-#include "chip.h"
 #include "nvic.h"
 #include "ram_vectors.h"
 #include "arm_internal.h"
@@ -46,8 +44,10 @@
 /* Get a 32-bit version of the default priority */
 
 #define DEFPRIORITY32 \
-  (NVIC_SYSH_PRIORITY_DEFAULT << 24 | NVIC_SYSH_PRIORITY_DEFAULT << 16 | \
-   NVIC_SYSH_PRIORITY_DEFAULT << 8  | NVIC_SYSH_PRIORITY_DEFAULT)
+  (NVIC_SYSH_PRIORITY_DEFAULT << 24 | \
+   NVIC_SYSH_PRIORITY_DEFAULT << 16 | \
+   NVIC_SYSH_PRIORITY_DEFAULT << 8  | \
+   NVIC_SYSH_PRIORITY_DEFAULT)
 
 /* Given the address of a NVIC ENABLE register, this is the offset to
  * the corresponding CLEAR ENABLE register.
@@ -72,46 +72,37 @@
 static void da1470x_dumpnvic(const char *msg, int irq)
 {
   irqstate_t flags;
+  int i;
 
   flags = enter_critical_section();
 
   irqinfo("NVIC (%s, irq=%d):\n", msg, irq);
-  irqinfo("  INTCTRL:    %08x VECTAB: %08x\n",
+  irqinfo("  INTCTRL: %08x VECTAB: %08x\n",
           getreg32(NVIC_INTCTRL), getreg32(NVIC_VECTAB));
-#if 0
-  irqinfo("  SYSH ENABLE MEMFAULT: %08x BUSFAULT: %08x\n",
-          getreg32(NVIC_SYSHCON_MEMFAULTENA),
-          getreg32(NVIC_SYSHCON_BUSFAULTENA));
-  irqinfo("  USGFAULT: %08x SYSTICK: %08x\n",
-          getreg32(NVIC_SYSHCON_USGFAULTENA),
-          getreg32(NVIC_SYSTICK_CTRL_ENABLE));
-#endif
-  irqinfo("  IRQ ENABLE: %08x %08x\n",
-          getreg32(NVIC_IRQ0_31_ENABLE),
-          getreg32(NVIC_IRQ32_63_ENABLE));
+  irqinfo("  SYSHCON: %08x\n", getreg32(NVIC_SYSHCON));
+
+  irqinfo("  IRQ ENABLE: ");
+  for (i = 0; i < DA1470X_IRQ_NEXTINT; i += 32)
+    {
+      irqinfo("%08x ", getreg32(NVIC_IRQ_ENABLE(i)));
+    }
+
+  irqinfo("\n");
+
   irqinfo("  SYSH_PRIO:  %08x %08x %08x\n",
           getreg32(NVIC_SYSH4_7_PRIORITY),
           getreg32(NVIC_SYSH8_11_PRIORITY),
           getreg32(NVIC_SYSH12_15_PRIORITY));
-  irqinfo("  IRQ PRIO:   %08x %08x %08x %08x\n",
-          getreg32(NVIC_IRQ0_3_PRIORITY),
-          getreg32(NVIC_IRQ4_7_PRIORITY),
-          getreg32(NVIC_IRQ8_11_PRIORITY),
-          getreg32(NVIC_IRQ12_15_PRIORITY));
-  irqinfo("              %08x %08x %08x %08x\n",
-          getreg32(NVIC_IRQ16_19_PRIORITY),
-          getreg32(NVIC_IRQ20_23_PRIORITY),
-          getreg32(NVIC_IRQ24_27_PRIORITY),
-          getreg32(NVIC_IRQ28_31_PRIORITY));
-  irqinfo("              %08x %08x %08x %08x\n",
-          getreg32(NVIC_IRQ32_35_PRIORITY),
-          getreg32(NVIC_IRQ36_39_PRIORITY),
-          getreg32(NVIC_IRQ40_43_PRIORITY),
-          getreg32(NVIC_IRQ44_47_PRIORITY));
-  irqinfo("              %08x %08x %08x\n",
-          getreg32(NVIC_IRQ48_51_PRIORITY),
-          getreg32(NVIC_IRQ52_55_PRIORITY),
-          getreg32(NVIC_IRQ56_59_PRIORITY));
+
+  irqinfo("  IRQ PRIO:   ");
+  for (i = 0; i < (DA1470X_IRQ_NEXTINT + 3) / 4; i += 4)
+    {
+      irqinfo("%08" PRIx32 " %08" PRIx32 " %08" PRIx32 " %08" PRIx32 "\n",
+              getreg32(NVIC_IRQ_PRIORITY(4 * i)),
+              getreg32(NVIC_IRQ_PRIORITY(4 * (i + 1))),
+              getreg32(NVIC_IRQ_PRIORITY(4 * (i + 2))),
+              getreg32(NVIC_IRQ_PRIORITY(4 * (i + 3))));
+    }
 
   leave_critical_section(flags);
 }
@@ -120,7 +111,7 @@ static void da1470x_dumpnvic(const char *msg, int irq)
 #endif
 
 /****************************************************************************
- * Name: da1470x_nmi, da1470x_pendsv, da1470x_pendsv, da1470x_reserved
+ * Name: da1470x_nmi, da1470x_pendsv, da1470x_reserved
  *
  * Description:
  *   Handlers for various exceptions.  None are handled and all are fatal
@@ -164,7 +155,6 @@ static int da1470x_reserved(int irq, void *context, void *arg)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_ARMV8M_USEBASEPRI
 static inline void da1470x_prioritize_syscall(int priority)
 {
   uint32_t regval;
@@ -176,7 +166,6 @@ static inline void da1470x_prioritize_syscall(int priority)
   regval |= (priority << NVIC_SYSH_PRIORITY_PR11_SHIFT);
   putreg32(regval, NVIC_SYSH8_11_PRIORITY);
 }
-#endif
 
 /****************************************************************************
  * Name: da1470x_irqinfo
@@ -188,7 +177,7 @@ static inline void da1470x_prioritize_syscall(int priority)
  ****************************************************************************/
 
 static int da1470x_irqinfo(int irq, uintptr_t *regaddr, uint32_t *bit,
-                         uintptr_t offset)
+                           uintptr_t offset)
 {
   int n;
 
@@ -223,7 +212,7 @@ static int da1470x_irqinfo(int irq, uintptr_t *regaddr, uint32_t *bit,
       else if (irq == DA1470X_IRQ_SYSTICK)
         {
           *regaddr = NVIC_SYSTICK_CTRL;
-          *bit = NVIC_SYSTICK_CTRL_ENABLE;
+          *bit     = NVIC_SYSTICK_CTRL_ENABLE;
         }
       else
         {
@@ -250,9 +239,6 @@ static int da1470x_irqinfo(int irq, uintptr_t *regaddr, uint32_t *bit,
 void up_irqinitialize(void)
 {
   uint32_t regaddr;
-#if defined(CONFIG_DEBUG_FEATURES) && !defined(CONFIG_ARMV8M_USEBASEPRI)
-  uint32_t regval;
-#endif
   int num_priority_registers;
   int i;
 
@@ -261,16 +247,17 @@ void up_irqinitialize(void)
   for (i = 0; i < DA1470X_IRQ_NEXTINT; i += 32)
     {
       putreg32(0xffffffff, NVIC_IRQ_CLEAR(i));
+      putreg32(0xffffffff, NVIC_IRQ_CLRPEND(i));
     }
 
-  /* Make sure that we are using the correct vector table.  The default
-   * vector address is 0x0000:0000 but if we are executing code that is
-   * positioned in SRAM or in external FLASH, then we may need to reset
-   * the interrupt vector so that it refers to the table in SRAM or in
-   * external FLASH.
+  /* The vector table lives in the remapped flash at address zero (see
+   * da1470x_start.c).  Make sure the NVIC agrees.
    */
 
-  putreg32((uint32_t)_vectors, NVIC_VECTAB);
+  putreg32(0x00000000, NVIC_VECTAB);
+
+  __asm__ __volatile__("dsb" : : : "memory");
+  __asm__ __volatile__("isb" : : : "memory");
 
 #ifdef CONFIG_ARCH_RAMVECTORS
   /* If CONFIG_ARCH_RAMVECTORS is defined, then we are using a RAM-based
@@ -317,15 +304,7 @@ void up_irqinitialize(void)
 
   /* Set the priority of the SVCall interrupt */
 
-#ifdef CONFIG_ARCH_IRQPRIO
-#  if 0
-  up_prioritize_irq(DA1470X_IRQ_PENDSV, NVIC_SYSH_PRIORITY_MIN);
-#  endif
-#endif
-
-#ifdef CONFIG_ARMV8M_USEBASEPRI
   da1470x_prioritize_syscall(NVIC_SYSH_SVCALL_PRIORITY);
-#endif
 
 #ifdef CONFIG_ARM_MPU
   /* If the MPU is enabled, then attach and enable the Memory Management
@@ -353,23 +332,6 @@ void up_irqinitialize(void)
 
   da1470x_dumpnvic("initial", DA1470X_IRQ_NIRQS);
 
-#if defined(CONFIG_DEBUG_FEATURES) && !defined(CONFIG_ARMV8M_USEBASEPRI)
-  /* If a debugger is connected, try to prevent it from catching hardfaults.
-   * If CONFIG_ARMV8M_USEBASEPRI, no hardfaults are expected in normal
-   * operation.
-   */
-
-  regval  = getreg32(NVIC_DEMCR);
-  regval &= ~NVIC_DEMCR_VCHARDERR;
-  putreg32(regval, NVIC_DEMCR);
-#endif
-
-#ifdef CONFIG_da1470x_GPIOTE
-  /* Initialize GPIOTE */
-
-  da1470x_gpiote_init();
-#endif
-
 #ifndef CONFIG_SUPPRESS_INTERRUPTS
   /* And finally, enable interrupts */
 
@@ -393,10 +355,11 @@ void up_disable_irq(int irq)
 
   if (da1470x_irqinfo(irq, &regaddr, &bit, NVIC_CLRENA_OFFSET) == 0)
     {
-      /* Modify the appropriate bit in the register to disable the interrupt.
-       * For normal interrupts, we need to set the bit in the associated
-       * Interrupt Clear Enable register.  For other exceptions, we need to
-       * clear the bit in the System Handler Control and State Register.
+      /* Modify the appropriate bit in the register to disable the
+       * interrupt.  For normal interrupts, we need to set the bit in the
+       * associated Interrupt Clear Enable register.  For other exceptions,
+       * we need to clear the bit in the System Handler Control and State
+       * Register.
        */
 
       if (irq >= DA1470X_IRQ_EXTINT)
@@ -430,10 +393,11 @@ void up_enable_irq(int irq)
 
   if (da1470x_irqinfo(irq, &regaddr, &bit, NVIC_ENA_OFFSET) == 0)
     {
-      /* Modify the appropriate bit in the register to enable the interrupt.
-       * For normal interrupts, we need to set the bit in the associated
-       * Interrupt Set Enable register.  For other exceptions, we need to
-       * set the bit in the System Handler Control and State Register.
+      /* Modify the appropriate bit in the register to enable the
+       * interrupt.  For normal interrupts, we need to set the bit in the
+       * associated Interrupt Set Enable register.  For other exceptions,
+       * we need to set the bit in the System Handler Control and State
+       * Register.
        */
 
       if (irq >= DA1470X_IRQ_EXTINT)
@@ -452,6 +416,30 @@ void up_enable_irq(int irq)
 }
 
 /****************************************************************************
+ * Name: da1470x_clrpend
+ *
+ * Description:
+ *   Clear a pending interrupt at the NVIC.
+ *
+ ****************************************************************************/
+
+void da1470x_clrpend(int irq)
+{
+  /* Check for external interrupt */
+
+  if (irq >= DA1470X_IRQ_EXTINT)
+    {
+      int n = irq - DA1470X_IRQ_EXTINT;
+
+      /* Set the appropriate bit in the corresponding Interrupt
+       * Clear-Pending register.
+       */
+
+      putreg32((uint32_t)1 << (n & 0x1f), NVIC_IRQ_CLRPEND(n));
+    }
+}
+
+/****************************************************************************
  * Name: arm_ack_irq
  *
  * Description:
@@ -461,8 +449,7 @@ void up_enable_irq(int irq)
 
 void arm_ack_irq(int irq)
 {
-  // TODO clear pending?
-  //da1470x_clrpend(irq);
+  da1470x_clrpend(irq);
 }
 
 /****************************************************************************
@@ -503,10 +490,10 @@ int up_prioritize_irq(int irq, int priority)
       regaddr = NVIC_IRQ_PRIORITY(irq);
     }
 
-  regval      = getreg32(regaddr);
-  shift       = ((irq & 3) << 3);
-  regval     &= ~(0xff << shift);
-  regval     |= (priority << shift);
+  regval  = getreg32(regaddr);
+  shift   = ((irq & 3) << 3);
+  regval &= ~(0xff << shift);
+  regval |= (priority << shift);
   putreg32(regval, regaddr);
 
   da1470x_dumpnvic("prioritize", irq);

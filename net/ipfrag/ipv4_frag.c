@@ -31,7 +31,7 @@
 #include <sys/ioctl.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <string.h>
 #include <errno.h>
 #include <netinet/in.h>
@@ -309,7 +309,7 @@ int32_t ipv4_fragin(FAR struct net_driver_s *dev)
        */
 
       ipv4_fragin_reassemble(node);
-      netdev_iob_replace(dev, node->outgoframe);
+      netdev_iob_replace_l2(dev, node->outgoframe);
 
       /* Free the memory of node */
 
@@ -360,8 +360,10 @@ int32_t ipv4_fragout(FAR struct net_driver_s *dev, uint16_t mtu)
   uint32_t iter;
   uint32_t nfrags;
   uint16_t offset = 0;
+  uint16_t fragoff;
+  uint16_t morefrags;
   uint16_t hdrlen;
-  FAR struct iob_s *frag;
+  FAR struct iob_s *frag = NULL;
   FAR struct ipv4_hdr_s *ref = NULL;
   struct iob_queue_s fragq =
     {
@@ -374,13 +376,27 @@ int32_t ipv4_fragout(FAR struct net_driver_s *dev, uint16_t mtu)
 
   hdrlen = (IPv4BUF->vhl & IPv4_HLMASK) << 2;
 
+  /* Preserve the original fragment offset when splitting an
+   * already-fragmented packet for a smaller egress MTU.
+   */
+
+  fragoff = (IPv4BUF->ipoffset[0] << 8) + IPv4BUF->ipoffset[1];
+  morefrags = fragoff & IP_FLAG_MOREFRAGS;
+  fragoff &= 0x1fff;
+
   /* Reconstruct I/O Buffer according to MTU, which will reserve
    * the space for the L3 header
    */
 
   nfrags = ip_fragout_slice(dev->d_iob, PF_INET, mtu, hdrlen, &fragq);
-  ASSERT(nfrags > 1);
   netdev_iob_clear(dev);
+
+  /* No I/O Buffer is the only cause of failure */
+
+  if (nfrags == 0)
+    {
+      goto fail;
+    }
 
   /* Fill the L3 header into the reserved space */
 
@@ -395,13 +411,13 @@ int32_t ipv4_fragout(FAR struct net_driver_s *dev, uint16_t mtu)
           /* Update the IPv4 header of the first fragment */
 
           ipv4_fragout_buildipv4header(ref, ref, frag->io_pktlen,
-                                       IP_FLAG_MOREFRAGS);
+                                       fragoff | IP_FLAG_MOREFRAGS);
         }
       else
         {
-          uint16_t ipoff = (offset - iter * hdrlen) >> 3;
+          uint16_t ipoff = fragoff + ((offset - iter * hdrlen) >> 3);
 
-          if (iter < nfrags - 1)
+          if (iter < nfrags - 1 || morefrags)
             {
               ipoff |= IP_FLAG_MOREFRAGS;
             }
@@ -429,7 +445,7 @@ int32_t ipv4_fragout(FAR struct net_driver_s *dev, uint16_t mtu)
   g_netstats.ipv4.sent += nfrags - 1;
 #endif
 
-  netdev_txnotify_dev(dev);
+  netdev_txnotify_dev(dev, IPFRAG_POLL);
 
   return OK;
 

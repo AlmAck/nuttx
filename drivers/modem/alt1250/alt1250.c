@@ -1072,7 +1072,7 @@ static int altcom_recvthread(int argc, FAR char *argv[])
                * does not accept any requests and must stay alive.
                */
 
-              nxsig_sleep(1);
+              nxsched_sleep(1);
             }
         }
       else if (ret == ALTMDM_RETURN_EXIT)
@@ -1511,7 +1511,7 @@ FAR void *alt1250_register(FAR const char *devpath,
   nxsem_init(&g_alt1250_res_s.sem, 0, 0);
 #endif
 
-  ret = register_driver(devpath, &g_alt1250fops, 0666, priv);
+  ret = register_driver(devpath, &g_alt1250fops, 0600, priv);
   if (ret < 0)
     {
       m_err("Failed to register driver: %d\n", ret);

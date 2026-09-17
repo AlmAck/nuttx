@@ -28,7 +28,7 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <sys/param.h>
 
 #include <nuttx/kmalloc.h>
@@ -180,7 +180,7 @@ static void iso1i813t_deselect(FAR struct spi_dev_s *spi,
  * Name: iso1i813t_direction
  *
  * Description:
- *   ISO1I813T is only input pin. However interface is provided in order
+ *   ISO1I813T is only input expander. However interface is provided in order
  *   to avoid system falls if called.
  *
  * Input Parameters:
@@ -200,7 +200,11 @@ static int iso1i813t_direction(FAR struct ioexpander_dev_s *dev,
 
   DEBUGASSERT(priv != NULL && priv->config != NULL);
 
-  gpiowarn("WARNING: ISO1I813T is only input expander!\n");
+  if (IOEXPANDER_DIRECTION_OUT == direction
+      || IOEXPANDER_DIRECTION_OUT_OPENDRAIN == direction)
+    {
+      gpiowarn("WARNING: ISO1I813T is only input expander!\n");
+    }
 
   return OK;
 }
@@ -302,7 +306,8 @@ static int iso1i813t_readpin(FAR struct ioexpander_dev_s *dev, uint8_t pin,
                              FAR bool *value)
 {
   FAR struct iso1i813t_dev_s *priv = (FAR struct iso1i813t_dev_s *)dev;
-  uint8_t buff;
+  uint8_t txbuff[2];
+  uint8_t rxbuff[2];
   int ret;
 
   if (pin > 7)
@@ -322,13 +327,48 @@ static int iso1i813t_readpin(FAR struct ioexpander_dev_s *dev, uint8_t pin,
       return ret;
     }
 
-  iso1i813t_select(priv->spi, priv->config, 8);
-  SPI_RECVBLOCK(priv->spi, &buff, 1);
-  iso1i813t_deselect(priv->spi, priv->config);
+  if (priv->config->glerr_check == 0 && priv->config->interr_check == 0)
+    {
+      iso1i813t_select(priv->spi, priv->config, 8);
+      SPI_RECVBLOCK(priv->spi, rxbuff, 1);
+      iso1i813t_deselect(priv->spi, priv->config);
+    }
+  else
+    {
+      if (priv->config->glerr_check != 0)
+        {
+          txbuff[0] = ISO1I813T_GLERR;
+          txbuff[1] = 0;
+          iso1i813t_select(priv->spi, priv->config, 8);
+          SPI_EXCHANGE(priv->spi, txbuff, rxbuff, 2);
+          iso1i813t_deselect(priv->spi, priv->config);
+          if ((rxbuff[1] & priv->config->glerr_check) != 0)
+            {
+              gpioerr("ERROR: Global Error Register is 0x%x\n", rxbuff[1]);
+              nxmutex_unlock(&priv->lock);
+              return -EIO;
+            }
+        }
+
+      if (priv->config->interr_check != 0)
+        {
+          txbuff[0] = ISO1I813T_INTERR;
+          txbuff[1] = 0;
+          iso1i813t_select(priv->spi, priv->config, 8);
+          SPI_EXCHANGE(priv->spi, txbuff, rxbuff, 2);
+          iso1i813t_deselect(priv->spi, priv->config);
+          if ((rxbuff[1] & priv->config->interr_check) != 0)
+            {
+              gpioerr("ERROR: Internal Error Register is 0x%x\n", rxbuff[1]);
+              nxmutex_unlock(&priv->lock);
+              return -EIO;
+            }
+        }
+    }
 
   nxmutex_unlock(&priv->lock);
 
-  *value = (bool)((buff >> (pin & 0x7)) & 1);
+  *value = (bool)((rxbuff[0] >> (pin & 0x7)) & 1);
   return ret;
 }
 
@@ -381,7 +421,8 @@ static int iso1i813t_multireadpin(FAR struct ioexpander_dev_s *dev,
                                   int count)
 {
   FAR struct iso1i813t_dev_s *priv = (FAR struct iso1i813t_dev_s *)dev;
-  uint8_t buff;
+  uint8_t txbuff[2];
+  uint8_t rxbuff[2];
   int pin;
   int i;
   int ret;
@@ -394,9 +435,44 @@ static int iso1i813t_multireadpin(FAR struct ioexpander_dev_s *dev,
       return ret;
     }
 
-  iso1i813t_select(priv->spi, priv->config, 8);
-  SPI_RECVBLOCK(priv->spi, &buff, 1);
-  iso1i813t_deselect(priv->spi, priv->config);
+  if (priv->config->glerr_check == 0 && priv->config->interr_check == 0)
+    {
+      iso1i813t_select(priv->spi, priv->config, 8);
+      SPI_RECVBLOCK(priv->spi, rxbuff, 1);
+      iso1i813t_deselect(priv->spi, priv->config);
+    }
+  else
+    {
+      if (priv->config->glerr_check != 0)
+        {
+          txbuff[0] = ISO1I813T_GLERR;
+          txbuff[1] = 0;
+          iso1i813t_select(priv->spi, priv->config, 8);
+          SPI_EXCHANGE(priv->spi, txbuff, rxbuff, 2);
+          iso1i813t_deselect(priv->spi, priv->config);
+          if ((rxbuff[1] & priv->config->glerr_check) != 0)
+            {
+              gpioerr("ERROR: Global Error Register is 0x%x\n", rxbuff[1]);
+              nxmutex_unlock(&priv->lock);
+              return -EIO;
+            }
+        }
+
+      if (priv->config->interr_check != 0)
+        {
+          txbuff[0] = ISO1I813T_INTERR;
+          txbuff[1] = 0;
+          iso1i813t_select(priv->spi, priv->config, 8);
+          SPI_EXCHANGE(priv->spi, txbuff, rxbuff, 2);
+          iso1i813t_deselect(priv->spi, priv->config);
+          if ((rxbuff[1] & priv->config->interr_check) != 0)
+            {
+              gpioerr("ERROR: Internal Error Register is 0x%x\n", rxbuff[1]);
+              nxmutex_unlock(&priv->lock);
+              return -EIO;
+            }
+        }
+    }
 
   for (i = 0; i < count; i++)
     {
@@ -407,7 +483,7 @@ static int iso1i813t_multireadpin(FAR struct ioexpander_dev_s *dev,
           return -ENXIO;
         }
 
-      values[i] = (bool)((buff >> (pin & 0x7)) & 1);
+      values[i] = (bool)((rxbuff[0] >> (pin & 0x7)) & 1);
     }
 
   nxmutex_unlock(&priv->lock);
@@ -439,6 +515,7 @@ FAR struct ioexpander_dev_s *iso1i813t_initialize(FAR struct spi_dev_s *spi,
                                       FAR struct iso1i813t_config_s *config)
 {
   FAR struct iso1i813t_dev_s *priv;
+  uint8_t txdata;
 
 #ifdef CONFIG_ISO1I813T_MULTIPLE
   /* Allocate the device state structure */
@@ -462,6 +539,21 @@ FAR struct ioexpander_dev_s *iso1i813t_initialize(FAR struct spi_dev_s *spi,
   priv->config   = config;
 
   nxmutex_init(&priv->lock);
+
+  /* Read GLERR and INTERR registers to clear their status bits
+   * and release ERR pin after the startup sequence. This is a required
+   * step if external power supply is used.
+   */
+
+  txdata = ISO1I813T_GLERR;
+  iso1i813t_select(priv->spi, priv->config, 8);
+  SPI_EXCHANGE(priv->spi, &txdata, NULL, 1);
+  iso1i813t_deselect(priv->spi, priv->config);
+
+  txdata = ISO1I813T_INTERR;
+  iso1i813t_select(priv->spi, priv->config, 8);
+  SPI_EXCHANGE(priv->spi, &txdata, NULL, 1);
+  iso1i813t_deselect(priv->spi, priv->config);
 
   return &priv->dev;
 }

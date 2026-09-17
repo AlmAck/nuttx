@@ -33,10 +33,13 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <errno.h>
 #include <nuttx/fs/fs.h>
+
+#include "espressif/esp_gpio.h"
+#include "esp32s2_start.h"
 
 #ifdef CONFIG_USERLED
 #  include <nuttx/leds/userled.h>
@@ -50,7 +53,7 @@
 #  include "esp32s2_tim_lowerhalf.h"
 #endif
 
-#ifdef CONFIG_ESPRESSIF_WLAN
+#ifdef CONFIG_ESPRESSIF_WIFI
 #  include "esp32s2_board_wlan.h"
 #endif
 
@@ -58,16 +61,12 @@
 #  include "esp32s2_i2c.h"
 #endif
 
-#ifdef CONFIG_ESP32S2_RT_TIMER
-#  include "esp32s2_rt_timer.h"
+#ifdef CONFIG_ESPRESSIF_EFUSE
+#  include "espressif/esp_efuse.h"
 #endif
 
-#ifdef CONFIG_ESP32S2_EFUSE
-#  include "esp32s2_efuse.h"
-#endif
-
-#ifdef CONFIG_ESP32S2_LEDC
-#  include "esp32s2_ledc.h"
+#ifdef CONFIG_ESPRESSIF_LEDC
+#  include "espressif/esp_ledc.h"
 #endif
 
 #ifdef CONFIG_WATCHDOG
@@ -89,7 +88,11 @@
 #endif
 
 #ifdef CONFIG_RTC_DRIVER
-#  include "esp32s2_rtc_lowerhalf.h"
+#  include "espressif/esp_rtc.h"
+#endif
+
+#ifdef CONFIG_ESPRESSIF_HR_TIMER
+#  include "espressif/esp_hr_timer.h"
 #endif
 
 #ifdef CONFIG_ESP_RMT
@@ -117,6 +120,21 @@
 #  include "espressif/esp_sdm.h"
 #endif
 
+#ifdef CONFIG_ESPRESSIF_SHA_ACCELERATOR
+#  include "espressif/esp_sha.h"
+#endif
+
+#ifdef CONFIG_MMCSD_SPI
+#  include "esp32s2_board_sdmmc.h"
+#endif
+
+#ifdef CONFIG_ESPRESSIF_USE_ULP_RISCV_CORE
+#  include "espressif/esp_ulp.h"
+#  ifdef CONFIG_ESPRESSIF_ULP_USE_TEST_BIN
+#    include "ulp/ulp_code.h"
+#  endif
+#endif
+
 #include "esp32s2-saola-1.h"
 
 /****************************************************************************
@@ -131,9 +149,6 @@
  *
  *   CONFIG_BOARD_LATE_INITIALIZE=y :
  *     Called from board_late_initialize().
- *
- *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_BOARDCTL=y :
- *     Called from the NSH library
  *
  ****************************************************************************/
 
@@ -162,11 +177,21 @@ int esp32s2_bringup(void)
     }
 #endif
 
-#if defined(CONFIG_ESP32S2_EFUSE)
-  ret = esp32s2_efuse_initialize("/dev/efuse");
+#if defined(CONFIG_ESPRESSIF_EFUSE)
+  ret = esp_efuse_initialize("/dev/efuse");
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: Failed to init EFUSE: %d\n", ret);
+    }
+#endif
+
+#if defined(CONFIG_ESPRESSIF_SHA_ACCELERATOR) && \
+    !defined(CONFIG_CRYPTO_CRYPTODEV_HARDWARE)
+  ret = esp_sha_init();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR,
+             "ERROR: Failed to initialize SHA: %d\n", ret);
     }
 #endif
 
@@ -180,13 +205,13 @@ int esp32s2_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_ESP32S2_LEDC
+#ifdef CONFIG_ESPRESSIF_LEDC
   ret = esp32s2_pwm_setup();
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: esp32s2_pwm_setup() failed: %d\n", ret);
     }
-#endif /* CONFIG_ESP32S2_LEDC */
+#endif /* CONFIG_ESPRESSIF_LEDC */
 
 #ifdef CONFIG_ESPRESSIF_SPIFLASH
   ret = board_spiflash_init();
@@ -223,12 +248,29 @@ int esp32s2_bringup(void)
 # endif
 #endif
 
-#if defined(CONFIG_SPI_SLAVE_DRIVER) && defined(CONFIG_ESP32S2_SPI3_SLAVE)
+#ifdef CONFIG_ESP32S2_SPI3
+# ifdef CONFIG_SPI_DRIVER
+  ret = board_spidev_initialize(ESP32S2_SPI3);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to initialize SPI%d driver: %d\n",
+             ESP32S2_SPI3, ret);
+    }
+# elif defined(CONFIG_SPI_SLAVE_DRIVER) && defined(CONFIG_ESP32S2_SPI3_SLAVE)
   ret = board_spislavedev_initialize(ESP32S2_SPI3);
   if (ret < 0)
     {
       syslog(LOG_ERR, "Failed to initialize SPI%d Slave driver: %d\n",
-              ESP32S2_SPI3, ret);
+             ESP32S2_SPI3, ret);
+    }
+# endif
+#endif
+
+#ifdef CONFIG_ESPRESSIF_HR_TIMER
+  ret = esp_hr_timer_init();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: esp_hr_timer_init() failed: %d\n", ret);
     }
 #endif
 
@@ -282,14 +324,6 @@ int esp32s2_bringup(void)
 
 #endif /* CONFIG_TIMER */
 
-#ifdef CONFIG_ESP32S2_RT_TIMER
-  ret = esp32s2_rt_timer_init();
-  if (ret < 0)
-    {
-      syslog(LOG_ERR, "Failed to initialize RT timer: %d\n", ret);
-    }
-
-#endif
   /* Now register one oneshot driver */
 
 #if defined(CONFIG_ONESHOT) && defined(CONFIG_ESP32S2_TIMER0)
@@ -323,16 +357,14 @@ int esp32s2_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_ESPRESSIF_WIRELESS
+#ifdef CONFIG_ESPRESSIF_WIFI
 
-#ifdef CONFIG_ESPRESSIF_WLAN
   ret = board_wlan_init();
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: Failed to initialize wlan subsystem=%d\n",
-             ret);
+              ret);
     }
-#endif
 
 #endif
 
@@ -405,13 +437,13 @@ int esp32s2_bringup(void)
 #endif /* CONFIG_ESPRESSIF_I2S || CONFIG_ESPRESSIF_I2S */
 
 #ifdef CONFIG_ESP_RMT
-  ret = board_rmt_txinitialize(RMT_TXCHANNEL, RMT_OUTPUT_PIN);
+  ret = board_rmt_txinitialize(RMT_OUTPUT_PIN);
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: board_rmt_txinitialize() failed: %d\n", ret);
     }
 
-  ret = board_rmt_rxinitialize(RMT_RXCHANNEL, RMT_INPUT_PIN);
+  ret = board_rmt_rxinitialize(RMT_INPUT_PIN);
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: board_rmt_txinitialize() failed: %d\n", ret);
@@ -456,7 +488,7 @@ int esp32s2_bringup(void)
 #ifdef CONFIG_RTC_DRIVER
   /* Instantiate the ESP32 RTC driver */
 
-  ret = esp32s2_rtc_driverinit();
+  ret = esp_rtc_driverinit();
   if (ret < 0)
     {
       syslog(LOG_ERR,
@@ -478,6 +510,26 @@ int esp32s2_bringup(void)
     {
       syslog(LOG_ERR, "ERROR: board_adc_init failed: %d\n", ret);
     }
+#endif
+
+#ifdef CONFIG_MMCSD_SPI
+  ret = board_sdmmc_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to initialize SDMMC: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_ESPRESSIF_USE_ULP_RISCV_CORE
+
+  /* ULP initialization should be the handled later than
+   * peripherals to use supported peripherals properly on ULP core
+   */
+
+  esp_ulp_init();
+#  ifdef CONFIG_ESPRESSIF_ULP_USE_TEST_BIN
+  esp_ulp_load_bin((char *)esp_ulp_bin, esp_ulp_bin_len);
+#  endif
 #endif
 
   /* If we got here then perhaps not all initialization was successful, but

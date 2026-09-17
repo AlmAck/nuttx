@@ -35,13 +35,19 @@
 
 #include <fcntl.h>
 #include <poll.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <minmea/minmea.h>
 #include <sys/param.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+/* Only float data type supported now */
+
+#ifdef CONFIG_SENSORS_USE_B16
+#  error fixed-point data type not supported yet
+#endif
 
 #define GNSS_PATH_FMT          "/dev/ttyGNSS%d"
 
@@ -110,6 +116,9 @@ static int gnss_set_interval(FAR struct sensor_lowerhalf_s *lower,
                              FAR uint32_t *interval);
 static int gnss_control(FAR struct sensor_lowerhalf_s *lower,
                         FAR struct file *filep, int cmd, unsigned long arg);
+static int gnss_get_info(FAR struct sensor_lowerhalf_s *lower,
+                         FAR struct file *filep,
+                         FAR struct sensor_device_info_s *info);
 
 static int     gnss_open(FAR struct file *filep);
 static int     gnss_close(FAR struct file *filep);
@@ -131,6 +140,7 @@ static const struct sensor_ops_s g_gnss_sensor_ops =
   .activate     = gnss_activate,
   .set_interval = gnss_set_interval,
   .control      = gnss_control,
+  .get_info     = gnss_get_info,
 };
 
 static const struct file_operations g_gnss_fops =
@@ -178,11 +188,13 @@ static int gnss_activate(FAR struct sensor_lowerhalf_s *lower,
       if ((upper->crefs == 0 && enable) || (upper->crefs == 1 && !enable))
         {
           ret = upper->lower->ops->activate(upper->lower, filep, enable);
+          sminfo(filep->f_inode->i_name, "enable %d ret %d", enable, ret);
         }
 
       if (ret >= 0)
         {
           upper->crefs += enable ? 1 : -1;
+          sminfo(filep->f_inode->i_name, "crefs %" PRIu8 "", upper->crefs);
         }
     }
 
@@ -203,6 +215,21 @@ static int gnss_set_interval(FAR struct sensor_lowerhalf_s *lower,
     }
 
   return upper->lower->ops->set_interval(upper->lower, filep, interval);
+}
+
+static int gnss_get_info(FAR struct sensor_lowerhalf_s *lower,
+                         FAR struct file *filep,
+                         FAR struct sensor_device_info_s *info)
+{
+  FAR struct gnss_sensor_s *dev = (FAR struct gnss_sensor_s *)lower;
+  FAR struct gnss_upperhalf_s *upper = dev->upper;
+
+  if (upper->lower->ops->get_info == NULL)
+    {
+      return -ENOTSUP;
+    }
+
+  return upper->lower->ops->get_info(upper->lower, filep, info);
 }
 
 static int gnss_control(FAR struct sensor_lowerhalf_s *lower,
@@ -245,6 +272,7 @@ static int gnss_open(FAR struct file *filep)
       if (upper->crefs == 0)
         {
           ret = upper->lower->ops->activate(upper->lower, filep, true);
+          sminfo(filep->f_inode->i_name, "open ret %d", ret);
           if (ret < 0)
             {
               kmm_free(user);
@@ -253,6 +281,7 @@ static int gnss_open(FAR struct file *filep)
         }
 
       upper->crefs++;
+      sminfo(filep->f_inode->i_name, "crefs %" PRIu8 "", upper->crefs);
     }
 
   filep->f_priv = user;
@@ -280,6 +309,7 @@ static int gnss_close(FAR struct file *filep)
       if (upper->crefs == 1)
         {
           ret = upper->lower->ops->activate(upper->lower, filep, false);
+          sminfo(filep->f_inode->i_name, "close ret %d", ret);
           if (ret < 0)
             {
               goto out;
@@ -287,6 +317,7 @@ static int gnss_close(FAR struct file *filep)
         }
 
       upper->crefs--;
+      sminfo(filep->f_inode->i_name, "crefs " PRIu8 "", upper->crefs);
     }
 
   list_delete(&user->node);
@@ -537,8 +568,14 @@ static void gnss_parse_nmea(FAR struct gnss_upperhalf_s *upper,
               satellite.timestamp = sensor_get_timestamp();
               satellite.count = frame.total_msgs;
               satellite.satellites = frame.total_sats;
-              memcpy(satellite.info, frame.sats,
-                     sizeof(satellite.info[0]) * 4);
+              for (i = 0; i < SENSOR_GNSS_SAT_INFO_MAX; i++)
+                {
+                  satellite.info[i].svid      = frame.sats[i].nr;
+                  satellite.info[i].elevation = frame.sats[i].elevation;
+                  satellite.info[i].azimuth   = frame.sats[i].azimuth;
+                  satellite.info[i].snr       = frame.sats[i].snr;
+                }
+
               lower = &upper->dev[SENSOR_GNSS_IDX_GNSS_SATELLITE].lower;
 
               for (i = 0; i < nitems(g_gnss_constellation); i++)
@@ -589,6 +626,7 @@ static void gnss_parse(FAR struct gnss_upperhalf_s *upper,
     {
       if (*buffer == '$')
         {
+          upper->parsenext = 0;
           newline = true;
         }
 
@@ -709,7 +747,7 @@ static void gnss_push_event(FAR void *priv, FAR const void *data,
  *   count   - The array size of nbuffer.
  *
  * Returned Value:
- *   OK if the driver was successfully register; A negated errno value is
+ *   OK if the driver was successfully registered; A negated errno value is
  *   returned on any failure.
  *
  ****************************************************************************/
@@ -824,7 +862,7 @@ int gnss_register(FAR struct gnss_lowerhalf_s *lower, int devno,
     }
 
   snprintf(path, PATH_MAX, GNSS_PATH_FMT, devno);
-  ret = register_driver(path, &g_gnss_fops, 0666, upper);
+  ret = register_driver(path, &g_gnss_fops, 0600, upper);
   if (ret < 0)
     {
       goto driver_err;

@@ -43,6 +43,7 @@
 #include <nuttx/ascii.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/mutex.h>
+#include <nuttx/sched.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/serial/pty.h>
@@ -340,7 +341,8 @@ static int pty_close(FAR struct file *filep)
 
   /* Check if the decremented inode reference count would go to zero */
 
-  if (atomic_read(&inode->i_crefs) == 1)
+  if ((!dev->pd_master && atomic_load(&inode->i_crefs) == 2) ||
+       (dev->pd_master && atomic_load(&inode->i_crefs) == 1))
     {
       /* Did the (single) master just close its reference? */
 
@@ -837,16 +839,21 @@ static int pty_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       /* Make the controlling terminal of the calling process */
 
       case TIOCSCTTY:
+      case TIOCSPGRP:
         {
-          /* Save the PID of the recipient of the SIGINT signal. */
+          /* Save the PID of the foreground process group that is to receive
+           * tty-generated signals.  A zero 'arg' selects the calling task
+           * (POSIX flag semantics); a positive 'arg' is honored as the
+           * target PID (NuttX historical semantics).
+           */
 
-          if ((int)arg < 0 || dev->pd_pid >= 0)
+          if ((int)arg < 0)
             {
               ret = -EINVAL;
             }
           else
             {
-              dev->pd_pid = (pid_t)arg;
+              dev->pd_pid = arg > 0 ? (pid_t)arg : nxsched_getpid();
               ret = 0;
             }
         }
@@ -856,6 +863,23 @@ static int pty_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         {
           dev->pd_pid = INVALID_PROCESS_ID;
           ret = 0;
+        }
+        break;
+
+      /* Get the foreground process group / session leader.  pgrp == pid. */
+
+      case TIOCGPGRP:
+      case TIOCGSID:
+        {
+          if (dev->pd_pid < 0)
+            {
+              ret = -ENOTTY;
+            }
+          else
+            {
+              *(FAR pid_t *)((uintptr_t)arg) = dev->pd_pid;
+              ret = 0;
+            }
         }
         break;
 #endif
@@ -1096,7 +1120,7 @@ int pty_register2(int minor, bool susv1)
 
   snprintf(devname, sizeof(devname), "/dev/pty%d", minor);
 
-  ret = register_driver(devname, &g_pty_fops, 0666, &devpair->pp_master);
+  ret = register_driver(devname, &g_pty_fops, 0600, &devpair->pp_master);
   if (ret < 0)
     {
       goto errout_with_devpair;
@@ -1119,7 +1143,7 @@ int pty_register2(int minor, bool susv1)
       snprintf(devname, sizeof(devname), "/dev/ttyp%d", minor);
     }
 
-  ret = register_driver(devname, &g_pty_fops, 0666, &devpair->pp_slave);
+  ret = register_driver(devname, &g_pty_fops, 0600, &devpair->pp_slave);
   if (ret < 0)
     {
       goto errout_with_master;

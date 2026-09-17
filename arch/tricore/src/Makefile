@@ -22,9 +22,14 @@
 
 include $(TOPDIR)/Make.defs
 include chip/Make.defs
+include common/Make.defs
 
-ifeq ($(CONFIG_ARCH_TC3XX),y)
+ifeq ($(CONFIG_ARCH_CHIP_TC3XX),y)
 ARCH_SUBDIR = tc3xx
+include $(ARCH_SUBDIR)/Make.defs
+else ifeq ($(CONFIG_ARCH_CHIP_TC4XX),y)
+ARCH_SUBDIR = tc4xx
+include $(ARCH_SUBDIR)/Make.defs
 endif
 
 ARCH_SRCDIR = $(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src
@@ -104,12 +109,10 @@ else
   LIBRARY_OPT = -l
 endif
 
-ifeq ($(CONFIG_TRICORE_TOOLCHAIN_TASKING),y)
-  LDFLAGS += $(addprefix $(SCRIPT_OPT),$(call CONVERT_PATH,$(ARCHSCRIPT))) $(EXTRALINKCMDS)
-else
-  ARCHSCRIPT := $(call CONVERT_PATH,$(ARCHSCRIPT))
-  LDFLAGS += $(addprefix $(SCRIPT_OPT),$(addsuffix .tmp,$(ARCHSCRIPT))) $(EXTRALINKCMDS)
+ARCHSCRIPT := $(call CONVERT_PATH,$(ARCHSCRIPT))
+LDFLAGS += $(addprefix $(SCRIPT_OPT),$(addsuffix .tmp,$(ARCHSCRIPT))) $(EXTRALINKCMDS)
 
+ifeq ($(CONFIG_TRICORE_TOOLCHAIN_TASKING),)
   LDSTARTGROUP ?= -Wl,--start-group
   LDENDGROUP   ?= -Wl,--end-group
 endif
@@ -144,14 +147,14 @@ $(COBJS) $(UCOBJS) $(HEAD_COBJ): %$(OBJEXT): %.c
 
 ifeq ($(CONFIG_BUILD_FLAT),y)
 $(BIN): $(OBJS)
-	$(call ARCHIVE, $@, $(OBJS))
+	$(call ARCHIVE_REBUILD, $@, $(OBJS))
 else
 $(BIN): $(UOBJS)
-	$(call ARCHIVE, $@, $(UOBJS))
+	$(call ARCHIVE_REBUILD, $@, $(UOBJS))
 endif
 
 $(KBIN): $(OBJS)
-	$(call ARCHIVE, $@, $(OBJS))
+	$(call ARCHIVE_REBUILD, $@, $(OBJS))
 
 board$(DELIM)libboard$(LIBEXT):
 	$(Q) $(MAKE) -C board libboard$(LIBEXT) EXTRAFLAGS="$(EXTRAFLAGS)"
@@ -165,16 +168,11 @@ define LINK_ALLSYMS
 	$(Q) $(call DELFILE, allsyms.tmp allsyms$(OBJEXT))
 endef
 
-ifeq ($(CONFIG_TRICORE_TOOLCHAIN_TASKING),)
 $(addsuffix .tmp,$(ARCHSCRIPT)): $(ARCHSCRIPT)
 	$(call PREPROCESS, $(patsubst %.tmp,%,$@), $@)
-endif
 
-ifeq ($(CONFIG_TRICORE_TOOLCHAIN_TASKING),y)
-nuttx$(EXEEXT): $(HEAD_COBJ) board$(DELIM)libboard$(LIBEXT) $(ARCHSCRIPT) $(EXTRA_LIBS)
-else
 nuttx$(EXEEXT): $(HEAD_COBJ) board$(DELIM)libboard$(LIBEXT) $(EXTRA_LIBS) $(addsuffix .tmp,$(ARCHSCRIPT))
-endif
+
 	$(Q) echo "LD: nuttx"
 ifneq ($(CONFIG_ALLSYMS),y)
 	$(Q) $(LD) $(LDFLAGS) $(LIBPATHS) $(EXTRA_LIBPATHS) \
@@ -193,9 +191,7 @@ ifneq ($(CONFIG_WINDOWS_NATIVE),y)
 	grep -v '\(compiled\)\|\(\$(OBJEXT)$$\)\|\( [aUw] \)\|\(\.\.ng$$\)\|\(LASH[RL]DI\)' | \
 	sort > $(TOPDIR)$(DELIM)System.map
 endif
-ifeq ($(CONFIG_TRICORE_TOOLCHAIN_TASKING),)
 	$(Q) $(call DELFILE, $(addsuffix .tmp,$(ARCHSCRIPT)))
-endif
 
 # This is part of the top-level export target
 # Note that there may not be a head object if layout is handled
@@ -243,6 +239,7 @@ distclean:: clean
 ifeq ($(BOARDMAKE),y)
 	$(Q) $(MAKE) -C board distclean
 endif
+	$(call DELFILE, $(CSRCS:.c=.ddc) $(ASRCS:.S=.dds)
 	$(call DELFILE, Make.dep)
 	$(call DELFILE, .depend)
 

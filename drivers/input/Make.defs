@@ -94,6 +94,10 @@ ifeq ($(CONFIG_INPUT_GT9XX),y)
   CSRCS += gt9xx.c
 endif
 
+ifeq ($(CONFIG_INPUT_ZT2628),y)
+  CSRCS += zt2628.c
+endif
+
 ifeq ($(CONFIG_INPUT_BUTTONS),y)
   CSRCS += button_upper.c
 ifeq ($(CONFIG_INPUT_BUTTONS_LOWER),y)
@@ -104,6 +108,7 @@ endif
 
 ifeq ($(CONFIG_INPUT_KEYBOARD),y)
   CSRCS += keyboard_upper.c
+  CSRCS += virtio_key_decode.c
 endif
 
 ifeq ($(CONFIG_INPUT_DJOYSTICK),y)
@@ -118,12 +123,28 @@ ifeq ($(CONFIG_INPUT_NUNCHUCK),y)
   CSRCS += nunchuck.c
 endif
 
+ifeq ($(CONFIG_INPUT_SBUTTON),y)
+  CSRCS += sbutton.c
+endif
+
 ifeq ($(CONFIG_INPUT_SPQ10KBD),y)
   CSRCS += spq10kbd.c
 endif
 
+ifeq ($(CONFIG_INPUT_KMATRIX),y)
+  CSRCS += kmatrix.c
+endif
+
+ifeq ($(CONFIG_INPUT_KMATRIX_I2C),y)
+  CSRCS += kmatrix_i2c.c
+endif
+
 ifeq ($(CONFIG_INPUT_GOLDFISH_EVENTS),y)
   CSRCS += goldfish_events.c
+endif
+
+ifeq ($(CONFIG_INPUT_MPR121_KEYPAD),y)
+  CSRCS += mpr121.c
 endif
 
 # Include input device driver build support

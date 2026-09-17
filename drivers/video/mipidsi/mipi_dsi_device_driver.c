@@ -26,7 +26,7 @@
 
 #include <nuttx/config.h>
 
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <stdio.h>
 
 #include <nuttx/kmalloc.h>
@@ -196,7 +196,7 @@ static int dsi_dev_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
  *   device - An instance of the struct mipi_dsi_device
  *
  * Returned Value:
- *   OK if the driver was successfully register; A negated errno value is
+ *   OK if the driver was successfully registered; A negated errno value is
  *   returned on any failure.
  *
  ****************************************************************************/
@@ -224,7 +224,7 @@ int mipi_dsi_device_driver_register(FAR struct mipi_dsi_device *device)
   snprintf(devpath, sizeof(devpath), MIPI_DSI_DEVNAME_FMT, host->bus,
            device->channel, device->name);
 
-  ret = register_driver(devpath, &g_dsi_dev_fops, 0666, priv);
+  ret = register_driver(devpath, &g_dsi_dev_fops, 0600, priv);
   if (ret < 0)
     {
       nxmutex_destroy(&priv->lock);

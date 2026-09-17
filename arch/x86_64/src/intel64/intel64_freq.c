@@ -101,7 +101,7 @@ static inline uint64_t x86_64_timer_tsc_freq_15h(void)
       return 0;
     }
 
-  return crystal_freq / denominator * numerator;
+  return (uint64_t)(crystal_freq / denominator) * numerator;
 }
 
 /****************************************************************************
@@ -150,10 +150,12 @@ void x86_64_timer_calibrate_freq(void)
   g_x86_64_timer_freq = CONFIG_ARCH_INTEL64_APIC_FREQ_KHZ * 1000ul;
 #endif
 
+#ifdef CONFIG_ARCH_INTEL64_HAVE_TSC
   if (g_x86_64_timer_freq == 0)
     {
       /* The TSC frequency is not available */
 
       PANIC();
     }
+#endif
 }

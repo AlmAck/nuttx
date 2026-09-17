@@ -27,7 +27,7 @@
 #include <nuttx/config.h>
 
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/addrenv.h>
 #include <nuttx/atomic.h>
@@ -55,6 +55,7 @@
  */
 
 static FAR struct addrenv_s *g_addrenv[CONFIG_SMP_NCPUS];
+static spinlock_t g_addrenv_lock = SP_UNLOCKED;
 
 /****************************************************************************
  * Private Functions
@@ -142,7 +143,7 @@ int addrenv_switch(FAR struct tcb_s *tcb)
       return OK;
     }
 
-  flags = enter_critical_section();
+  flags = spin_lock_irqsave_nopreempt(&g_addrenv_lock);
 
   cpu = this_cpu();
   curr = g_addrenv[cpu];
@@ -190,7 +191,7 @@ int addrenv_switch(FAR struct tcb_s *tcb)
       g_addrenv[cpu] = next;
     }
 
-  leave_critical_section(flags);
+  spin_unlock_irqrestore_nopreempt(&g_addrenv_lock, flags);
   return OK;
 }
 
@@ -217,7 +218,7 @@ FAR struct addrenv_s *addrenv_allocate(void)
     {
       /* Take reference so this won't get freed */
 
-      addrenv->refs = 1;
+      atomic_set(&addrenv->refs, 1);
     }
 
   return addrenv;
@@ -394,7 +395,17 @@ int addrenv_restore(FAR struct addrenv_s *addrenv)
 
 void addrenv_take(FAR struct addrenv_s *addrenv)
 {
-  atomic_fetch_add(&addrenv->refs, 1);
+  /* A task can legitimately have no address environment -- addrenv_switch()
+   * and addrenv_drop() both treat that as "nothing to do".  A kernel thread
+   * never owns one, and in a protected build no task does:  there is a
+   * single address space for the whole system and the architecture's
+   * up_addrenv_*() are stubs.  There is then nothing to reference count.
+   */
+
+  if (addrenv != NULL)
+    {
+      atomic_fetch_add(&addrenv->refs, 1);
+    }
 }
 
 /****************************************************************************
@@ -414,7 +425,12 @@ void addrenv_take(FAR struct addrenv_s *addrenv)
 
 int addrenv_give(FAR struct addrenv_s *addrenv)
 {
-  return atomic_fetch_sub(&addrenv->refs, 1) - 1;
+  /* See addrenv_take():  nothing was counted, so nothing is given back.  A
+   * non-zero count is returned so that callers never conclude the (absent)
+   * address environment has become unreferenced and should be destroyed.
+   */
+
+  return addrenv ? atomic_fetch_sub(&addrenv->refs, 1) - 1 : 1;
 }
 
 /****************************************************************************

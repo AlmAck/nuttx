@@ -95,9 +95,6 @@
  *   CONFIG_BOARD_LATE_INITIALIZE=y :
  *     Called from board_late_initialize().
  *
- *   CONFIG_BOARD_LATE_INITIALIZE=y && CONFIG_BOARDCTL=y :
- *     Called from the NSH library via board_app_initialize()
- *
  ****************************************************************************/
 
 int esp32_bringup(void);
@@ -147,16 +144,6 @@ int esp32_es8388_initialize(int i2c_port, uint8_t i2c_addr, int i2c_freq,
     defined CONFIG_ESPRESSIF_I2S1
 int board_i2sdev_initialize(int port);
 #endif
-
-/****************************************************************************
- * Name: esp32_mmcsd_initialize
- *
- * Description:
- *   Initialize SPI-based SD card and card detect thread.
- *
- ****************************************************************************/
-
-int esp32_mmcsd_initialize(int minor);
 
 /****************************************************************************
  * Name: esp32_spiflash_init

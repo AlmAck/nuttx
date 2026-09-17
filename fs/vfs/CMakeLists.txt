@@ -25,6 +25,7 @@ set(SRCS
     fs_close.c
     fs_dup.c
     fs_dup2.c
+    fs_dup3.c
     fs_fcntl.c
     fs_epoll.c
     fs_fchstat.c
@@ -50,7 +51,14 @@ set(SRCS
     fs_dir.c
     fs_fsync.c
     fs_syncfs.c
-    fs_truncate.c)
+    fs_truncate.c
+    fs_link.c)
+
+# File notify support
+
+if(CONFIG_FS_NOTIFY)
+  list(APPEND SRCS fs_inotify.c)
+endif()
 
 # File lock support
 
@@ -58,10 +66,8 @@ if(NOT "${CONFIG_FS_LOCK_BUCKET_SIZE}" STREQUAL "0")
   list(APPEND SRCS fs_lock.c)
 endif()
 
-# Certain interfaces are not available if there is no mountpoint support
-
 if(NOT "${CONFIG_PSEUDOFS_SOFTLINKS}" STREQUAL "0")
-  list(APPEND SRCS fs_link.c fs_symlink.c fs_readlink.c)
+  list(APPEND SRCS fs_symlink.c fs_readlink.c)
 endif()
 
 # Pseudofile support
@@ -86,6 +92,12 @@ endif()
 
 if(CONFIG_SIGNAL_FD)
   list(APPEND SRCS fs_signalfd.c)
+endif()
+
+# Support for profiler
+
+if(CONFIG_FS_PROFILER)
+  list(APPEND SRCS fs_profile.c)
 endif()
 
 target_sources(fs PRIVATE ${SRCS})

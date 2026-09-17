@@ -330,7 +330,7 @@ static int hci_load_firmware(struct file *filep)
       command[1] = 0x20;
       command[2] = 0xfc;
       buffer_size = header_size + command[3];
-      nxsig_usleep(10);
+      nxsched_usleep(10);
       ret = hci_send(filep, command, buffer_size);
       if (ret != buffer_size)
         {
@@ -507,6 +507,6 @@ static hci_dev_t g_hcidev =
 
 int amebaz_bt_hci_uart_register(const char *path)
 {
-  return register_driver(path, &g_hcidev.i_ops, 0666, &g_hcidev);
+  return register_driver(path, &g_hcidev.i_ops, 0600, &g_hcidev);
 }
 

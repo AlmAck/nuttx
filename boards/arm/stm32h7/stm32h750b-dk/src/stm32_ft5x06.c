@@ -25,7 +25,7 @@
 #include <nuttx/config.h>
 
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 
 #include <nuttx/input/ft5x06.h>
@@ -47,8 +47,8 @@
 #  error "FT5x06 support requires CONFIG_INPUT"
 #endif
 
-#ifndef CONFIG_STM32H7_I2C4
-#  error "FT5x06 support requires CONFIG_STM32H7_I2C4"
+#ifndef CONFIG_STM32_I2C4
+#  error "FT5x06 support requires CONFIG_STM32_I2C4"
 #endif
 
 #ifndef CONFIG_FT5X06_I2CDEV
@@ -102,7 +102,13 @@ static const struct ft5x06_config_s g_ft5x06_config =
   .clear     = stm32_ft5x06_clear,
 #endif
   .wakeup    = stm32_ft5x06_wakeup,
-  .nreset    = stm32_ft5x06_nreset
+  .nreset    = stm32_ft5x06_nreset,
+  .lower     =
+    {
+#ifdef CONFIG_ARCH_BOARD_STM32H750B_DK_TOUCHSCREEN_SWAPXY
+      .flags = TOUCH_FLAG_SWAPXY,
+#endif
+    },
 };
 
 #ifndef CONFIG_FT5X06_POLLMODE

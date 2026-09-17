@@ -29,7 +29,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -37,9 +37,9 @@
 #include <nuttx/board.h>
 #include <nuttx/fs/fs.h>
 
-#include <stm32l4.h>
+#include <stm32.h>
 #include <stm32l4_uart.h>
-#include <stm32l4_uid.h>
+#include <stm32_uid.h>
 
 #include <arch/board/board.h>
 #include <arch/board/boardctl.h>
@@ -92,9 +92,6 @@ struct mtd_dev_s *g_mtd_fs;
  *   CONFIG_BOARD_LATE_INITIALIZE=y :
  *     Called from board_late_initialize().
  *
- *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_BOARDCTL=y :
- *     Called from the NSH library
- *
  ****************************************************************************/
 
 int stm32_bringup(void)
@@ -106,10 +103,7 @@ int stm32_bringup(void)
   struct mtd_dev_s *mtd_temp;
 #endif
 #if defined(HAVE_N25QXXX_CHARDEV)
-#if defined(CONFIG_BCH)
-  char blockdev[18];
-  char chardev[12];
-#endif /* defined(CONFIG_BCH) */
+  char mtddev[12];
 #endif
   int ret = OK;
 
@@ -130,7 +124,7 @@ int stm32_bringup(void)
 #ifdef HAVE_RTC_DRIVER
   /* Instantiate the STM32 lower-half RTC driver */
 
-  rtclower = stm32l4_rtc_lowerhalf();
+  rtclower = stm32_rtc_lowerhalf();
   if (!rtclower)
     {
       serr("ERROR: Failed to instantiate the RTC lower-half driver\n");
@@ -154,10 +148,10 @@ int stm32_bringup(void)
 #ifdef HAVE_N25QXXX
   /* Create an instance of the STM32L4 QSPI device driver */
 
-  g_qspi = stm32l4_qspi_initialize(0);
+  g_qspi = stm32_qspi_initialize(0);
   if (!g_qspi)
     {
-      _err("ERROR: stm32l4_qspi_initialize failed\n");
+      _err("ERROR: stm32_qspi_initialize failed\n");
       return ret;
     }
   else
@@ -231,41 +225,28 @@ int stm32_bringup(void)
         }
 
 #else /* if  defined(HAVE_N25QXXX_CHARDEV) */
-      /* Use the FTL layer to wrap the MTD driver as a block driver */
-
-      ret = ftl_initialize(N25QXXX_MTD_MINOR, g_mtd_fs);
-      if (ret < 0)
-        {
-          _err("ERROR: Failed to initialize the FTL layer: %d\n", ret);
-          return ret;
-        }
-
-#if defined(CONFIG_BCH)
       /* Use the minor number to create device paths */
 
-      snprintf(blockdev, sizeof(blockdev), "/dev/mtdblock%d",
-               N25QXXX_MTD_MINOR);
-      snprintf(chardev, sizeof(chardev), "/dev/mtd%d", N25QXXX_MTD_MINOR);
+      snprintf(mtddev, sizeof(mtddev), "/dev/mtd%d", N25QXXX_MTD_MINOR);
 
-      /* Now create a character device on the block device */
+      /* Register the MTD driver */
 
-      ret = bchdev_register(blockdev, chardev, false);
+      ret = register_mtddriver(mtddev, g_mtd_fs, 0755, NULL);
       if (ret < 0)
         {
-          _err("ERROR: bchdev_register %s failed: %d\n", chardev, ret);
+          _err("ERROR: register_mtddriver %s failed: %d\n", mtddev, ret);
           return ret;
         }
-#endif /* defined(CONFIG_BCH) */
 #endif
     }
 #endif
 
 #ifdef HAVE_USBHOST
-  /* Initialize USB host operation.  stm32l4_usbhost_initialize() starts a
+  /* Initialize USB host operation.  stm32_usbhost_initialize() starts a
    * thread that will monitor for USB connection and disconnection events.
    */
 
-  ret = stm32l4_usbhost_initialize();
+  ret = stm32_usbhost_initialize();
   if (ret != OK)
     {
       udbg("ERROR: Failed to initialize USB host: %d\n", ret);

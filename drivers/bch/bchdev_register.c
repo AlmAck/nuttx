@@ -29,7 +29,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/fs/fs.h>
 #include <nuttx/drivers/drivers.h>
@@ -50,17 +50,17 @@
  ****************************************************************************/
 
 int bchdev_register(FAR const char *blkdev, FAR const char *chardev,
-                    bool readonly)
+                    int oflags)
 {
   FAR void *handle;
   int ret;
 
-  finfo("blkdev=\"%s\" chardev=\"%s\" readonly=%c\n",
-        blkdev, chardev, readonly ? 'T' : 'F');
+  finfo("blkdev=\"%s\" chardev=\"%s\" oflags=0x%x\n",
+        blkdev, chardev, oflags);
 
   /* Setup the BCH lib functions */
 
-  ret = bchlib_setup(blkdev, readonly, &handle);
+  ret = bchlib_setup(blkdev, oflags, &handle);
   if (ret < 0)
     {
       ferr("ERROR: bchlib_setup failed: %d\n", -ret);
@@ -69,7 +69,7 @@ int bchdev_register(FAR const char *blkdev, FAR const char *chardev,
 
   /* Then setup the character device */
 
-  ret = register_driver(chardev, &g_bch_fops, 0666, handle);
+  ret = register_driver(chardev, &g_bch_fops, 0600, handle);
   if (ret < 0)
     {
       ferr("ERROR: register_driver failed: %d\n", -ret);

@@ -1,208 +1,154 @@
-/* 
- * DA14706 NuttX Linker Script
- * Based on Dialog Semiconductor memory programming documentation
- */
+/****************************************************************************
+ * boards/arm/da1470x/da14706-00hzdevkt-p/scripts/flash_app.ld
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
 
-/*
- * Interrupt vector remmaping overhead.
- * This is required only for FLASH builds, where the IVT is
- * copied at RAM0 to improve performance.
- * For RAM builds this overhead is not needed, but it still exists so that
- * NMI and HardFault info blocks are always at the same address.
+/* The DA14706 executes in place from the OQSPI flash, which the boot ROM
+ * remaps to address 0.  The 1.5 MiB SYSRAM is split as follows:
+ *
+ *   0x20000000  64 KiB   RAM0-2   SNC (reserved)
+ *   0x20010000   1 MiB   RAM3-7   NuttX .data/.bss/heap
+ *   0x20110000 128 KiB   RAM8     shared / extra heap
+ *   0x20130000 128 KiB   RAM9     CMAC data (BLE) / extra heap
+ *   0x20150000 192 KiB   RAM10    CMAC code (BLE)
  */
-IVT_OVERHEAD = 0x200;
-
-/* Memory region definitions */
-__SNC_BASE = 0x20000000;         /* RAM1 and RAM2 for SNC */
-__SNC_SIZE = 64K;                /* 64KB for SNC */
-__SHARED_BASE = 0x20110000;      /* RAM8 for shared memory between CPUs */
-__SHARED_SIZE = 128K;            /* 128KB for shared memory */
-__IVT_BASE = 0x0F000000  + IVT_OVERHEAD;         /* IVT in RAM0 */
-__IVT_SIZE = 8K - IVT_OVERHEAD;                 /* 8KB - 0x200 for IVT */
-__CMAC_BASE = 0x20150000;        /* RAM10 for potential CMAC code */
-__CMAC_SIZE = 0;                 /* Configurable based on project needs */
-__RAMC_BASE = 0x10010000;        /* RAM3 for retained code, remapped */
-__RAMC_SIZE = 256K;              /* 256KB for retained code */
-__RAMS_BASE = 0x20010000;        /* RAM4-RAM7 for retained data */
-__RAMS_SIZE = 1024K;       /* 1MB for retained data, 64K reserved for SNC */
-__STACK_SIZE = 0x1000;           /* 4 KB for idle thread & exception handling */
 
 MEMORY
 {
-    IVT (rx)    : ORIGIN = __IVT_BASE, LENGTH = __IVT_SIZE
-    SNC (rwx)   : ORIGIN = __SNC_BASE, LENGTH = __SNC_SIZE
-    SHARED (rw) : ORIGIN = __SHARED_BASE, LENGTH = __SHARED_SIZE
-    CMAC (rx)   : ORIGIN = __CMAC_BASE, LENGTH = __CMAC_SIZE
-    RAMC (x)    : ORIGIN = __RAMC_BASE, LENGTH = __RAMC_SIZE
-    RAMS (rwx)  : ORIGIN = __RAMS_BASE, LENGTH = __RAMS_SIZE
-    FLASH (rx)  : ORIGIN = 0x00000000, LENGTH = 4M
+  flash (rx)  : ORIGIN = 0x00000000, LENGTH = 8M
+  sram  (rwx) : ORIGIN = 0x20010000, LENGTH = 1M
+  cmac  (rwx) : ORIGIN = 0x20150000, LENGTH = 192K
 }
 
 OUTPUT_ARCH(arm)
-ENTRY(__start)         /* Treat __start as the anchor for dead code stripping */
-EXTERN(_vectors)       /* Force the vectors to be included in the output */
+EXTERN(_vectors)
+ENTRY(_stext)
 
 SECTIONS
 {
-    /* Interrupt Vector Table */
-    /*
-    .vectors :
-    {
-        . = ALIGN(4);
-        KEEP(*(.vectors))
-        . = ALIGN(4);
-    } > IVT
-    */
+  /* The vector table must be the first thing in the image so that the
+   * NVIC finds it at address 0 of the remapped flash.  The rest of the
+   * code starts after the 512-byte header slot used by the image tools.
+   */
 
-    /* Code section in FLASH */
-    .text : {
-        _stext = ABSOLUTE(.);
-        *(.vectors)                   /* Vector table */
-        *(.text .text.*)              /* Code sections */
-        *(.fixup)                     /* Fixup sections */
-        *(.gnu.warning)               /* GNU warnings */
-        *(.rodata .rodata.*)          /* Read-only data */
-        *(.gnu.linkonce.t.*)          /* Link-once sections */
-        *(.glue_7)                    /* ARM glue code */
-        *(.glue_7t)
-        *(.got)                       /* Global Offset Table */
-        *(.gcc_except_table)          /* Exception tables */
-        *(.gnu.linkonce.r.*)          /* More link-once sections */
-        __etext = ABSOLUTE(.);
-    } > FLASH
+  .vectors :
+  {
+    _svectors = ABSOLUTE(.);
+    KEEP(*(.vectors))
+    . = ALIGN(0x200);
+    _evectors = ABSOLUTE(.);
+  } > flash
 
-    .init_section : {
-        _sinit = ABSOLUTE(.);
-        KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
-        KEEP(*(.init_array EXCLUDE_FILE(*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o) .ctors))
-        _einit = ABSOLUTE(.);
-    } > FLASH
+  .text :
+  {
+    _stext = ABSOLUTE(.);
+    *(.text .text.*)
+    *(.fixup)
+    *(.gnu.warning)
+    *(.rodata .rodata.*)
+    *(.gnu.linkonce.t.*)
+    *(.glue_7)
+    *(.glue_7t)
+    *(.got)
+    *(.gcc_except_table)
+    *(.gnu.linkonce.r.*)
+    _etext = ABSOLUTE(.);
+  } > flash
 
-    .ARM.extab : {
-        *(.ARM.extab*)
-    } > FLASH
+  .init_section :
+  {
+    _sinit = ABSOLUTE(.);
+    KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
+    KEEP(*(.init_array EXCLUDE_FILE(*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o) .ctors))
+    _einit = ABSOLUTE(.);
+  } > flash
 
-    .ARM.exidx : {
-        __exidx_start = ABSOLUTE(.);
-        *(.ARM.exidx*)
-        __exidx_end = ABSOLUTE(.);
-    } > FLASH
+  .ARM.extab :
+  {
+    *(.ARM.extab*)
+  } > flash
 
-    _eronly = ABSOLUTE(.);
+  __exidx_start = ABSOLUTE(.);
+  .ARM.exidx :
+  {
+    *(.ARM.exidx*)
+  } > flash
+  __exidx_end = ABSOLUTE(.);
 
-    /* Retained code section */
-    .retention_text : AT (0x0 + __etext)
-    {
-        . = ALIGN(4);
-        __retention_text_start__ = .;
-        *(text_retained)
-        *libnosys.a:sbrk.o (.text*)
-        *libgcc.a:_aeabi_uldivmod.o (.text*)
-        *libgcc.a:_muldi3.o (.text*)
-        *libgcc.a:_dvmd_tls.o (.text*)
-        *libgcc.a:bpabi.o (.text*)
-        *libgcc.a:_udivdi3.o (.text*)
-        *libgcc.a:_clzdi2.o (.text*)
-        *libgcc.a:_clzsi2.o (.text*)
-        . = ALIGN(4);
-        __retention_text_end__ = .;
-    } > RAMC
+  _eronly = ABSOLUTE(.);
 
-    /* Ensure RAM data doesn't overlap with retained code */
-    .RAM_UNUSED_THROUGH_CPU_S (NOLOAD) :
-    {
-        . += (__retention_text_end__ - __retention_text_start__);
-    } > RAMS
+  .data :
+  {
+    _sdata = ABSOLUTE(.);
+    *(.data .data.*)
+    *(.gnu.linkonce.d.*)
+    CONSTRUCTORS
+    . = ALIGN(4);
+    _edata = ABSOLUTE(.);
+  } > sram AT > flash
 
-    /* Retained initialized data */
-    .retention_ram_init : AT (0x0 + __etext + (__retention_text_end__ - __retention_text_start__))
-    {
-        . = ALIGN(4);
-        __retention_ram_init_start__ = .;
-        *(privileged_data_init)
-        *(.retention)
-        *(vtable)
-        *(retention_mem_init)
-        *(retention_mem_const)
-        *libg_nano.a:* (.data*)
-        *libnosys.a:* (.data*)
-        *libgcc.a:* (.data*)
-        *crtbegin.o (.data*)
-        KEEP(*(.jcr*))
-        . = ALIGN(4);
-        __retention_ram_init_end__ = .;
-    } > RAMS
+  /* Code that must run from RAM (flash programming while executing in
+   * place).  Copied by __start from _framfuncs.
+   */
 
-    /* Retained uninitialized data (zero-initialized) */
-    .retention_ram_zi (NOLOAD) :
-    {
-        . = ALIGN(4);
-        __retention_ram_zi_start__ = .;
-        *(privileged_data_zi)
-        *(retention_mem_zi)
-        . = ALIGN(4);
-        __retention_ram_zi_end__ = .;
-    } > RAMS
+  .ramfunc ALIGN(4) :
+  {
+    _sramfuncs = ABSOLUTE(.);
+    *(.ramfunc .ramfunc.*)
+    . = ALIGN(4);
+    _eramfuncs = ABSOLUTE(.);
+  } > sram AT > flash
 
-    /* Shared memory section for CPU communication */
-    .shared_section_retained_zi (NOLOAD) :
-    {
-        . = ALIGN(4);
-        __shared_section_retained_zi_start__ = .;
-        KEEP(*(.snc_shared_ram_area*))
-        *(retention_mem_shared_zi)
-        . = ALIGN(4);
-        __shared_section_retained_zi_end__ = .;
-    } > SHARED
+  _framfuncs = LOADADDR(.ramfunc);
 
-    /* SNC shared memory section */
-    .snc_shared (NOLOAD) :
-    {
-        . = ALIGN(4);
-        __snc_shared_start__ = .;
-        __snc_shared_space_start__ = .;
-        KEEP(*(retention_mem_shared_zi))
-        __snc_shared_space_end__ = .;
-        __snc_exception_space_start__ = .;
-        KEEP(*(nmi_info))
-        KEEP(*(hard_fault_info))
-        __snc_exception_space_end__ = .;
-        . = ALIGN(4);
-        __snc_shared_end__ = .;
-    } > SHARED
+  .bss :
+  {
+    _sbss = ABSOLUTE(.);
+    *(.bss .bss.*)
+    *(.gnu.linkonce.b.*)
+    *(COMMON)
+    . = ALIGN(8);
+    _ebss = ABSOLUTE(.);
+  } > sram
 
-    /* Data section (initialized data) */
-    .data : {
-        _sdata = ABSOLUTE(.);
-        *(.data .data.*)
-        *(.gnu.linkonce.d.*)
-        CONSTRUCTORS
-        . = ALIGN(4);
-        _edata = ABSOLUTE(.);
-    } > RAMS AT > FLASH
+  /* Reserved for the CMAC (BLE controller) firmware; nothing is loaded
+   * here by the linker.
+   */
 
-    /* BSS section (zero-initialized data) */
-    .bss : {
-        _sbss = ABSOLUTE(.);
-        *(.bss .bss.*)
-        *(.gnu.linkonce.b.*)
-        *(COMMON)
-        . = ALIGN(4);
-        _ebss = ABSOLUTE(.);
-    } > RAMS
+  .cmac (NOLOAD) :
+  {
+    _scmac = ABSOLUTE(.);
+    *(.cmac)
+    _ecmac = ABSOLUTE(.);
+  } > cmac
 
-    /* Stabs debugging sections. */
+  /* Stabs debugging sections. */
 
-    .stab 0 : { *(.stab) }
-    .stabstr 0 : { *(.stabstr) }
-    .stab.excl 0 : { *(.stab.excl) }
-    .stab.exclstr 0 : { *(.stab.exclstr) }
-    .stab.index 0 : { *(.stab.index) }
-    .stab.indexstr 0 : { *(.stab.indexstr) }
-    .comment 0 : { *(.comment) }
-    .debug_abbrev 0 : { *(.debug_abbrev) }
-    .debug_info 0 : { *(.debug_info) }
-    .debug_line 0 : { *(.debug_line) }
-    .debug_pubnames 0 : { *(.debug_pubnames) }
-    .debug_aranges 0 : { *(.debug_aranges) }
+  .stab 0 : { *(.stab) }
+  .stabstr 0 : { *(.stabstr) }
+  .stab.excl 0 : { *(.stab.excl) }
+  .stab.exclstr 0 : { *(.stab.exclstr) }
+  .stab.index 0 : { *(.stab.index) }
+  .stab.indexstr 0 : { *(.stab.indexstr) }
+  .comment 0 : { *(.comment) }
+  .debug_abbrev 0 : { *(.debug_abbrev) }
+  .debug_info 0 : { *(.debug_info) }
+  .debug_line 0 : { *(.debug_line) }
+  .debug_pubnames 0 : { *(.debug_pubnames) }
+  .debug_aranges 0 : { *(.debug_aranges) }
 }

@@ -28,7 +28,7 @@
 
 #include <stdint.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/cache.h>
 #include <nuttx/init.h>
@@ -242,6 +242,12 @@ void __start(void)
 
   up_enable_icache();
   up_enable_dcache();
+
+#ifdef CONFIG_ARCH_PERF_EVENTS
+  /* Enable hardware performance counter support for perf events */
+
+  up_perf_init((void *)BOARD_CPU_FREQUENCY);
+#endif
 
   /* Perform early serial initialization */
 

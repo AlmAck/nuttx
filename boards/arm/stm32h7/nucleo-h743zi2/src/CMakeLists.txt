@@ -32,12 +32,8 @@ else()
   list(APPEND SRCS stm32_userleds.c)
 endif()
 
-if(CONFIG_STM32H7_OTGFS)
+if(CONFIG_STM32_OTGFS)
   list(APPEND SRCS stm32_usb.c)
-endif()
-
-if(CONFIG_BOARDCTL)
-  list(APPEND SRCS stm32_appinitialize.c)
 endif()
 
 if(CONFIG_DEV_GPIO)
@@ -52,8 +48,8 @@ if(CONFIG_SENSORS_QENCODER)
   list(APPEND SRCS stm32_qencoder.c)
 endif()
 
-if(CONFIG_BOARDCTL_RESET)
-  list(APPEND SRCS stm32_reset.c)
+if(CONFIG_ARCH_BUTTONS)
+  list(APPEND SRCS stm32_buttons.c)
 endif()
 
 target_sources(board PRIVATE ${SRCS})
@@ -64,6 +60,5 @@ if(NOT CONFIG_BUILD_FLAT)
   add_subdirectory(${NUTTX_BOARD_DIR}/kernel)
   set_property(
     GLOBAL PROPERTY LD_SCRIPT_USER ${NUTTX_BOARD_DIR}/scripts/memory.ld
-    ${NUTTX_BOARD_DIR}/scripts/user-space.ld)
+                    ${NUTTX_BOARD_DIR}/scripts/user-space.ld)
 endif()
-

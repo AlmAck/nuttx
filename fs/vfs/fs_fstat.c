@@ -48,7 +48,7 @@
  *   Check for special cases where the character driver is really just a
  *   proxy for the real, underlying MTD or block driver.
  *
- *   NOTE:  This must be done here rather than in the the common
+ *   NOTE:  This must be done here rather than in the common
  *   inode_stat() function because the filep reference must be available
  *   in order to call the character driver ioctl method.
  *
@@ -117,7 +117,7 @@ static int proxy_fstat(FAR struct file *filep, FAR struct inode *inode,
               buf->st_mode |= S_IROTH | S_IRGRP | S_IRUSR;
             }
 
-          if (inode->u.i_ops->writev || inode->u.i_ops->read)
+          if (inode->u.i_ops->writev || inode->u.i_ops->write)
             {
               buf->st_mode |= S_IWOTH | S_IWGRP | S_IWUSR;
             }
@@ -231,16 +231,16 @@ int nx_fstat(int fd, FAR struct stat *buf)
   int ret;
 
   /* First, get the file structure.  Note that on failure,
-   * fs_getfilep() will return the errno.
+   * file_get() will return the errno.
    */
 
-  ret = fs_getfilep(fd, &filep);
+  ret = file_get(fd, &filep);
   if (ret >= 0)
     {
       /* Perform the fstat operation */
 
       ret = file_fstat(filep, buf);
-      fs_putfilep(filep);
+      file_put(filep);
     }
 
   return ret;

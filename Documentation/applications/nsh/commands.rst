@@ -198,6 +198,51 @@ Also sets the previous working directory environment variable
 ``cd ..`` 	        sets the current working directory to the parent directory.
 ==================  =====================================
 
+.. _cmdchmod:
+
+``chmod`` Change File Permissions
+==================================
+
+**Command Syntax**::
+
+  chmod <octal-mode> <path>
+
+**Synopsis**. Change the permission bits of ``<path>``. Only numeric
+(octal) modes are supported.
+
+**Example**::
+
+  nsh> chmod 600 /tmp/secret
+  nsh> chmod 755 /usr/bin/app
+
+.. _cmdchown:
+
+``chown`` Change File Owner and Group
+======================================
+
+**Command Syntax**::
+
+  chown <uid>[:gid] <path>
+
+**Synopsis**. Change the owner and/or group of ``<path>``. Only
+numeric uid and gid values are accepted. Omitted uid or gid fields
+are left unchanged.
+
+**Forms:**
+
+===================  ===============================================================
+``chown uid:gid``    Sets owner to uid and group to gid.
+``chown uid``        Sets owner to uid; group is unchanged.
+``chown uid:``       Sets owner to uid; group is unchanged.
+``chown :gid``       Sets group to gid; owner is unchanged.
+===================  ===============================================================
+
+**Example**::
+
+  nsh> chown 1000:1000 /tmp/file
+  nsh> chown 0: /tmp/file
+  nsh> chown :100 /tmp/file
+
 .. _cmdcmp:
 
 ``cmp`` Compare Files
@@ -695,6 +740,50 @@ supported:
 
   ifup eth0
 
+.. _cmdid:
+
+``id`` Show User and Group Identity
+===================================
+
+**Command Syntax**::
+
+  id
+
+**Synopsis**. Print the real and effective user and group IDs for the
+current NSH session in the form::
+
+  uid=<uid> euid=<euid> gid=<gid> egid=<egid>
+
+File permission checks use the effective UID and GID.
+
+On flat builds where NSH retains a real UID of zero, ``id`` may report
+``uid=0`` even when the session is running as a non-root user. The
+``euid`` and ``egid`` fields reflect the active session identity, and
+the prompt marker (``#`` or ``$``) follows ``euid``.
+
+This command is available only when ``CONFIG_SCHED_USER_IDENTITY`` is
+enabled. It may be disabled with ``CONFIG_NSH_DISABLE_ID``.
+
+**Related configuration**
+
+===============================  =======================================
+Option                           Purpose
+===============================  =======================================
+``CONFIG_SCHED_USER_IDENTITY``   Enable UID/GID tracking
+``CONFIG_NSH_LOGIN_SETUID``      Set identity after login
+``CONFIG_LIBC_PASSWD_FILE``      User database for name lookup
+===============================  =======================================
+
+**Example**::
+
+  nsh> su testuser
+  nsh$ id
+  uid=0 euid=1000 gid=0 egid=1000
+  nsh$ su root
+  Password:
+  nsh# id
+  uid=0 euid=0 gid=0 egid=0
+
 .. _cmdinsmod:
 
 ``insmod`` Install an OS module
@@ -1074,7 +1163,7 @@ select either the FAT12 or FAT16 format. For historical reasons,
 if you want the FAT32 format, it must be explicitly specified on
 the command line.
 
-The ``-r`` option may be specified to select the the number of
+The ``-r`` option may be specified to select the number of
 entries in the root directory for FAT12 and FAT16 file systems.
 Typical values for small volumes would be 112 or 224; 512 should
 be used for large volumes, such as hard disks or very large SD
@@ -1618,6 +1707,74 @@ NOTE: The ``shutdown`` command duplicates the behavior of the
 
 **Synopsis**. Pause execution (sleep) for ``<sec>`` seconds.
 
+.. _cmdsu:
+
+``su`` Switch User Identity
+===========================
+
+**Command Syntax**::
+
+  su [<username>]
+
+**Synopsis**. Switch the NSH session to the credentials of ``<username>``.
+If no user name is provided, ``su`` defaults to ``root``.
+
+Users with root privileges (effective UID or GID of zero) may switch to
+any user without a password. Other users may switch to their own
+identity without a password, or to another user after entering that
+user's password (when login support is enabled).
+
+When the real UID is still zero, NSH changes only the effective UID and
+GID so that a later ``su root`` can restore root privileges after
+password verification.
+
+**Prompt update.** After a successful ``su``, NSH calls
+``nsh_update_prompt()`` and changes the privilege marker in the prompt:
+
+===================  ================================================
+Marker               Session
+===================  ================================================
+``#``                Effective UID is zero (root)
+``$``                Effective UID is non-zero (non-root)
+===================  ================================================
+
+For the default prompt ``nsh>``, the marker replaces the character
+before ``>`` (for example ``nsh$`` or ``nsh#``).
+
+This command is available only when ``CONFIG_SCHED_USER_IDENTITY`` is
+enabled. It may be disabled with ``CONFIG_NSH_DISABLE_SU``. User names
+are looked up from the passwd database when ``CONFIG_LIBC_PASSWD_FILE``
+is enabled. Password verification requires one of the NSH login options
+(``CONFIG_NSH_LOGIN_PASSWD`` or ``CONFIG_NSH_LOGIN_PLATFORM``).
+
+**Related configuration**
+
+===============================  =======================================
+Option                           Purpose
+===============================  =======================================
+``CONFIG_SCHED_USER_IDENTITY``   Enable UID/GID identity commands
+``CONFIG_LIBC_PASSWD_FILE``      Resolve user names from ``/etc/passwd``
+``CONFIG_NSH_LOGIN_SETUID``      Apply identity after login
+``CONFIG_NSH_DISABLE_SU``        Disable the ``su`` command
+===============================  =======================================
+
+**Example**::
+
+  nsh> su testuser
+  nsh$ whoami
+  testuser
+  nsh$ su newuser
+  Password:
+  nsh$ whoami
+  newuser
+  nsh$ su root
+  Password:
+  nsh# whoami
+  root
+  nsh# su testuser
+  nsh$ whoami
+  testuser
+
 .. _cmdtelnetd:
 
 ``telnetd`` Time Start the Telnet Daemon
@@ -1640,7 +1797,7 @@ automatically started in ``nsh_main.c``. The exception is when
 enabled at initialization but rather must be enabled from the NSH
 command line or via other applications.
 
-In that case, when ``nsh_telnetstart()`` is called before the the
+In that case, when ``nsh_telnetstart()`` is called before the
 network is initialized, it will fail.
 
 .. _cmdtime:
@@ -1725,11 +1882,17 @@ reads as zero bytes.
 
 **Command Syntax**::
 
-  umount <dir-path>
+  umount [-f] <dir-path>
 
 **Synopsis**. Un-mount the file system at mount point ``<dir-path>``.
 The ``umount`` command can only be used to un-mount volumes previously
 mounted using :ref:`mount <cmdmount>` command.
+
+**Options**
+
+======  ======================================================
+``-f``  Force unmounting of the filesystem even if it is busy.
+======  ======================================================
 
 **Example**::
 
@@ -1881,6 +2044,37 @@ directory.
                      directory and with the same name as on the HTTP server
                      unless <local-path> is provided.
 ===================  =================================================
+
+.. _cmdwhoami:
+
+``whoami`` Show Effective User Name
+===================================
+
+**Command Syntax**::
+
+  whoami
+
+**Synopsis**. Print the user name associated with the effective UID of
+the current NSH session. If the name cannot be resolved from the passwd
+database, ``whoami`` prints ``root`` when the effective UID is zero, or
+the numeric UID otherwise.
+
+The result should match the privilege marker shown in the NSH prompt
+(``#`` for root, ``$`` for non-root) when
+``CONFIG_SCHED_USER_IDENTITY`` is enabled.
+
+This command is available only when ``CONFIG_SCHED_USER_IDENTITY`` is
+enabled. It may be disabled with ``CONFIG_NSH_DISABLE_WHOAMI``.
+
+**Example**::
+
+  nsh> su testuser
+  nsh$ whoami
+  testuser
+  nsh$ su root
+  Password:
+  nsh# whoami
+  root
 
 .. _cmdxd:
 

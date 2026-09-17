@@ -38,7 +38,7 @@
 #include <time.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <unistd.h>
 
 #include <nuttx/arch.h>
@@ -468,7 +468,7 @@ static int mmcsd_waitready(FAR struct mmcsd_slot_s *slot)
         {
           /* Give other threads time to run */
 
-          nxsig_usleep(10000);
+          nxsched_usleep(10000);
         }
     }
   while (elapsed < MMCSD_DELAY_500MS);
@@ -1649,7 +1649,7 @@ static int mmcsd_geometry(FAR struct inode *inode,
   finfo("geo_mediachanged:  %d\n", geometry->geo_mediachanged);
   finfo("geo_writeenabled:  %d\n", geometry->geo_writeenabled);
   finfo("geo_nsectors:      %" PRIuOFF "\n", geometry->geo_nsectors);
-  finfo("geo_sectorsize:    %" PRIi16 "\n", geometry->geo_sectorsize);
+  finfo("geo_sectorsize:    %" PRId32 "\n", geometry->geo_sectorsize);
 
   return OK;
 }

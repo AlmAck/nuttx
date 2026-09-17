@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <sys/types.h>
 #include <nuttx/list.h>
 #include <nuttx/kmalloc.h>
@@ -324,7 +324,7 @@ int himem_chardev_register(char *name, size_t size)
       return ret;
     }
 
-  ret = register_driver(dev->name, &g_fops, 0666, dev);
+  ret = register_driver(dev->name, &g_fops, 0600, dev);
   if (ret != 0)
     {
       merr("Failed to register driver. dev=%s\n", dev->name);

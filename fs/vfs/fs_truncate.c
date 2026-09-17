@@ -30,12 +30,12 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/fs/fs.h>
 
-#include "notify/notify.h"
 #include "inode/inode.h"
+#include "vfs.h"
 
 /****************************************************************************
  * Public Functions
@@ -57,7 +57,7 @@ int file_truncate(FAR struct file *filep, off_t length)
 
   /* Was this file opened for write access? */
 
-  if ((filep->f_oflags & O_WROK) == 0)
+  if ((filep->f_oflags & O_ACCMODE) == O_RDONLY)
     {
       fwarn("WARNING: Cannot truncate a file opened read-only\n");
       return -EINVAL;
@@ -170,7 +170,7 @@ int ftruncate(int fd, off_t length)
 
   /* Get the file structure corresponding to the file descriptor. */
 
-  ret = fs_getfilep(fd, &filep);
+  ret = file_get(fd, &filep);
   if (ret < 0)
     {
       ferr("ERROR: Could no get file structure: %d\n", ret);
@@ -180,7 +180,7 @@ int ftruncate(int fd, off_t length)
   /* Perform the truncate operation */
 
   ret = file_truncate(filep, length);
-  fs_putfilep(filep);
+  file_put(filep);
   if (ret >= 0)
     {
 #ifdef CONFIG_FS_NOTIFY

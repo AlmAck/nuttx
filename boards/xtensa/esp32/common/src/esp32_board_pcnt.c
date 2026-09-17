@@ -25,7 +25,7 @@
 #include <nuttx/config.h>
 
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <stdio.h>
 
 #include <arch/board/board.h>
@@ -40,8 +40,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define PCNT_HIGH_LIMIT 1000
-#define PCNT_LOW_LIMIT  -1000
+#define PCNT_HIGH_LIMIT CONFIG_ESP_PCNT_HIGH_LIMIT
+#define PCNT_LOW_LIMIT  CONFIG_ESP_PCNT_LOW_LIMIT
 
 #define PCNT_GLITCH_FILTER(pcnt, thres) pcnt->ops->ioctl(pcnt,          \
                                                          CAPIOC_FILTER, \

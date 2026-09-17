@@ -47,46 +47,30 @@
 
 #ifdef __ASSEMBLY__
 
+#if CONFIG_ARCH_INTERRUPTSTACK > 15
+
 /****************************************************************************
- * Name: setintstack
+ * Name: setintstack_bounds
  *
  * Description:
- *   Set the current stack pointer to the "top" of the correct interrupt
- *   stack for the current CPU.
+ *   Set sp to high if sp is outside [low, high], the bounds of the
+ *   interrupt stack for the current CPU.
  *
  ****************************************************************************/
 
-#if defined(CONFIG_SMP) && CONFIG_ARCH_INTERRUPTSTACK > 15
-.macro  setintstack tmp0, tmp1
-  up_cpu_index \tmp0
-  li    \tmp1, STACK_ALIGN_DOWN(CONFIG_ARCH_INTERRUPTSTACK)
-  mul   \tmp1, \tmp0, \tmp1
-  la    \tmp0, g_intstacktop
-
-  /* tmp0 = g_intstacktop - (CONFIG_ARCH_INTERRUPTSTACK * HART_ID)
-   * (high address of the interrupt stack)
-   */
-
-  sub   \tmp0, \tmp0, \tmp1
-  li    \tmp1, STACK_ALIGN_DOWN(CONFIG_ARCH_INTERRUPTSTACK)
-
-  /* tmp1 = tmp0 - CONFIG_ARCH_INTERRUPTSTACK
-   * (low address of the interrupt stack)
-   */
-
-  sub   \tmp1, \tmp0, \tmp1
+.macro  setintstack_bounds high, low
 
   /* Check if sp is below the low address of the interrupt stack
    * (outside the interrupt stack).
    */
 
-  blt   sp, \tmp1, 1f
+  blt   sp, \low, 1f
 
   /* Check if sp is above the high address of the interrupt stack
    * (outside the interrupt stack)
    */
 
-  bgt   sp, \tmp0, 1f
+  bgt   sp, \high, 1f
 
   /* If sp is within the interrupt stack boundaries, no action is required */
 
@@ -97,19 +81,58 @@
    * interrupt stack)
    */
 
-  mv    sp, \tmp0
+  mv    sp, \high
 
 2:
 .endm
-#endif /* CONFIG_SMP && CONFIG_ARCH_INTERRUPTSTACK > 15 */
 
-#if CONFIG_ARCH_INTERRUPTSTACK > 15
-#if !defined(CONFIG_SMP) && defined(CONFIG_ARCH_USE_S_MODE)
+/****************************************************************************
+ * Name: setintstack
+ *
+ * Description:
+ *   Set the current stack pointer to the "top" of the correct interrupt
+ *   stack for the current CPU.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_SMP)
+.macro  setintstack tmp0, tmp1
+  up_cpu_index \tmp0
+  li    \tmp1, STACKFRAME_ALIGN_DOWN(CONFIG_ARCH_INTERRUPTSTACK)
+  mul   \tmp1, \tmp0, \tmp1
+  la    \tmp0, g_intstacktop
+
+  /* tmp0 = g_intstacktop - (CONFIG_ARCH_INTERRUPTSTACK * HART_ID)
+   * (high address of the interrupt stack)
+   */
+
+  sub   \tmp0, \tmp0, \tmp1
+  li    \tmp1, STACKFRAME_ALIGN_DOWN(CONFIG_ARCH_INTERRUPTSTACK)
+
+  /* tmp1 = tmp0 - CONFIG_ARCH_INTERRUPTSTACK
+   * (low address of the interrupt stack)
+   */
+
+  sub   \tmp1, \tmp0, \tmp1
+
+  setintstack_bounds \tmp0, \tmp1
+.endm
+#elif defined(CONFIG_ARCH_USE_S_MODE)
 .macro  setintstack tmp0, tmp1
   csrr    \tmp0, CSR_SCRATCH
-  REGLOAD sp, RISCV_PERCPU_IRQSTACK(\tmp0)
+  REGLOAD \tmp0, RISCV_PERCPU_IRQSTACK(\tmp0)
+
+  /* tmp0 = high address (top) of the interrupt stack for this hart */
+
+  li      \tmp1, STACKFRAME_ALIGN_DOWN(CONFIG_ARCH_INTERRUPTSTACK)
+  sub     \tmp1, \tmp0, \tmp1
+
+  /* tmp1 = low address of the interrupt stack */
+
+  setintstack_bounds \tmp0, \tmp1
 .endm
-#endif /* !defined(CONFIG_SMP) && defined(CONFIG_ARCH_USE_S_MODE) */
+#endif /* defined(CONFIG_SMP) */
+
 #endif /* CONFIG_ARCH_INTERRUPTSTACK > 15 */
 
 #endif /* __ASSEMBLY__  */

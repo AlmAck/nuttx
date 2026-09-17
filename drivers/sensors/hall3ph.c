@@ -35,7 +35,7 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
@@ -353,5 +353,5 @@ int hall3_register(FAR const char *devpath,
   /* Register the Hall effect sensor device */
 
   sninfo("Registering %s\n", devpath);
-  return register_driver(devpath, &g_hall3ops, 0666, upper);
+  return register_driver(devpath, &g_hall3ops, 0600, upper);
 }

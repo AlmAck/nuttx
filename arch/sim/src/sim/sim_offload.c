@@ -25,9 +25,9 @@
  ****************************************************************************/
 
 #include <nuttx/kmalloc.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
-#include <lame/lame.h>
+#include <lame.h>
 #include <mad.h>
 
 #include "sim_offload.h"

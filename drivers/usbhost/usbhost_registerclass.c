@@ -28,8 +28,8 @@
 
 #include <sys/types.h>
 #include <errno.h>
-#include <debug.h>
 
+#include <nuttx/debug.h>
 #include <nuttx/irq.h>
 #include <nuttx/usb/usbhost.h>
 
@@ -81,6 +81,7 @@
 
 int usbhost_registerclass(struct usbhost_registry_s *usbclass)
 {
+  FAR struct usbhost_registry_s *curr;
   irqstate_t flags;
 
   uinfo("Registering class:%p nids:%d\n", usbclass, usbclass->nids);
@@ -91,13 +92,29 @@ int usbhost_registerclass(struct usbhost_registry_s *usbclass)
    * protected by disabling interrupts.
    */
 
-  flags = enter_critical_section();
+  flags = spin_lock_irqsave(&g_classregistry_lock);
+
+  /* Refuse an entry that is already registered.
+   *
+   * These are static structures, so registering one twice points the
+   * entry's own link at itself and the list loses its end.  A later search
+   * for a class that is not there never returns, holding this lock.
+   */
+
+  for (curr = g_classregistry; curr != NULL; curr = curr->flink)
+    {
+      if (curr == usbclass)
+        {
+          spin_unlock_irqrestore(&g_classregistry_lock, flags);
+          return OK;
+        }
+    }
 
   /* Add the new class ID info to the head of the list */
 
   usbclass->flink = g_classregistry;
   g_classregistry = usbclass;
 
-  leave_critical_section(flags);
+  spin_unlock_irqrestore(&g_classregistry_lock, flags);
   return OK;
 }

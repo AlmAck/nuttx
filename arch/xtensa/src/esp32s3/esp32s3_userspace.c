@@ -25,7 +25,7 @@
 #include <nuttx/config.h>
 
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -37,7 +37,7 @@
 #include "chip.h"
 #include "xtensa.h"
 #include "esp_attr.h"
-#include "esp32s3_irq.h"
+#include "esp_irq.h"
 #include "esp32s3_userspace.h"
 #include "hardware/esp32s3_apb_ctrl.h"
 #include "hardware/esp32s3_cache_memory.h"
@@ -383,14 +383,14 @@ static noinline_function IRAM_ATTR void configure_flash_mmu(void)
   drom_lma_aligned = app_drom_lma & MMU_FLASH_MASK;
   drom_vma_aligned = app_drom_vma & MMU_FLASH_MASK;
   drom_page_count = calc_mmu_pages(app_drom_size, app_drom_vma);
-  ASSERT(cache_dbus_mmu_set(MMU_ACCESS_FLASH, drom_vma_aligned,
+  ASSERT(cache_dbus_mmu_set(SOC_MMU_ACCESS_FLASH, drom_vma_aligned,
                             drom_lma_aligned, 64,
                             (int)drom_page_count, 0) == 0);
 
   irom_lma_aligned = app_irom_lma & MMU_FLASH_MASK;
   irom_vma_aligned = app_irom_vma & MMU_FLASH_MASK;
   irom_page_count = calc_mmu_pages(app_irom_size, app_irom_vma);
-  ASSERT(cache_ibus_mmu_set(MMU_ACCESS_FLASH, irom_vma_aligned,
+  ASSERT(cache_ibus_mmu_set(SOC_MMU_ACCESS_FLASH, irom_vma_aligned,
                             irom_lma_aligned, 64,
                             (int)irom_page_count, 0) == 0);
 
@@ -423,7 +423,7 @@ static noinline_function IRAM_ATTR const void *map_flash(uint32_t src_addr,
   src_addr_aligned = src_addr & MMU_FLASH_MASK;
   page_count = calc_mmu_pages(size, src_addr);
 
-  ASSERT(cache_dbus_mmu_set(MMU_ACCESS_FLASH, MMU_BLOCK63_VADDR,
+  ASSERT(cache_dbus_mmu_set(SOC_MMU_ACCESS_FLASH, MMU_BLOCK63_VADDR,
                             src_addr_aligned, 64, (int)page_count, 0) == 0);
 
   dcache_resume(cache_state);
@@ -1861,24 +1861,14 @@ void esp32s3_userspace(void)
 
 void esp32s3_pmsirqinitialize(void)
 {
-  VERIFY(esp32s3_setup_irq(0,
-                           ESP32S3_PERIPH_CORE_0_IRAM0_PMS_MONITOR_VIOLATE,
-                           1, ESP32S3_CPUINT_LEVEL));
-  VERIFY(esp32s3_setup_irq(0,
-                           ESP32S3_PERIPH_CORE_0_DRAM0_PMS_MONITOR_VIOLATE,
-                           1, ESP32S3_CPUINT_LEVEL));
-  VERIFY(esp32s3_setup_irq(0, ESP32S3_PERIPH_CACHE_CORE0_ACS, 1,
-                           ESP32S3_CPUINT_LEVEL));
-  VERIFY(esp32s3_setup_irq(0, ESP32S3_PERIPH_CORE_0_PIF_PMS_MONITOR_VIOLATE,
-                           1, ESP32S3_CPUINT_LEVEL));
-
-  VERIFY(irq_attach(ESP32S3_IRQ_CORE_0_IRAM0_PMS_MONITOR_VIOLATE,
-                    pms_violation_isr, NULL));
-  VERIFY(irq_attach(ESP32S3_IRQ_CORE_0_DRAM0_PMS_MONITOR_VIOLATE,
-                    pms_violation_isr, NULL));
-  VERIFY(irq_attach(ESP32S3_IRQ_CACHE_CORE0_ACS, pms_violation_isr, NULL));
-  VERIFY(irq_attach(ESP32S3_IRQ_CORE_0_PIF_PMS_MONITOR_VIOLATE,
-                    pms_violation_isr, NULL));
+  VERIFY(esp_setup_irq(ESP32S3_PERIPH_CORE_0_IRAM0_PMS_MONITOR_VIOLATE,
+                       1, ESP_IRQ_TRIGGER_LEVEL, pms_violation_isr, NULL));
+  VERIFY(esp_setup_irq(ESP32S3_PERIPH_CORE_0_DRAM0_PMS_MONITOR_VIOLATE,
+                       1, ESP_IRQ_TRIGGER_LEVEL, pms_violation_isr, NULL));
+  VERIFY(esp_setup_irq(ESP32S3_PERIPH_CACHE_CORE0_ACS,
+                       1, ESP_IRQ_TRIGGER_LEVEL, pms_violation_isr, NULL));
+  VERIFY(esp_setup_irq(ESP32S3_PERIPH_CORE_0_PIF_PMS_MONITOR_VIOLATE,
+                       1, ESP_IRQ_TRIGGER_LEVEL, pms_violation_isr, NULL));
 
   up_enable_irq(ESP32S3_IRQ_CORE_0_IRAM0_PMS_MONITOR_VIOLATE);
   up_enable_irq(ESP32S3_IRQ_CORE_0_DRAM0_PMS_MONITOR_VIOLATE);

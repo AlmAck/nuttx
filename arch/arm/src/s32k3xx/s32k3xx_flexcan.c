@@ -32,7 +32,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 
 #include <nuttx/wdog.h>
@@ -305,11 +305,11 @@ static const struct flexcan_config_s s32k3xx_flexcan2_config =
   .rx_pin    = PIN_CAN2_RX,
   .no_buffers  = 64,
 #ifdef PIN_CAN2_ENABLE
-  .enable_pin = PIN_CAN2_ENABLE,
+  .enable_pin  = PIN_CAN2_ENABLE,
   .enable_high = CAN2_ENABLE_OUT,
 #else
-  .enable_pin = 0,
-  .rx_pin     = 0,
+  .enable_pin  = 0,
+  .enable_high = 0,
 #endif
 #ifdef PIN_CAN2_STB
   .stb_pin  = PIN_CAN2_STB,
@@ -1502,6 +1502,8 @@ static int s32k3xx_ifup(struct net_driver_s *dev)
       s32k3xx_gpiowrite(priv->config->led_pin, priv->config->led_high);
     }
 
+  netdev_carrier_on(dev);
+
   return OK;
 }
 
@@ -1536,6 +1538,8 @@ static int s32k3xx_ifdown(struct net_driver_s *dev)
       s32k3xx_pinconfig(priv->config->led_pin);
       s32k3xx_gpiowrite(priv->config->led_pin, !priv->config->led_high);
     }
+
+  netdev_carrier_off(dev);
 
   return OK;
 }

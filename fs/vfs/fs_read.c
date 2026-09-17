@@ -35,8 +35,8 @@
 
 #include <nuttx/cancelpt.h>
 
-#include "notify/notify.h"
 #include "inode/inode.h"
+#include "vfs.h"
 
 /****************************************************************************
  * Private Functions
@@ -176,21 +176,30 @@ ssize_t file_readv(FAR struct file *filep,
       return -EFAULT;
     }
 
+  /* -------------------- DO NOT REMOVE --------------------
+   * Only for kernel builds with CONFIG_ARCH_TEXT_VBASE == 0.
+   * In this case we have to allow the NULL buffer otherwise
+   * kernel builds will fail to load elf binaries found at 0.
+   */
+
+#if !defined(CONFIG_BUILD_KERNEL) || CONFIG_ARCH_TEXT_VBASE != 0
+
   /* Are all iov_base accessible? */
 
   for (ret = 0; ret < iovcnt; ret++)
     {
-      if (iov[ret].iov_base == NULL && iov[ret].iov_len != 0)
+      if (iov[ret].iov_base == NULL)
         {
           return -EFAULT;
         }
     }
+#endif
 
   ret = -EBADF;
 
   /* Was this file opened for read access? */
 
-  if ((filep->f_oflags & O_RDOK) == 0)
+  if ((filep->f_oflags & O_ACCMODE) == O_WRONLY)
     {
       /* No.. File is not read-able */
 
@@ -206,6 +215,10 @@ ssize_t file_readv(FAR struct file *filep,
 
   else if (inode != NULL && inode->u.i_ops)
     {
+      clock_t start_time;
+
+      FS_PROFILE_START(start_time);
+
       if (inode->u.i_ops->readv)
         {
           struct uio uio;
@@ -220,6 +233,9 @@ ssize_t file_readv(FAR struct file *filep,
         {
           ret = file_readv_compat(filep, iov, iovcnt);
         }
+
+      FS_PROFILE_STOP(start_time, g_fs_profile.total_read_time,
+                      g_fs_profile.reads);
     }
 
   /* Return the number of bytes read (or possibly an error code) */
@@ -293,17 +309,17 @@ ssize_t nx_readv(int fd, FAR const struct iovec *iov, int iovcnt)
   ssize_t ret;
 
   /* First, get the file structure.  Note that on failure,
-   * fs_getfilep() will return the errno.
+   * file_get() will return the errno.
    */
 
-  ret = (ssize_t)fs_getfilep(fd, &filep);
+  ret = (ssize_t)file_get(fd, &filep);
   if (ret >= 0)
     {
       /* Then let file_readv do all of the work. */
 
       ret = file_readv(filep, iov, iovcnt);
 
-      fs_putfilep(filep);
+      file_put(filep);
     }
 
   return ret;

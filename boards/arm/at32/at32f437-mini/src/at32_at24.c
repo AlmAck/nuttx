@@ -29,7 +29,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/i2c/i2c_master.h>
 #include <nuttx/mtd/mtd.h>
@@ -108,14 +108,15 @@ int at32_at24_automount(int minor)
           return ret;
         }
 #else
-      /* And use the FTL layer to wrap the MTD driver as a block driver */
+      /* Register the MTD driver */
 
-      finfo("Initialize the FTL layer to create /dev/mtdblock%d\n",
-            AT24_MINOR);
-      ret = ftl_initialize(AT24_MINOR, mtd);
+      char path[32];
+      snprintf(path, sizeof(path), "/dev/mtdblock%d", AT24_MINOR);
+      ret = register_mtddriver(path, mtd, 0755, NULL);
       if (ret < 0)
         {
-          ferr("ERROR: Failed to initialize the FTL layer: %d\n", ret);
+          ferr("ERROR: Failed to register the MTD driver %s, ret %d\n",
+               path, ret);
           return ret;
         }
 #endif

@@ -36,7 +36,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <math.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <arch/board/board.h>
 #include <nuttx/irq.h>
@@ -62,14 +62,27 @@
 #include "hal/regi2c_ctrl.h"
 #include "hal/temperature_sensor_ll.h"
 #include "hal/temperature_sensor_types.h"
-#include "soc/temperature_sensor_periph.h"
+#include "hal/temperature_sensor_periph.h"
 #include "esp_efuse_rtc_calib.h"
+#include "hal/adc_ll.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
 #define ESP_TEMP_MIN_INTERVAL 30000
+
+#if !SOC_RCC_IS_INDEPENDENT
+#define TSENS_RCC_ATOMIC() PERIPH_RCC_ATOMIC()
+#else
+#define TSENS_RCC_ATOMIC()
+#endif
+
+#if !SOC_RCC_IS_INDEPENDENT
+#define ADC_BUS_CLK_ATOMIC() PERIPH_RCC_ATOMIC()
+#else
+#define ADC_BUS_CLK_ATOMIC()
+#endif
 
 /****************************************************************************
  * Private Types
@@ -93,7 +106,6 @@ struct esp_temp_priv_s
   const temperature_sensor_attribute_t *tsens_attribute; /* Attribute struct of the common layer */
   struct esp_temp_sensor_config_t cfg;                   /* Configuration struct of the common layer */
   temperature_sensor_clk_src_t clk_src;                  /* Clock source to use */
-  int module;                                            /* Peripheral module */
   int refs;                                              /* Reference count */
   mutex_t lock;                                          /* Mutual exclusion mutex */
 #ifdef CONFIG_ESPRESSIF_TEMP_UORB
@@ -185,7 +197,6 @@ struct esp_temp_priv_s esp_temp_priv =
     0
   },
   .clk_src = TEMPERATURE_SENSOR_CLK_SRC_DEFAULT,
-  .module = PERIPH_TEMPSENSOR_MODULE,
   .refs = 0,
   .lock = NXMUTEX_INITIALIZER,
 #ifdef CONFIG_ESPRESSIF_TEMP_UORB
@@ -309,11 +320,10 @@ static int temperature_sensor_choose_best_range(struct esp_temp_priv_s *priv)
 
 static int temperature_sensor_read_delta_t(void)
 {
-  if (esp_efuse_rtc_calib_get_tsens_val(&g_delta_t) != OK)
+  g_delta_t = temperature_sensor_ll_load_calib_param();
+  if (g_delta_t == 0)
     {
-      snwarn("Calibration failed");
-      g_delta_t = 0;
-      return ERROR;
+      snwarn("No calibration param in eFuse");
     }
 
   sninfo("delta_T = %f", g_delta_t);
@@ -365,8 +375,6 @@ static float temperature_sensor_parse_raw_value(uint32_t tsens_raw,
 
 static void esp_temperature_sensor_enable(struct esp_temp_priv_s *priv)
 {
-  temperature_sensor_ll_clk_enable(true);
-  temperature_sensor_ll_clk_sel(priv->clk_src);
   temperature_sensor_ll_enable(true);
   priv->tempstate = TEMP_SENSOR_ENABLE;
 }
@@ -409,8 +417,9 @@ static void esp_temp_sensor_register(struct esp_temp_priv_s *priv)
 {
 #ifndef CONFIG_ESPRESSIF_TEMP_UORB
   register_driver(CONFIG_ESPRESSIF_TEMP_PATH, &g_esp_temp_sensor_fops,
-                  0666, priv);
+                  0660, priv);
 #else
+  priv->lower.type = SENSOR_TYPE_TEMPERATURE;
   sensor_register(&priv->lower, CONFIG_ESPRESSIF_TEMP_PATH_DEVNO);
 #endif /* CONFIG_ESPRESSIF_TEMP_UORB */
 }
@@ -434,8 +443,28 @@ static int esp_temperature_sensor_install(struct esp_temp_priv_s *priv,
                                         struct esp_temp_sensor_config_t cfg)
 {
   int ret;
-  periph_module_enable(priv->module);
-  periph_module_reset(priv->module);
+
+  regi2c_saradc_enable();
+  ADC_BUS_CLK_ATOMIC()
+    {
+#if !SOC_TSENS_IS_INDEPENDENT_FROM_ADC
+      adc_ll_enable_bus_clock(true);
+#  if SOC_RCC_IS_INDEPENDENT
+      adc_ll_enable_func_clock(true);
+#  endif
+      adc_ll_reset_register();
+#endif
+    }
+
+  TSENS_RCC_ATOMIC()
+    {
+      temperature_sensor_ll_bus_clk_enable(true);
+      temperature_sensor_ll_reset_module();
+    }
+
+  temperature_sensor_ll_enable(true);
+
+  temperature_sensor_ll_clk_sel(priv->clk_src);
 
   ret = temperature_sensor_attribute_table_sort();
   if (ret < 0)
@@ -453,7 +482,6 @@ static int esp_temperature_sensor_install(struct esp_temp_priv_s *priv,
       goto err;
     }
 
-  regi2c_saradc_enable();
   temperature_sensor_ll_set_range(priv->tsens_attribute->reg_val);
   esp_temperature_sensor_disable(priv); /* Disable the sensor by default */
 
@@ -482,8 +510,11 @@ err:
 
 static void esp_temperature_sensor_uninstall(struct esp_temp_priv_s *priv)
 {
-  regi2c_saradc_disable();
-  periph_module_disable(priv->module);
+  temperature_sensor_ll_enable(false);
+  TSENS_RCC_ATOMIC()
+    {
+      temperature_sensor_ll_bus_clk_enable(false);
+    }
 }
 
 /****************************************************************************
@@ -649,7 +680,7 @@ static int esp_temperature_sensor_thread(int argc, char **argv)
 
       /* Sleeping thread before fetching the next sensor data */
 
-      nxsig_usleep(priv->interval);
+      nxsched_usleep(priv->interval);
     }
 
   return OK;
@@ -680,7 +711,8 @@ static int esp_temperature_sensor_set_interval(
   struct file *filep,
   uint32_t *period_us)
 {
-  struct esp_temp_priv_s *priv = (struct esp_temp_priv_s *)lower;
+  struct esp_temp_priv_s *priv =
+    container_of(lower, struct esp_temp_priv_s, lower);
 
   if (*period_us < ESP_TEMP_MIN_INTERVAL)
     {
@@ -719,7 +751,8 @@ static int esp_temperature_sensor_activate(
   struct file *filep,
   bool enable)
 {
-  struct esp_temp_priv_s *priv = (struct esp_temp_priv_s *)lower;
+  struct esp_temp_priv_s *priv =
+    container_of(lower, struct esp_temp_priv_s, lower);
 #ifdef CONFIG_ESPRESSIF_TEMP_UORB_POLL
   bool start_thread = false;
 #endif

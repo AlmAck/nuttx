@@ -24,60 +24,65 @@
 
 #include <nuttx/config.h>
 
-#include <stdbool.h>
 #include <assert.h>
-
-#include "arm_internal.h"
-#include "hardware/da1470x_memorymap.h"
-#include "hardware/da1470x_uart.h"
-#include "hardware/da1470x_crg_snc.h"
-#include "hardware/da1470x_crg_top.h"
-
-#include "da1470x_config.h"
-#include "da1470x_clockconfig.h"
-#include "da1470x_gpio.h"
-#include "da1470x_lowputc.h"
+#include <stdbool.h>
 
 #include <arch/board/board.h>
+
+#include "arm_internal.h"
+#include "hardware/da1470x_crg_snc.h"
+#include "hardware/da1470x_uart.h"
+#include "hardware/da1470x_vad.h"
+
+#include "da1470x_clockconfig.h"
+#include "da1470x_config.h"
+#include "da1470x_gpio.h"
+#include "da1470x_lowputc.h"
+#include "da1470x_pmu.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
 #ifdef HAVE_UART_CONSOLE
-
-#ifdef CONFIG_UART0_SERIAL_CONSOLE
-#  define CONSOLE_BASE     DA1470X_UART0_BASE
-#  define CONSOLE_BAUD     CONFIG_UART0_BAUD
-#  define CONSOLE_BITS     CONFIG_UART0_BITS
-#  define CONSOLE_PARITY   CONFIG_UART0_PARITY
-#  define CONSOLE_2STOP    CONFIG_UART0_2STOP
-#  define CONSOLE_TX_PIN   BOARD_UART0_TX_PIN
-#  define CONSOLE_RX_PIN   BOARD_UART0_RX_PIN
-#elif CONFIG_UART1_SERIAL_CONSOLE
-#  define CONSOLE_BASE     DA1470X_UART1_BASE
-#  define CONSOLE_BAUD     CONFIG_UART1_BAUD
-#  define CONSOLE_BITS     CONFIG_UART1_BITS
-#  define CONSOLE_PARITY   CONFIG_UART1_PARITY
-#  define CONSOLE_2STOP    CONFIG_UART1_2STOP
-#  define CONSOLE_TX_PIN   BOARD_UART1_TX_PIN
-#  define CONSOLE_RX_PIN   BOARD_UART1_RX_PIN
-#elif CONFIG_UART2_SERIAL_CONSOLE
-#  define CONSOLE_BASE     DA1470X_UART2_BASE
-#  define CONSOLE_BAUD     CONFIG_UART2_BAUD
-#  define CONSOLE_BITS     CONFIG_UART2_BITS
-#  define CONSOLE_PARITY   CONFIG_UART2_PARITY
-#  define CONSOLE_2STOP    CONFIG_UART2_2STOP
-#  define CONSOLE_TX_PIN   BOARD_UART2_TX_PIN
-#  define CONSOLE_RX_PIN   BOARD_UART2_RX_PIN
+#  if defined(CONFIG_UART0_SERIAL_CONSOLE)
+#    define CONSOLE_BASE     DA1470X_UART0_BASE
+#    define CONSOLE_BAUD     CONFIG_UART0_BAUD
+#    define CONSOLE_BITS     CONFIG_UART0_BITS
+#    define CONSOLE_PARITY   CONFIG_UART0_PARITY
+#    define CONSOLE_2STOP    CONFIG_UART0_2STOP
+#    define CONSOLE_TX_PIN   BOARD_UART0_TX_PIN
+#    define CONSOLE_RX_PIN   BOARD_UART0_RX_PIN
+#  elif defined(CONFIG_UART1_SERIAL_CONSOLE)
+#    define CONSOLE_BASE     DA1470X_UART1_BASE
+#    define CONSOLE_BAUD     CONFIG_UART1_BAUD
+#    define CONSOLE_BITS     CONFIG_UART1_BITS
+#    define CONSOLE_PARITY   CONFIG_UART1_PARITY
+#    define CONSOLE_2STOP    CONFIG_UART1_2STOP
+#    define CONSOLE_TX_PIN   BOARD_UART1_TX_PIN
+#    define CONSOLE_RX_PIN   BOARD_UART1_RX_PIN
+#  elif defined(CONFIG_UART2_SERIAL_CONSOLE)
+#    define CONSOLE_BASE     DA1470X_UART2_BASE
+#    define CONSOLE_BAUD     CONFIG_UART2_BAUD
+#    define CONSOLE_BITS     CONFIG_UART2_BITS
+#    define CONSOLE_PARITY   CONFIG_UART2_PARITY
+#    define CONSOLE_2STOP    CONFIG_UART2_2STOP
+#    define CONSOLE_TX_PIN   BOARD_UART2_TX_PIN
+#    define CONSOLE_RX_PIN   BOARD_UART2_RX_PIN
+#  endif
 #endif
+
+/* The DesignWare UART ignores LCR writes while USR.BUSY is set.  Bound the
+ * wait for the transmitter to drain before touching the divisors.
+ */
+
+#define UART_BUSY_WAIT_LOOPS   100000
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-/* UART console configuration */
-
+#ifdef HAVE_UART_CONSOLE
 static const struct uart_config_s g_console_config =
 {
   .baud      = CONSOLE_BAUD,
@@ -87,359 +92,222 @@ static const struct uart_config_s g_console_config =
   .txpin     = CONSOLE_TX_PIN,
   .rxpin     = CONSOLE_RX_PIN,
 };
-#endif /* HAVE_UART_CONSOLE */
+#endif
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-/* Function to configure UART serial clock input
- * If sclk is false, the function uses DivN (a divided clock source).
- * If sclk is true, the function uses Div1 (an undivided clock source, meaning the clock runs at full speed).
- */
+#ifdef HAVE_UART_DEVICE
 
-void da1470x_uart_set_sclk(int uart, bool sclk)
+/****************************************************************************
+ * Name: da1470x_uart_clkbits
+ *
+ * Description:
+ *   Return the CLK_SNC ENABLE and CLK_SEL bits of a UART instance.
+ *
+ ****************************************************************************/
+
+static void da1470x_uart_clkbits(uintptr_t base, uint32_t *enable,
+                                 uint32_t *sel)
 {
-  uintptr_t reg;
-  uint32_t mask;
-
-  /* Select the appropriate register based on sclk */
-
-  reg = sclk ? DA1470_CRG_SNC_SET_CLK_SNC : DA1470_CRG_SNC_RESET_CLK_SNC;
-
-  /* Determine the appropriate mask for the UART */
-
-  switch (uart)
-  {
-      case DA1470X_UART0_BASE:
-          mask = CRG_SNC_UART0_CLK_SEL;
-          break;
+  switch (base)
+    {
       case DA1470X_UART1_BASE:
-          mask = CRG_SNC_UART1_CLK_SEL;
-          break;
+        *enable = CRG_SNC_CLK_SNC_UART2_ENABLE;
+        *sel    = CRG_SNC_CLK_SNC_UART2_CLK_SEL;
+        break;
+
       case DA1470X_UART2_BASE:
-          mask = CRG_SNC_UART2_CLK_SEL;
-          break;
+        *enable = CRG_SNC_CLK_SNC_UART3_ENABLE;
+        *sel    = CRG_SNC_CLK_SNC_UART3_CLK_SEL;
+        break;
+
+      case DA1470X_UART0_BASE:
       default:
-          assert(false); /* Invalid UART instance */
+        *enable = CRG_SNC_CLK_SNC_UART_ENABLE;
+        *sel    = CRG_SNC_CLK_SNC_UART_CLK_SEL;
+        break;
+    }
+}
+
+/****************************************************************************
+ * Name: da1470x_uart_waitidle
+ *
+ * Description:
+ *   Wait until the UART is not busy so that LCR/DLAB writes take effect.
+ *   If it stays busy (for instance a stuck receiver) perform a soft reset.
+ *
+ ****************************************************************************/
+
+static void da1470x_uart_waitidle(uintptr_t base)
+{
+  int i;
+
+  for (i = 0; i < UART_BUSY_WAIT_LOOPS; i++)
+    {
+      if ((getreg32(base + DA1470X_UART_USR_OFFSET) & UART_USR_BUSY) == 0)
+        {
           return;
-  }
+        }
+    }
 
-  /* Write the mask to the selected register */
-
-  putreg32(mask, reg);
+  putreg32(UART_SRR_UR | UART_SRR_RFR | UART_SRR_XFR,
+           base + DA1470X_UART_SRR_OFFSET);
 }
 
 /****************************************************************************
  * Name: da1470x_setbaud
  *
  * Description:
- *   Configure the UART BAUD.
+ *   Program the integer and fractional (4-bit) divisors for the requested
+ *   baud rate.  The UART is clocked from DIVN (32 MHz) so that the divisor
+ *   does not depend on the system clock selection.
+ *
+ *     divisor * 16 + dlf = round(16 * clk / (16 * baud))
  *
  ****************************************************************************/
 
-#ifdef HAVE_UART_DEVICE
-static void da1470x_setbaud(uintptr_t base, const struct uart_config_s *config)
+static void da1470x_setbaud(uintptr_t base,
+                            const struct uart_config_s *config)
 {
-  uint32_t baud_rate = 0;
-  uint32_t cr;
+  uint32_t clk = da1470x_get_divn_clk();
+  uint32_t baud = config->baud;
+  uint32_t div16;
   uint32_t divisor;
-  bool sclk = false;  // Use DivN by default
+  uint32_t dlf;
+  uint32_t lcr;
+  int i;
 
-  switch (config->baud)
-  {
-      case 1200:
-          baud_rate = UART_BAUDRATE_1200;
-          break;
-
-      case 2400:
-          baud_rate = UART_BAUDRATE_2400;
-          break;
-
-      case 4800:
-          baud_rate = UART_BAUDRATE_4800;
-          break;
-
-      case 9600:
-          baud_rate = UART_BAUDRATE_9600;
-          break;
-
-      case 14400:
-          baud_rate = UART_BAUDRATE_14400;
-          break;
-
-      case 19200:
-          baud_rate = UART_BAUDRATE_19200;
-          break;
-
-      case 28800:
-          baud_rate = UART_BAUDRATE_28800;
-          break;
-
-      case 38400:
-          baud_rate = UART_BAUDRATE_38400;
-          break;
-
-      case 57600:
-          baud_rate = UART_BAUDRATE_57600;
-          break;
-
-      case 115200:
-          baud_rate = UART_BAUDRATE_115200;
-          break;
-
-      case 230400:
-          baud_rate = UART_BAUDRATE_230400;
-          break;
-
-      case 256000:
-          baud_rate = UART_BAUDRATE_256000;
-          break;
-
-      case 460800:
-          baud_rate = UART_BAUDRATE_460800;
-          break;
-
-      case 500000:
-          baud_rate = UART_BAUDRATE_500000;
-          break;
-
-      case 921600:
-          baud_rate = UART_BAUDRATE_921600;
-          break;
-
-      case 1000000:
-          baud_rate = UART_BAUDRATE_1000000;
-          break;
-
-      case 2000000:
-          baud_rate = UART_BAUDRATE_2000000;
-          break;
-
-      case 3000000:
-          baud_rate = UART_BAUDRATE_3000000;
-          break;
-  #if MAIN_PROCESSOR_BUILD
-      case 6000000:
-          baud_rate = UART_BAUDRATE_6000000;
-          break;
-  #endif
-      default:
-          DEBUGPANIC();
-          break;
-  }
-
-  divisor = baud_rate;
-
-#if TO_DEVELOP
-  if (baud_rate < 0x100) // If baud rate requires a high-speed clock
-  {
-      uint32_t sys_clk = hw_clk_get_sysclk();
-
-      if (sys_clk == SYS_CLK_IS_PLL)
-      {
-          switch (baud_rate)
-          {
-              case UART_BAUDRATE_3000000:
-                  divisor = 0x00000305;
-                  break;
-#if MAIN_PROCESSOR_BUILD
-              case UART_BAUDRATE_6000000:
-                  divisor = 0x0000010B;
-                  break;
-#endif
-              default:
-                  assert(false);
-          }
-
-          sclk = true; // Use Div1
-      }
-      else if ((sys_clk == SYS_CLK_IS_RCHS) && (hw_clk_get_rchs_mode() == RCHS_96))
-      {
-          switch (baud_rate)
-          {
-              case UART_BAUDRATE_3000000:
-                  divisor = 0x00000200;
-                  break;
-#if MAIN_PROCESSOR_BUILD
-              case UART_BAUDRATE_6000000:
-                  divisor = 0x00000100;
-                  break;
-#endif
-              default:
-                  assert(false);
-          }
-
-          sclk = true; // Use Div1
-      }
-      else
-      {
-          assert(false);
-      }
-  }
-#endif
-
-  da1470x_uart_set_sclk(base, sclk);
-
-  /* Set Divisor Latch Access Bit in LCR register to access DLL & DLH registers */
-
-  cr  = getreg32(base + DA1470_UART_LCR_OFFSET);
-  cr |= UART_LCR_UART_DLAB;
-  putreg32(cr, base + DA1470_UART_LCR_OFFSET);
-
-  /* Set fraction byte of baud rate */
-
-  cr  = getreg32(base + DA1470_UART_DLF_OFFSET);
-  cr  = 0xff & divisor;
-  putreg32(cr, base + DA1470_UART_DLF_OFFSET);
-
-  /* Set low byte of baud rate */
-
-  cr  = getreg32(base + DA1470_UART_RBR_THR_DLL_OFFSET);
-  cr  = 0xff & (divisor >> 8);
-  putreg32(cr, base + DA1470_UART_RBR_THR_DLL_OFFSET);
-
-  /* Set high byte of baud rare */
-
-  cr  = getreg32(base + DA1470_UART_IER_DLH_OFFSET);
-  cr  = 0xff & (divisor >> 16);
-  putreg32(cr, base + DA1470_UART_IER_DLH_OFFSET);
-
-  /* Reset Divisor Latch Access Bit in LCR register */
-
-  cr  = getreg32(base + DA1470_UART_LCR_OFFSET);
-  cr &= ~UART_LCR_UART_DLAB;
-  putreg32(cr, base + DA1470_UART_LCR_OFFSET);
-}
-#endif
-
-/****************************************************************************
- * Name: da1470x_setparity
- ****************************************************************************/
-
-static void da1470x_setparity(uintptr_t base,
-                            const struct uart_config_s *config)
-{
-  uint32_t regval = 0;
-
-  regval = getreg32(base + DA1470_UART_LCR_OFFSET);
-
-  // TODO missin UART_LCR_UART_PEN_MASK enable parity
-
-  if (config->parity == 2)
+  if (baud == 0)
     {
-      /* Include even parity */
-
-      regval |= UART_LCR_UART_EPS;
-    }
-  else
-    {
-      /* Exclude parity */
-
-      regval &= ~UART_LCR_UART_EPS;
+      baud = 115200;
     }
 
-  putreg32(regval, base + DA1470_UART_LCR_OFFSET);
+  /* Number of clocks per bit in 1/16 units, rounded to nearest */
+
+  div16   = (clk + (baud / 2)) / baud;
+  divisor = div16 >> 4;
+  dlf     = div16 & 0xf;
+
+  if (divisor == 0)
+    {
+      divisor = 1;
+      dlf     = 0;
+    }
+
+  for (i = 0; i < 2; i++)
+    {
+      da1470x_uart_waitidle(base);
+
+      lcr = getreg32(base + DA1470X_UART_LCR_OFFSET);
+      putreg32(lcr | UART_LCR_DLAB, base + DA1470X_UART_LCR_OFFSET);
+
+      putreg32(divisor & 0xff, base + DA1470X_UART_RBR_THR_DLL_OFFSET);
+      putreg32((divisor >> 8) & 0xff, base + DA1470X_UART_IER_DLH_OFFSET);
+      putreg32(dlf, base + DA1470X_UART_DLF_OFFSET);
+
+      putreg32(lcr & ~UART_LCR_DLAB, base + DA1470X_UART_LCR_OFFSET);
+
+      /* The controller refuses the write that clears DLAB while it is
+       * busy, and it reports busy for as long as RX is held low (a
+       * disconnected or wrongly biased receive line does that).  Left
+       * set, DLAB keeps the transmit holding register hidden behind the
+       * divisor latch and nothing is ever sent, so check and start over
+       * from a reset controller rather than run blind.
+       */
+
+      if ((getreg32(base + DA1470X_UART_LCR_OFFSET) & UART_LCR_DLAB) == 0)
+        {
+          return;
+        }
+
+      putreg32(UART_SRR_UR | UART_SRR_RFR | UART_SRR_XFR,
+               base + DA1470X_UART_SRR_OFFSET);
+    }
 }
 
 /****************************************************************************
- * Name: da1470x_data_bits
+ * Name: da1470x_setlcr
+ *
+ * Description:
+ *   Program data bits, parity and stop bits.
+ *
  ****************************************************************************/
 
-static void da1470x_data_bits(uintptr_t base,
-                            const struct uart_config_s *config)
+static void da1470x_setlcr(uintptr_t base,
+                           const struct uart_config_s *config)
 {
-  uint32_t regval = 0;
-  uint32_t data_bits = 0;
+  uint32_t lcr;
 
-  /* Read the current LCR register */
+  da1470x_uart_waitidle(base);
 
-  regval = getreg32(base + DA1470_UART_LCR_OFFSET);
+  lcr  = getreg32(base + DA1470X_UART_LCR_OFFSET);
+  lcr &= ~(UART_LCR_DLS_MASK | UART_LCR_STOP | UART_LCR_PEN | UART_LCR_EPS);
 
   switch (config->bits)
     {
       case 5:
-        data_bits = 0b00;
+        lcr |= UART_LCR_DLS_5BITS;
         break;
+
       case 6:
-        data_bits = 0b01;
+        lcr |= UART_LCR_DLS_6BITS;
         break;
+
       case 7:
-        data_bits = 0b10;
+        lcr |= UART_LCR_DLS_7BITS;
         break;
+
       case 8:
       default:
-        data_bits = 0b11;
+        lcr |= UART_LCR_DLS_8BITS;
         break;
     }
 
-  /* Set Data Bits (DLS: bits [1:0])  */
-
-  regval &= ~UART_LCR_UART_DLS;                 // Clear previous data bits setting
-  regval |= (data_bits & UART_LCR_UART_DLS);    // Apply new data bits setting
-
-  putreg32(regval, base + DA1470_UART_LCR_OFFSET);
-}
-
-/****************************************************************************
- * Name: da1470x_setstops
- ****************************************************************************/
-
-#ifdef HAVE_UART_STOPBITS
-static void da1470x_setstops(uintptr_t base,
-                           const struct uart_config_s *config)
-{
-  uint32_t regval = 0;
-
-  regval = getreg32(base + DA1470_UART_LCR_OFFSET);
-
-  if (config->stopbits2 == true)
+  if (config->parity == 1)
     {
-      regval |= UART_LCR_UART_STOP;
+      lcr |= UART_LCR_PEN;             /* Odd */
     }
-  else
+  else if (config->parity == 2)
     {
-      regval &= ~UART_LCR_UART_STOP;
+      lcr |= UART_LCR_PEN | UART_LCR_EPS; /* Even */
     }
 
-  putreg32(regval, base + DA1470_UART_LCR_OFFSET);
+  if (config->stopbits2)
+    {
+      lcr |= UART_LCR_STOP;
+    }
+
+  putreg32(lcr, base + DA1470X_UART_LCR_OFFSET);
 }
-#endif
 
 /****************************************************************************
  * Name: da1470x_sethwflow
+ *
+ * Description:
+ *   Enable automatic RTS/CTS handling where the hardware supports it.
+ *
  ****************************************************************************/
-#ifdef CONFIG_SERIAL_AUTO_FLOW_CONTROL
+
 static void da1470x_sethwflow(uintptr_t base,
-                            const struct uart_config_s *config)
+                              const struct uart_config_s *config)
 {
-  uint32_t regval = 0;
+  uint32_t mcr = getreg32(base + DA1470X_UART_MCR_OFFSET);
 
-  // Configure Flow Control in MCR register
-  regval = getreg32(base + DA1470_UART_MCR_OFFSET);
-
-  /* TODO */
-  // // Set Auto flow control
-  //       HW_UART_REG_SETF(uart, MCR, UART_AFCE, uart_init->auto_flow_control);
-  //       HW_UART_REG_SETF(uart, MCR, UART_RTS, uart_init->auto_flow_control);
-
-    // Configure Flow Control in MCR register
-    regval = getreg32(base + DA1470_UART_MCR_OFFSET);
-
-    // Set Auto Flow Control (AFCE: bit 5, RTS: bit 1)
-    if (config->auto_flow_control)
+  if (base != DA1470X_UART0_BASE && (config->iflow || config->oflow))
     {
-        regval |= (UART_MCR_AFCE | UART_MCR_RTS);
+      mcr |= UART_MCR_AFCE | UART_MCR_RTS;
     }
-    else
+  else
     {
-        regval &= ~(UART_MCR_AFCE | UART_MCR_RTS);
+      mcr &= ~(UART_MCR_AFCE | UART_MCR_RTS);
     }
 
-    // Write updated MCR register
-    putreg32(regval, base + DA1470_UART_MCR_OFFSET);
+  putreg32(mcr, base + DA1470X_UART_MCR_OFFSET);
 }
-#endif
+
+#endif /* HAVE_UART_DEVICE */
 
 /****************************************************************************
  * Public Functions
@@ -447,211 +315,119 @@ static void da1470x_sethwflow(uintptr_t base,
 
 /****************************************************************************
  * Name: da1470x_lowsetup
- *
- * Description:
- *   Called at the very beginning of _start. Performs low level
- *   initialization including setup of the console UART.
- *   This UART initialization is done early so that the serial console is
- *   available for debugging very early in the boot sequence.
- *
  ****************************************************************************/
 
 void da1470x_lowsetup(void)
 {
-#ifdef HAVE_UART_DEVICE
+  /* PD_SNC hosts UART/I2C/SPI/DMA: bring it up before any of them */
+
+  da1470x_pd_enable(DA1470X_PD_SNC);
+
 #ifdef HAVE_UART_CONSOLE
-  /* Configure the console UART (if any) */
-
-  // Enable PowerDomain snc to use the uart TODO create a proper "class" pm separately
-  da1470x_enable_snc();
-
   da1470x_uart_configure(CONSOLE_BASE, &g_console_config);
+#endif
 
-#endif /* HAVE_UART_CONSOLE */
-#endif /* HAVE_UART_DEVICE */
+  /* Put the voice activity detector to sleep and clear its interrupt flag.
+   * The block can come out of reset with a pending request that would
+   * otherwise fire IRQ 45 before the OS is ready for it.
+   */
+
+  putreg32(VAD_CTRL3_SB | VAD_CTRL3_SLEEP, DA1470X_VAD_CTRL3);
+  putreg32(VAD_CTRL3_SB, DA1470X_VAD_CTRL3);
+  putreg32(VAD_CTRL3_SB | VAD_CTRL3_SLEEP, DA1470X_VAD_CTRL3);
+  putreg32(VAD_CTRL4_IRQ_FLAG, DA1470X_VAD_CTRL4);
 }
 
-void da1470x_enable_snc(void)
-{
-    irqstate_t flags;
-
-    // // Disable global interrupts
-    // flags = irqsave();
-
-    // Clear the CRG_TOP_SNC_SLEEP bit in the DA1470_CRG_TOP_PMU_CTRL
-    putreg32(getreg32(DA1470_CRG_TOP_PMU_CTRL) & ~CRG_TOP_SNC_SLEEP, DA1470_CRG_TOP_PMU_CTRL);
-
-    // // Restore global interrupts
-    // irqrestore(flags);
-
-    // Wait until the SNC_IS_UP bit in SYS_STAT_REG is set
-    while ((getreg32(DA1470_CRG_TOP_SYS_STAT) & CRG_TOP_SNC_IS_UP) == 0);
-}
+#ifdef HAVE_UART_DEVICE
 
 /****************************************************************************
  * Name: da1470x_uart_configure
- *
- * Description:
- *   Configure a UART for non-interrupt driven operation
- *
  ****************************************************************************/
-// 1. Set up the GPIOs to be used for the UART interface (Px_yy_MODE_REG[PID]).
-// 2. Select the UART clock (CLK_SNC_REG[UARTx_CLK_SEL]).
-// 3. Enable the selected UART by setting the CLK_SNC_REG [UARTx_ENABLE] bit.
-// 4. Enable access to Divisor Latch Registers (DLL and DLH) by setting the
-//    UARTx_LCR_REG[UART_DLAB] bit.
-// 5. Set the desired baud rate. To calculate the registers values for the desired baud rate, use the
-//    formula: Divisor = UART CLK / (16 x Baud rate).
-//    a. UARTx_IER_DLH_REG: High byte of the Divisor integer part.
-//    b. UARTx_RBR_THR_DLL_REG: Low byte of the Divisor integer part.
-//    c. UARTx_DLF_REG: The fractional part of the Divisor.
-// 6. Configure the brake control bit, parity, number of stop bits, and data length (UARTx_LCR_REG).
-// 7. Enable and configure the FIFO (UARTx_IIR_FCR_REG).
-// 8. Configure the generated interrupts, if needed (UARTx_IER_DLH_REG).
-// 9. Send a byte:
-//    a. Check if Transmit Hold Register (THR) is empty (UARTx_LSR_REG[UART_THRE]).
-//    b. Load the byte to THR (UARTx_RBR_THR_DLL_REG).
-//    c. Check if the byte was transmitted (UARTx_LSR_REG[UART_TEMT]).
-// 10. Receive a byte:
-//     a. Wait until serial data is ready (UARTx_LSR_REG[UART_DR]).
-//     b. Read the incoming byte from the THR (UARTx_RBR_THR_DLL_REG).
 
-
-#ifdef HAVE_UART_DEVICE
 void da1470x_uart_configure(uintptr_t base,
-                           const struct uart_config_s *config)
+                            const struct uart_config_s *config)
 {
-  uint32_t pin    = 0;
-  uint32_t port   = 0;
-  uint32_t regval = 0;
-
-  /* Config GPIO pins for uart */
+  /* Pin multiplexing */
 
   da1470x_gpio_config(config->txpin);
   da1470x_gpio_config(config->rxpin);
 
-  /* Enable the DA1470x UART Clock */
+  if (config->rtspin != 0)
+    {
+      da1470x_gpio_config(config->rtspin);
+    }
 
-  da1470x_uart_enable();
+  if (config->ctspin != 0)
+    {
+      da1470x_gpio_config(config->ctspin);
+    }
 
-  /* Set UART format */
+  /* Clock the block, then soft-reset it so that we start from a known
+   * state even if a previous boot stage left the transmitter busy.
+   */
+
+  da1470x_uart_enable(base);
+
+  putreg32(UART_SRR_UR | UART_SRR_RFR | UART_SRR_XFR,
+           base + DA1470X_UART_SRR_OFFSET);
+
+  /* No interrupts, FIFOs enabled and flushed, RX trigger 1 char, TX
+   * trigger when the FIFO is half empty.
+   */
+
+  putreg32(0, base + DA1470X_UART_IER_DLH_OFFSET);
+  putreg32(UART_FCR_FIFOE | UART_FCR_RFIFOR | UART_FCR_XFIFOR |
+           UART_FCR_RT_1CHAR | UART_FCR_TET_HALF,
+           base + DA1470X_UART_IIR_FCR_OFFSET);
 
   da1470x_uart_setformat(base, config);
-
-  /* Enable and configure the FIFO */
-
-  /* Configure the generated interrupts */
-  //TODO
 }
 
 /****************************************************************************
  * Name: da1470x_uart_enable
- *
- * Description:
- *   Enable a UART.  it will be necessary to again call
- *   da1470x_uart_configure() in order to use this UART channel again.
- *
  ****************************************************************************/
 
-void da1470x_uart_enable()
+void da1470x_uart_enable(uintptr_t base)
 {
-  uint32_t regval = 0;
+  uint32_t enable;
+  uint32_t sel;
 
-  /* Enable the UART clock */
+  da1470x_uart_clkbits(base, &enable, &sel);
 
-  #ifdef CONFIG_UART0_SERIAL_CONSOLE
-    regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
-    regval |= CRG_SNC_UART0_ENABLE;
-    putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
-  #elif CONFIG_UART1_SERIAL_CONSOLE
-    regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
-    regval |= CRG_SNC_UART1_ENABLE;
-    putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
-  #elif CONFIG_UART2_SERIAL_CONSOLEb
-    regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
-    regval |= CRG_SNC_UART2_ENABLE;
-    putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
-  #endif
+  /* CLK_SEL = 0 selects DIVN (32 MHz); then enable the clock.  The
+   * SET/RESET shadow registers make this atomic.
+   */
 
-  /* Enable interrupts */
-
-  /* Enable the UART */
+  putreg32(sel, DA1470X_CRG_SNC_RESET_CLK_SNC);
+  putreg32(enable, DA1470X_CRG_SNC_SET_CLK_SNC);
 }
 
 /****************************************************************************
  * Name: da1470x_uart_disable
- *
- * Description:
- *   Disable a UART.
- *
  ****************************************************************************/
 
-void da1470x_uart_disable()
+void da1470x_uart_disable(uintptr_t base)
 {
-  uint32_t regval = 0;
+  uint32_t enable;
+  uint32_t sel;
 
-  /* Disable the UART clock */
-
-  #ifdef CONFIG_UART0_SERIAL_CONSOLE
-    regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
-    regval &= ~CRG_SNC_UART1_ENABLE;
-    putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
-  #elif CONFIG_UART1_SERIAL_CONSOLE
-    regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
-    regval &= ~CRG_SNC_UART2_ENABLE;
-    putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
-  #elif CONFIG_UART2_SERIAL_CONSOLE
-    regval  = getreg32(DA1470_CRG_SNC_CLK_SNC);
-    regval &= ~CRG_SNC_UART3_ENABLE;
-    putreg32(regval, DA1470_CRG_SNC_CLK_SNC);
-  #endif
-
-  /* Disable interrupts */
-
-  /* Disable the UART */
-
-  /* Unconfigure GPIO */
-
-  //TODO
-  // da1470x_gpio_unconfig(config->rxpin);
-  // da1470x_gpio_unconfig(config->txpin);
+  da1470x_uart_clkbits(base, &enable, &sel);
+  putreg32(enable, DA1470X_CRG_SNC_RESET_CLK_SNC);
 }
 
 /****************************************************************************
  * Name: da1470x_uart_setformat
- *
- * Description:
- *   Set the USART line format and speed.
- *
  ****************************************************************************/
 
 void da1470x_uart_setformat(uintptr_t base,
-                           const struct uart_config_s *config)
+                            const struct uart_config_s *config)
 {
-  /* Configure baud */
-
   da1470x_setbaud(base, config);
-
-  /* Configure polarity */
-
-  da1470x_setparity(base, config);
-
-  /* Configure data bits */
-
-  da1470x_data_bits(base, config);
-
-#ifdef HAVE_UART_STOPBITS
-  /* Configure STOP bits */
-
-  da1470x_setstops(base, config);
-#endif
-
-  /* Configure hardware flow control */
-#ifdef CONFIG_SERIAL_AUTO_FLOW_CONTROL
+  da1470x_setlcr(base, config);
   da1470x_sethwflow(base, config);
-#endif
 }
-#endif
+
+#endif /* HAVE_UART_DEVICE */
 
 /****************************************************************************
  * Name: arm_lowputc
@@ -664,14 +440,15 @@ void da1470x_uart_setformat(uintptr_t base,
 void arm_lowputc(char ch)
 {
 #ifdef HAVE_UART_CONSOLE
-  /* Wait until the TX data register is empty */
+  /* Wait for space in the TX FIFO.  USR.TFNF is used rather than LSR.THRE
+   * because the latter is affected by the PTIME interrupt mode.
+   */
 
-  while ((getreg32(CONSOLE_BASE + DA1470_UART_LSR_OFFSET) &
-                   UART_LSR_UART_THRE) == 0);
+  while ((getreg32(CONSOLE_BASE + DA1470X_UART_USR_OFFSET) &
+          UART_USR_TFNF) == 0)
+    {
+    }
 
-  /* Then send the character */
-
-  putreg32((uint32_t)ch, CONSOLE_BASE + DA1470_UART_RBR_THR_DLL_OFFSET);
-
+  putreg32((uint32_t)ch, CONSOLE_BASE + DA1470X_UART_RBR_THR_DLL_OFFSET);
 #endif
 }

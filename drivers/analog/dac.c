@@ -33,7 +33,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/signal.h>
@@ -183,7 +183,7 @@ static int dac_close(FAR struct file *filep)
 
           while (dev->ad_xmit.af_head != dev->ad_xmit.af_tail)
             {
-               nxsig_usleep(HALF_SECOND_USEC);
+               nxsched_usleep(HALF_SECOND_USEC);
             }
 
           /* Free the IRQ and disable the DAC device */
@@ -503,5 +503,5 @@ int dac_register(FAR const char *path, FAR struct dac_dev_s *dev)
 
   dev->ad_ops->ao_reset(dev);
 
-  return register_driver(path, &g_dac_fops, 0222, dev);
+  return register_driver(path, &g_dac_fops, 0200, dev);
 }

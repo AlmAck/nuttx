@@ -37,23 +37,11 @@
 #include <errno.h>
 
 #include "hostfs.h"
+#include "sim_internal.h"
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-/****************************************************************************
- * Name: host_errno_convert
- ****************************************************************************/
-
-static int host_errno_convert(int errcode)
-{
-  /* Provide a common interface, which should have different conversions
-   * on different platforms.
-   */
-
-  return errcode;
-}
 
 /****************************************************************************
  * Name: host_stat_convert
@@ -146,17 +134,19 @@ int host_open(const char *pathname, int flags, int mode)
 
   /* Perform flag mapping */
 
-  if ((flags & NUTTX_O_RDWR) == NUTTX_O_RDWR)
+  switch (flags & NUTTX_O_ACCMODE)
     {
-      mapflags = O_RDWR;
-    }
-  else if (flags & NUTTX_O_RDONLY)
-    {
-      mapflags = O_RDONLY;
-    }
-  else if (flags & NUTTX_O_WRONLY)
-    {
-      mapflags = O_WRONLY;
+      case NUTTX_O_RDONLY:
+        mapflags = O_RDONLY;
+        break;
+
+      case NUTTX_O_WRONLY:
+        mapflags = O_WRONLY;
+        break;
+
+      case NUTTX_O_RDWR:
+        mapflags = O_RDWR;
+        break;
     }
 
   if (flags & NUTTX_O_APPEND)
@@ -454,6 +444,8 @@ int host_readdir(void *dirp, struct nuttx_dirent_s *entry)
 
       strncpy(entry->d_name, ent->d_name, sizeof(entry->d_name) - 1);
       entry->d_name[sizeof(entry->d_name) - 1] = 0;
+
+      entry->d_ino = ent->d_ino;
 
       /* Map the type */
 

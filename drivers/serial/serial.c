@@ -38,7 +38,7 @@
 #include <poll.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <spawn.h>
 
 #include <nuttx/irq.h>
@@ -525,6 +525,14 @@ static int uart_tcdrain(FAR uart_dev_t *dev,
     {
       irqstate_t flags;
       clock_t start;
+      clock_t elapsed;
+
+      /* Take a single timestamp.  The caller-supplied timeout bounds the
+       * total time spent in this function, covering both the xmit-buffer
+       * drain wait below and the FIFO-empty polling loop further down.
+       */
+
+      start = clock_systime_ticks();
 
       /* Trigger emission to flush the contents of the tx buffer */
 
@@ -544,12 +552,11 @@ static int uart_tcdrain(FAR uart_dev_t *dev,
       else
 #endif
         {
-          /* Continue waiting while the TX buffer is not empty.
-           *
-           * NOTE: There is no timeout on the following loop.  In
-           * situations were this loop could hang (with hardware flow
-           * control, as an example),  the caller should call
-           * tcflush() first to discard this buffered Tx data.
+          /* Continue waiting while the TX buffer is not empty.  The wait is
+           * bounded by the caller-supplied timeout so this loop cannot hang
+           * indefinitely (e.g. on hardware-flow-control stalls).  The caller
+           * may still call tcflush() to discard the buffered Tx data on
+           * timeout.
            */
 
           ret = OK;
@@ -569,7 +576,17 @@ static int uart_tcdrain(FAR uart_dev_t *dev,
               uart_dmatxavail(dev);
 #endif
               uart_enabletxint(dev);
-              ret = nxsem_wait(&dev->xmitsem);
+
+              elapsed = clock_systime_ticks() - start;
+              if (elapsed >= timeout)
+                {
+                  ret = -ETIMEDOUT;
+                }
+              else
+                {
+                  ret = nxsem_tickwait(&dev->xmitsem, timeout - elapsed);
+                }
+
               uart_disabletxint(dev);
             }
         }
@@ -581,22 +598,16 @@ static int uart_tcdrain(FAR uart_dev_t *dev,
        * this event, so we have to do a busy wait poll.
        */
 
-      /* Set up for the timeout
-       *
-       * REVISIT:  This is a kludge.  The correct fix would be add an
+      /* REVISIT: This is a kludge.  The correct fix would be add an
        * interface to the lower half driver so that the tcflush() operation
        * all also cause the lower half driver to clear and reset the Tx FIFO.
        */
-
-      start = clock_systime_ticks();
 
       if (ret >= 0)
         {
           while (!uart_txempty(dev))
             {
-              clock_t elapsed;
-
-              nxsig_usleep(POLL_DELAY_USEC);
+              nxsched_usleep(POLL_DELAY_USEC);
 
               /* Check for a timeout */
 
@@ -604,6 +615,11 @@ static int uart_tcdrain(FAR uart_dev_t *dev,
               if (elapsed >= timeout)
                 {
                   nxmutex_unlock(&dev->xmit.lock);
+                  if (cancelable)
+                    {
+                      leave_cancellation_point();
+                    }
+
                   return -ETIMEDOUT;
                 }
             }
@@ -666,7 +682,7 @@ static int uart_tcsendbreak(FAR uart_dev_t *dev, FAR struct file *filep,
             {
               /* Wait 400 ms or the requested Break duration */
 
-              nxsig_usleep((ms == 0) ? 400000 : ms * 1000);
+              nxsched_usleep((ms == 0) ? 400000 : ms * 1000);
 
               /* Request lower half driver to end the Break */
 
@@ -1015,9 +1031,11 @@ static ssize_t uart_readv(FAR struct file *filep, FAR struct uio *uio)
                   recvd--;
                   if (dev->tc_lflag & ECHO)
                     {
+                      nxmutex_lock(&dev->xmit.lock);
                       uart_putxmitchar(dev, '\b', true);
                       uart_putxmitchar(dev, ' ', true);
                       uart_putxmitchar(dev, '\b', true);
+                      nxmutex_unlock(&dev->xmit.lock);
 
 #ifdef CONFIG_SERIAL_TXDMA
                       uart_dmatxavail(dev);
@@ -1072,12 +1090,14 @@ static ssize_t uart_readv(FAR struct file *filep, FAR struct uio *uio)
 
               if (!iscntrl(ch & 0xff) || ch == '\n')
                 {
+                  nxmutex_lock(&dev->xmit.lock);
                   if (ch == '\n')
                     {
                       uart_putxmitchar(dev, '\r', true);
                     }
 
                   uart_putxmitchar(dev, ch, true);
+                  nxmutex_unlock(&dev->xmit.lock);
 
                   /* Mark the tx buffer have echoed content here,
                    * to avoid the tx buffer is empty such as special escape
@@ -1733,16 +1753,25 @@ static int uart_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
           /* Make the controlling terminal of the calling process */
 
           case TIOCSCTTY:
+          case TIOCSPGRP:
             {
-              /* Save the PID of the recipient of the SIGINT signal. */
+              /* Save the PID of the foreground process group that is to
+               * receive tty-generated signals (SIGINT/SIGTSTP).
+               *
+               * POSIX passes a flag in 'arg' and uses the caller's PID, so
+               * a zero 'arg' selects the calling task.  NuttX historically
+               * passes the target PID directly in 'arg' (e.g. NSH registers
+               * the foreground command it just spawned), so a positive
+               * 'arg' is honored as the target PID.
+               */
 
-              if ((int)arg < 0 || dev->pid >= 0)
+              if ((int)arg < 0)
                 {
                   ret = -EINVAL;
                 }
               else
                 {
-                  dev->pid = (pid_t)arg;
+                  dev->pid = arg > 0 ? (pid_t)arg : nxsched_getpid();
                   ret = 0;
                 }
             }
@@ -1752,6 +1781,26 @@ static int uart_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
             {
               dev->pid = INVALID_PROCESS_ID;
               ret = 0;
+            }
+            break;
+
+          /* Get the foreground process group.  Since NuttX has no real
+           * process-group abstraction, the controlling task's PID doubles
+           * as the (single-member) foreground process group.
+           */
+
+          case TIOCGPGRP:
+          case TIOCGSID:
+            {
+              if (dev->pid < 0)
+                {
+                  ret = -ENOTTY;
+                }
+              else
+                {
+                  *(FAR pid_t *)((uintptr_t)arg) = dev->pid;
+                  ret = 0;
+                }
             }
             break;
 #endif
@@ -2132,7 +2181,7 @@ int uart_register(FAR const char *path, FAR uart_dev_t *dev)
 #endif
 
   sinfo("Registering %s\n", path);
-  return register_driver(path, &g_serialops, 0666, dev);
+  return register_driver(path, &g_serialops, 0600, dev);
 }
 
 /****************************************************************************

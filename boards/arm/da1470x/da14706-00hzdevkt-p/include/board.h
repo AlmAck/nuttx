@@ -28,17 +28,19 @@
 #include <nuttx/config.h>
 #include <stdbool.h>
 
-// #if defined(CONFIG_ARCH_IRQBUTTONS) && defined(CONFIG_NRF53_GPIOTE)
-// #  include <nuttx/irq.h>
-// #endif
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
 /* Clocking *****************************************************************/
 
-#define BOARD_SYSTICK_CLOCK         (64000000)
+/* The devkit carries a 32 MHz crystal (XTAL32M) and a 32.768 kHz crystal
+ * (XTAL32K).  The system clock source is selected in Kconfig; the SysTick
+ * frequency is read back from the clock controller at run time.
+ */
+
+#define BOARD_XTAL32M_FREQ          32000000
+#define BOARD_XTAL32K_FREQ          32768
 
 /* LED definitions **********************************************************/
 
@@ -47,73 +49,152 @@
  * LED index values for use with board_userled()
  */
 
-#define BOARD_LED1        0
-#define BOARD_LED2        1
-#define BOARD_LED3        2
-#define BOARD_NLEDS       3
+#define BOARD_LED1                  0
+#define BOARD_LED2                  1
+#define BOARD_LED3                  2
+#ifdef CONFIG_DA14706_TOUCH_ZT2628
+#  define BOARD_NLEDS               2  /* P1.1 is the touch reset line */
+#else
+#  define BOARD_NLEDS               3
+#endif
 
 /* LED bits for use with board_userled_all() */
 
-#define BOARD_LED1_BIT    (1 << BOARD_LED1)
-#define BOARD_LED2_BIT    (1 << BOARD_LED2)
-#define BOARD_LED3_BIT    (1 << BOARD_LED3)
+#define BOARD_LED1_BIT              (1 << BOARD_LED1)
+#define BOARD_LED2_BIT              (1 << BOARD_LED2)
+#define BOARD_LED3_BIT              (1 << BOARD_LED3)
 
 /* If CONFIG_ARCH_LEDS is defined, the LED will be controlled as follows
  * for NuttX debug functionality (where NC means "No Change").
  */
 
-#define LED_STARTED                0  /* OFF      */
-#define LED_HEAPALLOCATE           0  /* OFF      */
-#define LED_IRQSENABLED            0  /* OFF      */
-#define LED_STACKCREATED           1  /* ON       */
-#define LED_INIRQ                  2  /* NC       */
-#define LED_SIGNAL                 2  /* NC       */
-#define LED_ASSERTION              2  /* NC       */
-#define LED_PANIC                  3  /* Flashing */
-
-/* If CONFIG_ARCH_LEDS is not defined, then the LEDs are completely under
- * control of the application.  The following interfaces are then available
- * for application control of the LEDs:
- *
- *  uint32_t board_userled_initialize(void);
- *  void board_userled(int led, bool ledon);
- *  void board_userled_all(uint32_t ledset);
- */
+#define LED_STARTED                 0  /* OFF      */
+#define LED_HEAPALLOCATE            0  /* OFF      */
+#define LED_IRQSENABLED             0  /* OFF      */
+#define LED_STACKCREATED            1  /* ON       */
+#define LED_INIRQ                   2  /* NC       */
+#define LED_SIGNAL                  2  /* NC       */
+#define LED_ASSERTION               2  /* NC       */
+#define LED_PANIC                   3  /* Flashing */
 
 /* Button definitions *******************************************************/
 
-/* Board supports 5 buttons. */
+/* K1 and K2 are the user push buttons on P1.22 and P1.23 (active low). */
 
-#define BUTTON_BTN1       0
-#define BUTTON_BTN2       1
-#define BUTTON_BTN3       2
-#define BUTTON_BTN4       3
-#define BUTTON_BTN5       4
-#define NUM_BUTTONS       5
+#define BUTTON_BTN1                 0
+#define BUTTON_BTN2                 1
+#define NUM_BUTTONS                 2
 
-#define BUTTON_BTN1_BIT  (1 << BUTTON_BTN1)
-#define BUTTON_BTN2_BIT  (1 << BUTTON_BTN2)
-#define BUTTON_BTN3_BIT  (1 << BUTTON_BTN3)
-#define BUTTON_BTN4_BIT  (1 << BUTTON_BTN4)
-#define BUTTON_BTN5_BIT  (1 << BUTTON_BTN5)
+#define BUTTON_BTN1_BIT             (1 << BUTTON_BTN1)
+#define BUTTON_BTN2_BIT             (1 << BUTTON_BTN2)
 
 /* UART Pins ****************************************************************/
 
-/* The following definitions must be provided so that the DA1470 serial
- * driver can set up the UART for the serial console properly.
- * Interfaced by the FT2232HL
+/* UART0 is routed to the FT2232HL of the devkit: TX on P0.8, RX on P2.1 */
+
+#define BOARD_UART0_RX_PIN  (GPIO_INPUT | GPIO_PULLUP | GPIO_FUNC_UART_RX | \
+                             GPIO_PORT2 | GPIO_PIN(1))
+#define BOARD_UART0_TX_PIN  (GPIO_OUTPUT | GPIO_FUNC_UART_TX | GPIO_PORT0 | \
+                             GPIO_PIN(8))
+
+/* UART1 (datasheet UART2) on the expansion header, with flow control */
+
+#define BOARD_UART1_RX_PIN  (GPIO_INPUT | GPIO_PULLUP | GPIO_FUNC_UART2_RX | \
+                             GPIO_PORT1 | GPIO_PIN(8))
+#define BOARD_UART1_TX_PIN  (GPIO_OUTPUT | GPIO_FUNC_UART2_TX | GPIO_PORT1 | \
+                             GPIO_PIN(9))
+#define BOARD_UART1_RTS_PIN (GPIO_OUTPUT | GPIO_FUNC_UART2_RTSN | GPIO_PORT1 | \
+                             GPIO_PIN(10))
+#define BOARD_UART1_CTS_PIN (GPIO_INPUT | GPIO_PULLUP | GPIO_FUNC_UART2_CTSN | \
+                             GPIO_PORT1 | GPIO_PIN(11))
+
+/* SPI Pins *****************************************************************/
+
+/* SPI0 on the display connector's spare serial pins (P1.13/14/16/17),
+ * free when the E120A390QSR board is fitted.
  */
 
-#define BOARD_UART0_RX_PIN  (GPIO_INPUT  | GPIO_PULLDOWN | GPIO_FUNC_UART_RX | GPIO_PORT2 | GPIO_PIN(1))
-#define BOARD_UART0_TX_PIN  (GPIO_OUTPUT | GPIO_FUNC_UART_TX | GPIO_PORT0 | GPIO_PIN(8))
+#define BOARD_SPI0_SCLK_PIN (GPIO_OUTPUT | GPIO_FUNC_SPI_CLK | GPIO_PORT1 | \
+                             GPIO_PIN(17))
+#define BOARD_SPI0_MOSI_PIN (GPIO_OUTPUT | GPIO_FUNC_SPI_DO | GPIO_PORT1 | \
+                             GPIO_PIN(13))
+#define BOARD_SPI0_MISO_PIN (GPIO_INPUT | GPIO_FUNC_SPI_DI | GPIO_PORT1 | \
+                             GPIO_PIN(16))
+#define BOARD_SPI0_CS_PIN   (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_FUNC_GPIO | \
+                             GPIO_PORT1 | GPIO_PIN(14))
 
-// #define BOARD_UART1_RX_PIN  (GPIO_INPUT  | GPIO_PORT1 | GPIO_PIN(8))
-// #define BOARD_UART1_TX_PIN  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(9))
+/* I2C Pins *****************************************************************/
 
+/* I2C0 is the touch controller bus of the display connector (P1.12 SCL,
+ * P1.11 SDA); its pull-ups are powered through BOARD_TOUCH_PWR_PIN.
+ */
 
+#define BOARD_I2C0_SCL_PIN  (GPIO_OUTPUT | GPIO_FUNC_I2C_SCL | GPIO_OPENDRAIN | \
+                             GPIO_PORT1 | GPIO_PIN(12))
+#define BOARD_I2C0_SDA_PIN  (GPIO_OUTPUT | GPIO_FUNC_I2C_SDA | GPIO_OPENDRAIN | \
+                             GPIO_PORT1 | GPIO_PIN(11))
 
+/* Touch controller (Zinitix ZT2628 on the E120A390QSR board) ***************/
 
-#define GPIO_TEST_OUTPUT (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PULLDOWN | GPIO_VALUE_ONE | GPIO_PORT0 | GPIO_PIN(12))
+#define BOARD_TOUCH_PWR_PIN (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
+                             GPIO_PIN(28))
+#define BOARD_TOUCH_RST_PIN (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_FUNC_GPIO | \
+                             GPIO_PORT1 | GPIO_PIN(1))
+#define BOARD_TOUCH_INT_PIN (GPIO_INPUT | GPIO_PULLUP | GPIO_FUNC_GPIO | \
+                             GPIO_PORT1 | GPIO_PIN(3))
 
+/* LCDC / E120A390QSR display pins ******************************************/
+
+/* JDI parallel interface (CONFIG_DA14706_LCD_LPM012M134B, no such panel on
+ * the devkit): the signals have fixed pads handed to the LCDC through
+ * LCDC_MAP_CTRL; only the panel enable is a board choice.
+ */
+
+#define BOARD_JDI_VCK_PIN    (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(9))
+#define BOARD_JDI_HCK_PIN    (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(14))
+#define BOARD_JDI_HST_PIN    (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(15))
+#define BOARD_JDI_VST_PIN    (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(16))
+#define BOARD_JDI_RED0_PIN   (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(17))
+#define BOARD_JDI_ENB_PIN    (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(18))
+#define BOARD_JDI_VCOM_PIN   (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(19))
+#define BOARD_JDI_BLUE1_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(21))
+#define BOARD_JDI_XRST_PIN   (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(22))
+#define BOARD_JDI_RED1_PIN   (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(23))
+#define BOARD_JDI_GREEN0_PIN (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(24))
+#define BOARD_JDI_GREEN1_PIN (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT1 | GPIO_PIN(0))
+#define BOARD_JDI_BLUE0_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT1 | GPIO_PIN(1))
+#define BOARD_JDI_PEN_PIN    (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT1 | GPIO_PIN(7))
+
+/* Daughterboard "da1470x-sb-E120A390QSR" hard-straps the panel into QSPI
+ * mode.  The LCDC pad mux is hard wired: SCLK/SD0..SD3/CSX are set as plain
+ * GPIO outputs and the LCDC takes them over through LCDC_GPIO_REG.
+ * RST and DCDC_EN are ordinary GPIO outputs driven by the panel driver.
+ */
+
+#define BOARD_LCDC_SCLK_PIN (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
+                             GPIO_PIN(14))
+#define BOARD_LCDC_SD0_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
+                             GPIO_PIN(15))
+#define BOARD_LCDC_SD1_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
+                             GPIO_PIN(16))
+#define BOARD_LCDC_SD3_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
+                             GPIO_PIN(17))
+#define BOARD_LCDC_CSX_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
+                             GPIO_PIN(18))
+#define BOARD_LCDC_SD2_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
+                             GPIO_PIN(22))
+#define BOARD_LCDC_TE_PIN   (GPIO_INPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
+                             GPIO_PIN(10))
+#define BOARD_LCDC_RST_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
+                             GPIO_PIN(23))
+#define BOARD_LCDC_DCDC_PIN (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT1 | \
+                             GPIO_PIN(7))
+
+/* Interface mode straps of the panel: IM[1:0] = 10 selects quad SPI */
+
+#define BOARD_LCDC_IM0_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
+                             GPIO_PIN(24))
+#define BOARD_LCDC_IM1_PIN  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_FUNC_GPIO | \
+                             GPIO_PORT1 | GPIO_PIN(0))
 
 #endif /* __BOARDS_ARM_DA1470X_DA14706_00HZDEVKT_P_INCLUDE_BOARD_H */

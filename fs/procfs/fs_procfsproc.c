@@ -38,7 +38,7 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <malloc.h>
 #include <execinfo.h>
 
@@ -46,6 +46,7 @@
 #  include <time.h>
 #endif
 
+#include <nuttx/addrenv.h>
 #include <nuttx/arch.h>
 #include <nuttx/nuttx.h>
 #include <nuttx/irq.h>
@@ -155,6 +156,9 @@ struct proc_envinfo_s
   size_t buflen;
   size_t remaining;
   size_t totalsize;
+#ifdef CONFIG_ARCH_ADDRENV
+  FAR struct tcb_s *tcb;
+#endif
 };
 
 /****************************************************************************
@@ -640,10 +644,11 @@ static ssize_t proc_status(FAR struct proc_file_s *procfile,
     }
 
   /* Show the signal mask. Note: sigset_t is uint32_t on NuttX. */
-
+#ifndef CONFIG_DISABLE_ALL_SIGNALS
   linesize = procfs_snprintf(procfile->line, STATUS_LINELEN,
                              "%-12s" SIGSET_FMT "\n",
                              "SigMask:", SIGSET_ELEM(&tcb->sigprocmask));
+#endif
   copysize = procfs_memcpy(procfile->line, linesize, buffer, remaining,
                            &offset);
 
@@ -790,9 +795,9 @@ static ssize_t proc_critmon(FAR struct proc_file_s *procfile,
 
   /* Generate output for maximum time pre-emption disabled */
 
-  linesize = procfs_snprintf(procfile->line, STATUS_LINELEN, "%lu.%09lu %p,",
-                             (unsigned long)maxtime.tv_sec,
-                             (unsigned long)maxtime.tv_nsec,
+  linesize = procfs_snprintf(procfile->line, STATUS_LINELEN, "%jd.%09ld %p,",
+                             (intmax_t)maxtime.tv_sec,
+                             maxtime.tv_nsec,
                              tcb->preemp_max_caller);
   copysize = procfs_memcpy(procfile->line, linesize, buffer, remaining,
                            &offset);
@@ -826,9 +831,9 @@ static ssize_t proc_critmon(FAR struct proc_file_s *procfile,
 
   /* Generate output for maximum time in a critical section */
 
-  linesize = procfs_snprintf(procfile->line, STATUS_LINELEN, "%lu.%09lu %p,",
-                             (unsigned long)maxtime.tv_sec,
-                             (unsigned long)maxtime.tv_nsec,
+  linesize = procfs_snprintf(procfile->line, STATUS_LINELEN, "%jd.%09ld %p,",
+                             (intmax_t)maxtime.tv_sec,
+                             maxtime.tv_nsec,
                              tcb->crit_max_caller);
   copysize = procfs_memcpy(procfile->line, linesize, buffer, remaining,
                            &offset);
@@ -842,6 +847,69 @@ static ssize_t proc_critmon(FAR struct proc_file_s *procfile,
       return totalsize;
     }
 #endif /* CONFIG_SCHED_CRITMONITOR_MAXTIME_CSECTION >= 0 */
+
+  /* Convert and generate output for max busywait time && all busywait time */
+
+#if CONFIG_SCHED_CRITMONITOR_MAXTIME_BUSYWAIT >= 0
+  if (tcb->busywait_max > 0)
+    {
+      perf_convert(tcb->busywait_max, &maxtime);
+    }
+  else
+    {
+      maxtime.tv_sec = 0;
+      maxtime.tv_nsec = 0;
+    }
+
+  /* Reset the maximum */
+
+  tcb->busywait_max = 0;
+
+  /* Generate output for max busywait time */
+
+  linesize = procfs_snprintf(procfile->line, STATUS_LINELEN, "%jd.%09ld %p,",
+                             (intmax_t)maxtime.tv_sec,
+                             maxtime.tv_nsec,
+                             tcb->busywait_max_caller);
+  copysize = procfs_memcpy(procfile->line, linesize, buffer, remaining,
+                           &offset);
+
+  totalsize += copysize;
+  buffer    += copysize;
+  remaining -= copysize;
+
+  if (totalsize >= buflen)
+    {
+      return totalsize;
+    }
+
+  if (tcb->busywait_total > 0)
+    {
+      perf_convert(tcb->busywait_total, &maxtime);
+    }
+  else
+    {
+      maxtime.tv_sec = 0;
+      maxtime.tv_nsec = 0;
+    }
+
+  /* Generate output for all busywait time */
+
+  linesize = procfs_snprintf(procfile->line, STATUS_LINELEN, "%jd.%09ld,",
+                             (intmax_t)maxtime.tv_sec,
+                             maxtime.tv_nsec);
+  copysize = procfs_memcpy(procfile->line, linesize, buffer, remaining,
+                           &offset);
+
+  totalsize += copysize;
+  buffer    += copysize;
+  remaining -= copysize;
+
+  if (totalsize >= buflen)
+    {
+      return totalsize;
+    }
+#endif /* CONFIG_SCHED_CRITMONITOR_MAXTIME_BUSYWAIT >= 0 */
 
   /* Convert and generate output for maximum time thread running */
 #if CONFIG_SCHED_CRITMONITOR_MAXTIME_THREAD >= 0
@@ -865,11 +933,11 @@ static ssize_t proc_critmon(FAR struct proc_file_s *procfile,
    */
 
   linesize = procfs_snprintf(procfile->line, STATUS_LINELEN,
-                             "%lu.%09lu,%lu.%09lu\n",
-                             (unsigned long)maxtime.tv_sec,
-                             (unsigned long)maxtime.tv_nsec,
-                             (unsigned long)runtime.tv_sec,
-                             (unsigned long)(runtime.tv_nsec));
+                             "%jd.%09ld,%jd.%09ld\n",
+                             (intmax_t)maxtime.tv_sec,
+                             maxtime.tv_nsec,
+                             (intmax_t)runtime.tv_sec,
+                             runtime.tv_nsec);
   copysize = procfs_memcpy(procfile->line, linesize, buffer, remaining,
                            &offset);
 
@@ -966,12 +1034,12 @@ static ssize_t proc_heapcheck_write(FAR struct proc_file_s *procfile,
                                     FAR const char *buffer,
                                     size_t buflen, off_t offset)
 {
-  switch (atoi(buffer))
+  switch (buffer[0])
     {
-      case 0:
+      case '0':
         tcb->flags &= ~TCB_FLAG_HEAP_CHECK;
         break;
-      case 1:
+      case '1':
         tcb->flags |= TCB_FLAG_HEAP_CHECK;
         break;
       default:
@@ -1054,8 +1122,10 @@ static ssize_t proc_stack(FAR struct proc_file_s *procfile,
 
   /* Show the stack size */
 
-  linesize   = procfs_snprintf(procfile->line, STATUS_LINELEN, "%-12s%ld\n",
-                               "StackUsed:", (long)up_check_tcbstack(tcb));
+  linesize = procfs_snprintf(
+      procfile->line, STATUS_LINELEN, "%-12s%zu\n",
+      "StackUsed:", up_check_tcbstack(tcb, tcb->adj_stack_size));
+
   copysize   = procfs_memcpy(procfile->line, linesize, buffer, remaining,
                              &offset);
 
@@ -1252,7 +1322,6 @@ static ssize_t proc_groupfd(FAR struct proc_file_s *procfile,
                             size_t buflen, off_t offset)
 {
   FAR struct task_group_s *group = tcb->group;
-  FAR struct file *filep;
   FAR char *path;
   size_t remaining;
   size_t linesize;
@@ -1263,7 +1332,7 @@ static ssize_t proc_groupfd(FAR struct proc_file_s *procfile,
 
   DEBUGASSERT(group != NULL);
 
-  count = files_countlist(&group->tg_filelist);
+  count = fdlist_count(&group->tg_fdlist);
   if (count == 0)
     {
       return 0;
@@ -1303,11 +1372,12 @@ static ssize_t proc_groupfd(FAR struct proc_file_s *procfile,
 
   for (i = 0; i < count; i++)
     {
-      filep = files_fget(&group->tg_filelist, i);
+      FAR struct file *filep;
+      FAR struct fd *fdp;
 
       /* Is there an inode associated with the file descriptor? */
 
-      if (filep == NULL)
+      if (fdlist_get2(&group->tg_fdlist, i, &filep, &fdp) < 0)
         {
           continue;
         }
@@ -1327,13 +1397,13 @@ static ssize_t proc_groupfd(FAR struct proc_file_s *procfile,
 #if CONFIG_FS_BACKTRACE > 0
           linesize += backtrace_format(procfile->line + linesize,
                                        STATUS_LINELEN - linesize,
-                                       filep->f_backtrace,
+                                       fdp->f_backtrace,
                                        CONFIG_FS_BACKTRACE);
 #endif
-          procfile->line[linesize - 2] = '\n';
+          procfile->line[linesize - 1] = '\n';
         }
 
-      fs_putfilep(filep);
+      file_put(filep);
       copysize   = procfs_memcpy(procfile->line, linesize,
                                  buffer, remaining, &offset);
 
@@ -1367,8 +1437,17 @@ static int proc_groupenv_callback(FAR void *arg, FAR const char *pair)
   size_t linesize;
   size_t copysize;
   int namelen;
+#ifdef CONFIG_ARCH_ADDRENV
+  FAR struct addrenv_s *targetenv;
+#endif
 
   DEBUGASSERT(arg != NULL && pair != NULL);
+
+  /* This callback is invoked by env_foreach() with info->tcb's own address
+   * environment selected, since "pair" points into info->tcb's user heap
+   * (tg_envp).  Parse "pair" and format the result into the kernel-heap-
+   * backed procfile->line first, all done under info->tcb's environment.
+   */
 
   /* Parse the name from the name/value pair */
 
@@ -1404,9 +1483,30 @@ static int proc_groupenv_callback(FAR void *arg, FAR const char *pair)
   linesize        = procfs_snprintf(info->procfile->line,
                                     STATUS_LINELEN, "%s=%s\n",
                                     name, value);
+
+  /* info->buffer is the caller's receive buffer, not info->tcb's, so
+   * switch back to the caller's own address environment before touching
+   * it, then switch back to info->tcb's so the next env_foreach()
+   * iteration can dereference the next tg_envp[] entry correctly.
+   */
+
+#ifdef CONFIG_ARCH_ADDRENV
+  if (info->tcb->addrenv_own != NULL)
+    {
+      addrenv_select(nxsched_self()->addrenv_own, &targetenv);
+    }
+#endif
+
   copysize        = procfs_memcpy(info->procfile->line, linesize,
                                   info->buffer, info->remaining,
                                   &info->offset);
+
+#ifdef CONFIG_ARCH_ADDRENV
+  if (info->tcb->addrenv_own != NULL)
+    {
+      addrenv_restore(targetenv);
+    }
+#endif
 
   info->totalsize += copysize;
   info->buffer    += copysize;
@@ -1432,6 +1532,9 @@ static ssize_t proc_groupenv(FAR struct proc_file_s *procfile,
 {
   FAR struct task_group_s *group = tcb->group;
   struct proc_envinfo_s info;
+#ifdef CONFIG_ARCH_ADDRENV
+  FAR struct addrenv_s *oldenv;
+#endif
 
   DEBUGASSERT(group != NULL);
 
@@ -1443,10 +1546,37 @@ static ssize_t proc_groupenv(FAR struct proc_file_s *procfile,
   info.buflen     = buflen;
   info.remaining  = buflen;
   info.totalsize  = 0;
+#ifdef CONFIG_ARCH_ADDRENV
+  info.tcb        = tcb;
+#endif
+
+  /* tg_envp holds addresses in tcb's own address space.  Temporarily
+   * switch to it so the strings it points to are actually reachable,
+   * since the caller (e.g. nsh reading another task's /proc node) may
+   * be running under a different address environment.  The caller's own
+   * environment is recovered on demand via nxsched_self()->addrenv_own
+   * in proc_groupenv_callback(), since whichever task runs that callback
+   * is by definition the caller.
+   */
+
+#ifdef CONFIG_ARCH_ADDRENV
+  if (tcb->addrenv_own != NULL)
+    {
+      addrenv_select(tcb->addrenv_own, &oldenv);
+    }
+#endif
 
   /* Generate output for each environment variable */
 
   env_foreach(group, proc_groupenv_callback, &info);
+
+#ifdef CONFIG_ARCH_ADDRENV
+  if (tcb->addrenv_own != NULL)
+    {
+      addrenv_restore(oldenv);
+    }
+#endif
+
   return info.totalsize;
 }
 #endif

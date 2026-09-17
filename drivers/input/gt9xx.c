@@ -37,7 +37,7 @@
 #include <poll.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/kmalloc.h>
@@ -196,7 +196,7 @@ static int gt9xx_i2c_read(FAR struct gt9xx_dev_s *dev,
 
   const int msgv_len = sizeof(msgv) / sizeof(msgv[0]);
 
-  iinfo("reg=0x%x, buflen=%ld\n", reg, buflen);
+  iinfo("reg=0x%x, buflen=%zu\n", reg, buflen);
   DEBUGASSERT(dev && dev->i2c && buf);
 
   /* Execute the I2C Transfer */
@@ -482,10 +482,10 @@ static ssize_t gt9xx_read(FAR struct file *filep, FAR char *buffer,
 
   /* Returned Touch Sample will have 0 or 1 Touch Points */
 
-  iinfo("buflen=%ld\n", buflen);
+  iinfo("buflen=%zu\n", buflen);
   if (buflen < outlen)
     {
-      ierr("Buffer should be at least %ld bytes, got %ld bytes\n",
+      ierr("Buffer should be at least %zu bytes, got %zu bytes\n",
            outlen, buflen);
       return -EINVAL;
     }
@@ -639,7 +639,7 @@ static int gt9xx_open(FAR struct file *filep)
 
       /* Let Touch Panel power up before probing */
 
-      nxsig_usleep(100 * 1000);
+      nxsched_usleep(100 * 1000);
 
       /* Check that Touch Panel exists on I2C */
 
@@ -931,7 +931,7 @@ int gt9xx_register(FAR const char *devpath,
 
   /* Register the Touch Input Driver */
 
-  ret = register_driver(devpath, &g_gt9xx_fileops, 0666, priv);
+  ret = register_driver(devpath, &g_gt9xx_fileops, 0600, priv);
   if (ret < 0)
     {
       nxmutex_destroy(&priv->devlock);

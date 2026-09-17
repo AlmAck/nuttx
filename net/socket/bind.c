@@ -30,7 +30,7 @@
 #include <sys/socket.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/fs/fs.h>
 #include <nuttx/net/net.h>
@@ -164,7 +164,7 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
   if (ret == OK)
     {
       ret = psock_bind(psock, addr, addrlen);
-      fs_putfilep(filep);
+      file_put(filep);
     }
 
   if (ret < 0)

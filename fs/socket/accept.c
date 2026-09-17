@@ -32,7 +32,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <fcntl.h>
 
 #include <nuttx/cancelpt.h>
@@ -264,7 +264,7 @@ int accept4(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen,
       goto errout_with_psock;
     }
 
-  fs_putfilep(filep);
+  file_put(filep);
 
 #ifdef CONFIG_MM_KMAP
   kmm_unmap(kaddr);
@@ -281,7 +281,7 @@ errout_with_alloc:
   fs_heap_free(newsock);
 
 errout_with_filep:
-  fs_putfilep(filep);
+  file_put(filep);
 
 errout_with_kmap:
 #ifdef CONFIG_MM_KMAP

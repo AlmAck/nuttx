@@ -26,7 +26,7 @@
 
 #include <nuttx/config.h>
 
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <stdio.h>
 
 #include <nuttx/kmalloc.h>
@@ -173,7 +173,7 @@ static int dsi_host_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
  *   host - An instance of the struct mipi_dsi_host
  *
  * Returned Value:
- *   OK if the driver was successfully register; A negated errno value is
+ *   OK if the driver was successfully registered; A negated errno value is
  *   returned on any failure.
  *
  ****************************************************************************/
@@ -195,7 +195,7 @@ int mipi_dsi_host_driver_register(FAR struct mipi_dsi_host *host)
 #endif
 
       snprintf(name, sizeof(name), MIPI_DSI_HOSTNAME_FMT, host->bus);
-      ret = register_driver(name, &g_dsi_host_fops, 0666, priv);
+      ret = register_driver(name, &g_dsi_host_fops, 0600, priv);
       if (ret < 0)
         {
 #ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS

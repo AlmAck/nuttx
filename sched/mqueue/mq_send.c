@@ -27,7 +27,7 @@
 #include <nuttx/config.h>
 
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 #include <mqueue.h>
 #include <sys/types.h>
@@ -91,7 +91,7 @@ static int nxmq_verify_send(FAR FAR struct file *mq, FAR const char *msg,
       return -EINVAL;
     }
 
-  if ((mq->f_oflags & O_WROK) == 0)
+  if ((mq->f_oflags & O_ACCMODE) == O_RDONLY)
     {
       return -EBADF;
     }
@@ -275,7 +275,7 @@ static
 int file_mq_timedsend_internal(FAR struct file *mq, FAR const char *msg,
                                size_t msglen, unsigned int prio,
                                FAR const struct timespec *abstime,
-                               sclock_t ticks)
+                               clock_t ticks)
 {
   FAR struct mqueue_inode_s *msgq;
   FAR struct mqueue_msg_s *mqmsg;
@@ -466,7 +466,7 @@ int file_mq_timedsend(FAR struct file *mq, FAR const char *msg,
  ****************************************************************************/
 
 int file_mq_ticksend(FAR struct file *mq, FAR const char *msg,
-                     size_t msglen, unsigned int prio, sclock_t ticks)
+                     size_t msglen, unsigned int prio, clock_t ticks)
 {
   return file_mq_timedsend_internal(mq, msg, msglen, prio, NULL, ticks);
 }
@@ -519,14 +519,14 @@ int nxmq_timedsend(mqd_t mqdes, FAR const char *msg, size_t msglen,
   FAR struct file *filep;
   int ret;
 
-  ret = fs_getfilep(mqdes, &filep);
+  ret = file_get(mqdes, &filep);
   if (ret < 0)
     {
       return ret;
     }
 
   ret = file_mq_timedsend_internal(filep, msg, msglen, prio, abstime, -1);
-  fs_putfilep(filep);
+  file_put(filep);
   return ret;
 }
 
@@ -671,14 +671,14 @@ int nxmq_send(mqd_t mqdes, FAR const char *msg, size_t msglen,
   FAR struct file *filep;
   int ret;
 
-  ret = fs_getfilep(mqdes, &filep);
+  ret = file_get(mqdes, &filep);
   if (ret < 0)
     {
       return ret;
     }
 
   ret = file_mq_timedsend_internal(filep, msg, msglen, prio, NULL, -1);
-  fs_putfilep(filep);
+  file_put(filep);
   return ret;
 }
 

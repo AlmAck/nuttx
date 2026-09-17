@@ -20,6 +20,19 @@
  *
  ****************************************************************************/
 
+/* WARNING for developers:
+ *
+ * This driver uses the legacy style of writing sensor drivers for NuttX. The
+ * project has since decided to adopt a new sensor framework in order to
+ * have a consistent API and feature-set.
+ *
+ * Sensors which use the uORB framework are typically suffixed "_uorb". You
+ * can also visit the documentation about the new sensor framework to learn
+ * more.
+ */
+
+#warning "This is a deprecated legacy sensor driver."
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -28,7 +41,7 @@
 #include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <poll.h>
 #include <stdio.h>
 
@@ -886,7 +899,7 @@ int max44009_register(FAR const char *devpath, FAR struct i2c_master_s *i2c,
   priv->config = config;
   nxmutex_init(&priv->dev_lock);
 
-  ret = register_driver(devpath, &g_alsops, 0666, priv);
+  ret = register_driver(devpath, &g_alsops, 0600, priv);
   max44009_dbg("Registered with %d\n", ret);
   if (ret < 0)
     {

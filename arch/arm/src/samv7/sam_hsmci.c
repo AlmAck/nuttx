@@ -32,7 +32,7 @@
 #include <string.h>
 #include <sys/param.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 
 #include <nuttx/arch.h>
@@ -82,7 +82,8 @@
 
 /* System Bus Interfaces */
 
-#if defined(CONFIG_ARCH_CHIP_SAMV71) || defined(CONFIG_ARCH_CHIP_SAME70)
+#if defined(CONFIG_ARCH_CHIP_SAMV71) || defined(CONFIG_ARCH_CHIP_SAME70) || \
+    defined(CONFIG_ARCH_CHIP_PIC32CZCA70)
 #  define HSMCI_SYSBUS_IF  DMACH_FLAG_PERIPHAHB_AHB_IF1
 #  define MEMORY_SYSBUS_IF DMACH_FLAG_MEMAHB_AHB_IF0
 #else

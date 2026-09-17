@@ -25,7 +25,7 @@
 #include <nuttx/config.h>
 
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -43,9 +43,9 @@
 
 #include "xtensa.h"
 #include "esp32s3_config.h"
-#include "esp32s3_irq.h"
+#include "esp_irq.h"
 #include "esp32s3_lowputc.h"
-#include "esp32s3_gpio.h"
+#include "esp_gpio.h"
 #include "hardware/esp32s3_uart.h"
 #include "hardware/esp32s3_system.h"
 
@@ -101,8 +101,11 @@
 #  endif
 #endif /* CONSOLE_UART */
 
-#ifdef CONFIG_ESP32S3_USBSERIAL
+#if defined(CONFIG_ESP32S3_USBSERIAL) && !defined(CONSOLE_DEV)
 #  define CONSOLE_DEV           g_uart_usbserial
+#endif
+
+#ifdef CONFIG_ESP32S3_USBSERIAL
 #  define TTYACM0_DEV           g_uart_usbserial
 #endif
 
@@ -312,6 +315,7 @@ static int uart_handler(int irq, void *context, void *arg)
   struct esp32s3_uart_s *priv = dev->priv;
   uint32_t tx_mask = UART_TXFIFO_EMPTY_INT_ST_M | UART_TX_DONE_INT_ST_M;
   uint32_t rx_mask = UART_RXFIFO_TOUT_INT_ST_M | UART_RXFIFO_FULL_INT_ST_M;
+  uint32_t rx_ovf_mask = UART_RXFIFO_OVF_INT_ST_M;
   uint32_t int_status;
 
   int_status = getreg32(UART_INT_ST_REG(priv->id));
@@ -322,8 +326,7 @@ static int uart_handler(int irq, void *context, void *arg)
     {
       if (dev->xmit.tail == dev->xmit.head)
         {
-          esp32s3_gpiowrite(priv->rs485_dir_gpio,
-                            !priv->rs485_dir_polarity);
+          esp_gpiowrite(priv->rs485_dir_gpio, !priv->rs485_dir_polarity);
         }
     }
 #endif
@@ -342,6 +345,12 @@ static int uart_handler(int irq, void *context, void *arg)
     {
       uart_recvchars(dev);
       modifyreg32(UART_INT_CLR_REG(priv->id), rx_mask, rx_mask);
+    }
+
+  if ((int_status & rx_ovf_mask) != 0)
+    {
+      esp32s3_lowputc_rst_rxfifo(priv);
+      modifyreg32(UART_INT_CLR_REG(priv->id), rx_ovf_mask, rx_ovf_mask);
     }
 
   return OK;
@@ -385,11 +394,18 @@ static int esp32s3_setup(struct uart_dev_s *dev)
   modifyreg32(UART_CONF1_REG(priv->id), UART_TXFIFO_EMPTY_THRHD_M, 0);
 
   /* Define a threshold to trigger an RX FIFO FULL interrupt.
-   * Define just one byte to read data immediately.
    */
 
   modifyreg32(UART_CONF1_REG(priv->id), UART_RXFIFO_FULL_THRHD_M,
-              1 << UART_RXFIFO_FULL_THRHD_S);
+              CONFIG_ESP32S3_RX_FIFO_THRD << UART_RXFIFO_FULL_THRHD_S);
+
+  /* Define a rx fifo timeout to trigger RX TOUT interrupt.
+   */
+
+  modifyreg32(UART_CONF1_REG(priv->id),
+            UART_RX_TOUT_THRHD_M | UART_RX_TOUT_EN_M,
+            (CONFIG_ESP32S3_RX_FIFO_TOUT << UART_RX_TOUT_THRHD_S) |
+            UART_RX_TOUT_EN_M);
 
   /* Define the maximum FIFO size for RX and TX FIFO.
    * That means, 1 block = 128 bytes.
@@ -511,7 +527,7 @@ static void esp32s3_shutdown(struct uart_dev_s *dev)
  * Description:
  *   Configure the UART to operation in interrupt driven mode.  This method
  *   is called when the serial port is opened.  Normally, this is just after
- *   the the setup() method is called, however, the serial console may
+ *   the setup() method is called, however, the serial console may
  *   operate in a non-interrupt driven mode during the boot phase.
  *
  *   RX and TX interrupts are not enabled when by the attach method (unless
@@ -531,15 +547,14 @@ static void esp32s3_shutdown(struct uart_dev_s *dev)
 static int esp32s3_attach(struct uart_dev_s *dev)
 {
   struct esp32s3_uart_s *priv = dev->priv;
-  int ret;
 
   DEBUGASSERT(priv->cpuint == -ENOMEM);
 
   /* Set up to receive peripheral interrupts on the current CPU */
 
   priv->cpu = this_cpu();
-  priv->cpuint = esp32s3_setup_irq(priv->cpu, priv->periph, priv->int_pri,
-                                   ESP32S3_CPUINT_LEVEL);
+  priv->cpuint = esp_setup_irq(priv->periph, priv->int_pri,
+                               ESP_IRQ_TRIGGER_LEVEL, uart_handler, dev);
   if (priv->cpuint < 0)
     {
       /* Failed to allocate a CPU interrupt of this type */
@@ -547,19 +562,9 @@ static int esp32s3_attach(struct uart_dev_s *dev)
       return priv->cpuint;
     }
 
-  /* Attach and enable the IRQ */
+  up_enable_irq(priv->irq);
 
-  ret = irq_attach(priv->irq, uart_handler, dev);
-  if (ret == OK)
-    {
-      /* Enable the CPU interrupt (RX and TX interrupts are still disabled
-       * in the UART
-       */
-
-      up_enable_irq(priv->irq);
-    }
-
-  return ret;
+  return OK;
 }
 
 /****************************************************************************
@@ -584,11 +589,10 @@ static void esp32s3_detach(struct uart_dev_s *dev)
   /* Disable and detach the CPU interrupt */
 
   up_disable_irq(priv->irq);
-  irq_detach(priv->irq);
 
   /* Disassociate the peripheral interrupt from the CPU interrupt */
 
-  esp32s3_teardown_irq(priv->cpu, priv->periph, priv->cpuint);
+  esp_teardown_irq(priv->periph, priv->cpuint);
   priv->cpuint = -ENOMEM;
 }
 
@@ -779,7 +783,7 @@ static void esp32s3_send(struct uart_dev_s *dev, int ch)
 #ifdef HAVE_RS485
   if (priv->rs485_dir_gpio != 0)
     {
-      esp32s3_gpiowrite(priv->rs485_dir_gpio, priv->rs485_dir_polarity);
+      esp_gpiowrite(priv->rs485_dir_gpio, priv->rs485_dir_polarity);
     }
 #endif
 
@@ -854,194 +858,196 @@ static int esp32s3_ioctl(struct file *filep, int cmd, unsigned long arg)
     {
 #ifdef CONFIG_SERIAL_TIOCSERGSTRUCT
 
-    /* Get the internal driver data structure for debug purposes. */
+      /* Get the internal driver data structure for debug purposes. */
 
-    case TIOCSERGSTRUCT:
-      {
-         struct esp32s3_uart_s *user = (struct esp32s3_uart_s *)arg;
-         if (user == NULL)
-           {
-             ret = -EINVAL;
-           }
-         else
-           {
-             memcpy(user, dev->priv, sizeof(struct esp32s3_uart_s));
-           }
-       }
-       break;
+      case TIOCSERGSTRUCT:
+        {
+          struct esp32s3_uart_s *user = (struct esp32s3_uart_s *)arg;
+
+          if (user == NULL)
+            {
+              ret = -EINVAL;
+            }
+          else
+            {
+              memcpy(user, dev->priv, sizeof(struct esp32s3_uart_s));
+            }
+        }
+        break;
 #endif
 
 #ifdef CONFIG_SERIAL_TERMIOS
 
-    /* Fill a termios structure with the required information. */
+      /* Fill a termios structure with the required information. */
 
-    case TCGETS:
-      {
-        struct termios  *termiosp   = (struct termios *)arg;
-        struct esp32s3_uart_s *priv = (struct esp32s3_uart_s *)dev->priv;
-        if (termiosp == NULL)
-          {
-            ret = -EINVAL;
-            break;
-          }
+      case TCGETS:
+        {
+          struct termios  *termiosp   = (struct termios *)arg;
+          struct esp32s3_uart_s *priv = (struct esp32s3_uart_s *)dev->priv;
 
-        /* Return parity (0 = no parity, 1 = odd parity, 2 = even parity). */
+          if (termiosp == NULL)
+            {
+              ret = -EINVAL;
+              break;
+            }
 
-        termiosp->c_cflag = (priv->parity != 0 ? PARENB : 0) |
-                            (priv->parity == 1 ? PARODD : 0);
+          /* Return parity (0 = no, 1 = odd, 2 = even). */
 
-        /* Return stop bits */
+          termiosp->c_cflag = (priv->parity != 0 ? PARENB : 0) |
+                              (priv->parity == 1 ? PARODD : 0);
 
-        termiosp->c_cflag |= priv->stop_b2 != 0 ? CSTOPB : 0;
+          /* Return stop bits */
+
+          termiosp->c_cflag |= priv->stop_b2 != 0 ? CSTOPB : 0;
 
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
-        termiosp->c_cflag |=  priv->oflow != 0 ? CCTS_OFLOW : 0;
+          termiosp->c_cflag |=  priv->oflow != 0 ? CCTS_OFLOW : 0;
 #endif
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
-        termiosp->c_cflag |=  priv->iflow != 0 ? CRTS_IFLOW : 0;
+          termiosp->c_cflag |=  priv->iflow != 0 ? CRTS_IFLOW : 0;
 #endif
 
-        /* Set the baud rate in the termiosp using the
-         * cfsetispeed interface.
-         */
+          /* Set the baud rate in the termiosp using the
+           * cfsetispeed interface.
+           */
 
-        cfsetispeed(termiosp, priv->baud);
+          cfsetispeed(termiosp, priv->baud);
 
-        /* Return number of bits. */
+          /* Return number of bits. */
 
-        switch (priv->bits)
-          {
-          case 5:
-            termiosp->c_cflag |= CS5;
-            break;
+          switch (priv->bits)
+            {
+              case 5:
+                termiosp->c_cflag |= CS5;
+                break;
 
-          case 6:
-            termiosp->c_cflag |= CS6;
-            break;
+              case 6:
+                termiosp->c_cflag |= CS6;
+                break;
 
-          case 7:
-            termiosp->c_cflag |= CS7;
-            break;
+              case 7:
+                termiosp->c_cflag |= CS7;
+                break;
 
-          default:
-          case 8:
-            termiosp->c_cflag |= CS8;
-            break;
-          }
-      }
-      break;
+              default:
+              case 8:
+                termiosp->c_cflag |= CS8;
+                break;
+            }
+        }
+        break;
 
-    case TCSETS:
-      {
-        struct termios  *termiosp   = (struct termios *)arg;
-        struct esp32s3_uart_s *priv = (struct esp32s3_uart_s *)dev->priv;
-        uint32_t baud;
-        uint32_t current_int_sts;
-        uint8_t  parity;
-        uint8_t  bits;
-        uint8_t  stop2;
+      case TCSETS:
+        {
+          struct termios  *termiosp   = (struct termios *)arg;
+          struct esp32s3_uart_s *priv = (struct esp32s3_uart_s *)dev->priv;
+          uint32_t baud;
+          uint32_t current_int_sts;
+          uint8_t  parity;
+          uint8_t  bits;
+          uint8_t  stop2;
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
-        bool iflow;
+          bool iflow;
 #endif
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
-        bool oflow;
+          bool oflow;
 #endif
 
-        if (termiosp == NULL)
-          {
-            ret = -EINVAL;
-            break;
-          }
+          if (termiosp == NULL)
+            {
+              ret = -EINVAL;
+              break;
+            }
 
-        /* Get the target baud rate to change. */
+          /* Get the target baud rate to change. */
 
-        baud = cfgetispeed(termiosp);
+          baud = cfgetispeed(termiosp);
 
-        /* Decode number of bits. */
+          /* Decode number of bits. */
 
-        switch (termiosp->c_cflag & CSIZE)
-          {
-          case CS5:
-            bits = 5;
-            break;
+          switch (termiosp->c_cflag & CSIZE)
+            {
+              case CS5:
+                bits = 5;
+                break;
 
-          case CS6:
-            bits = 6;
-            break;
+              case CS6:
+                bits = 6;
+                break;
 
-          case CS7:
-            bits = 7;
-            break;
+              case CS7:
+                bits = 7;
+                break;
 
-          case CS8:
-            bits = 8;
-            break;
+              case CS8:
+                bits = 8;
+                break;
 
-          default:
-            ret = -EINVAL;
-            break;
-          }
+              default:
+                ret = -EINVAL;
+                break;
+            }
 
-        /* Decode parity. */
+          /* Decode parity. */
 
-        if ((termiosp->c_cflag & PARENB) != 0)
-          {
-            parity = (termiosp->c_cflag & PARODD) != 0 ? 1 : 2;
-          }
-        else
-          {
-            parity = 0;
-          }
+          if ((termiosp->c_cflag & PARENB) != 0)
+            {
+              parity = (termiosp->c_cflag & PARODD) != 0 ? 1 : 2;
+            }
+          else
+            {
+              parity = 0;
+            }
 
-        /* Decode stop bits. */
+          /* Decode stop bits. */
 
-        stop2 = (termiosp->c_cflag & CSTOPB) != 0 ? 1 : 0;
+          stop2 = (termiosp->c_cflag & CSTOPB) != 0 ? 1 : 0;
 
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
-        iflow = (termiosp->c_cflag & CRTS_IFLOW) != 0;
+          iflow = (termiosp->c_cflag & CRTS_IFLOW) != 0;
 #endif
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
-        oflow = (termiosp->c_cflag & CCTS_OFLOW) != 0;
+          oflow = (termiosp->c_cflag & CCTS_OFLOW) != 0;
 #endif
 
-        /* Verify that all settings are valid before
-         * performing the changes.
-         */
+          /* Verify that all settings are valid before
+           * performing the changes.
+           */
 
-        if (ret == OK)
-          {
-            /* Fill the private struct fields. */
+          if (ret == OK)
+            {
+              /* Fill the private struct fields. */
 
-            priv->baud      = baud;
-            priv->parity    = parity;
-            priv->bits      = bits;
-            priv->stop_b2   = stop2;
+              priv->baud      = baud;
+              priv->parity    = parity;
+              priv->bits      = bits;
+              priv->stop_b2   = stop2;
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
-            priv->iflow     = iflow;
+              priv->iflow     = iflow;
 #endif
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
-            priv->oflow     = oflow;
+              priv->oflow     = oflow;
 #endif
 
-            /* Effect the changes immediately - note that we do not
-             * implement TCSADRAIN or TCSAFLUSH, only TCSANOW option.
-             * See nuttx/libs/libc/termios/lib_tcsetattr.c
-             */
+              /* Effect the changes immediately - note that we do not
+               * implement TCSADRAIN or TCSAFLUSH, only TCSANOW option.
+               * See nuttx/libs/libc/termios/lib_tcsetattr.c
+               */
 
-            esp32s3_lowputc_disable_all_uart_int(priv, &current_int_sts);
-            ret = esp32s3_setup(dev);
+              esp32s3_lowputc_disable_all_uart_int(priv, &current_int_sts);
+              ret = esp32s3_setup(dev);
 
-            /* Restore the interrupt state */
+              /* Restore the interrupt state */
 
-            esp32s3_lowputc_restore_all_uart_int(priv, &current_int_sts);
-          }
-      }
-      break;
+              esp32s3_lowputc_restore_all_uart_int(priv, &current_int_sts);
+            }
+        }
+        break;
 #endif /* CONFIG_SERIAL_TERMIOS */
 
-    default:
-      ret = -ENOTTY;
-      break;
+      default:
+        ret = -ENOTTY;
+        break;
     }
 
   return ret;
@@ -1085,6 +1091,7 @@ static bool esp32s3_rxflowcontrol(struct uart_dev_s *dev,
 {
   bool ret = false;
   struct esp32s3_uart_s *priv = dev->priv;
+
   if (priv->iflow)
     {
       if (nbuffered == 0 || upper == false)

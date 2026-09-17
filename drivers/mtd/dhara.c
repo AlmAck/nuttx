@@ -27,7 +27,7 @@
 #include <nuttx/config.h>
 
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <stdio.h>
 
 #include <nuttx/nuttx.h>
@@ -754,7 +754,7 @@ int dhara_initialize_by_path(FAR const char *path,
    * DHARA_MTDBLOCK device structure
    */
 
-  ret = register_blockdriver(path, &g_dhara_bops, 0666, dev);
+  ret = register_blockdriver(path, &g_dhara_bops, 0600, dev);
   if (ret < 0)
     {
       ferr("register_blockdriver failed: %d\n", ret);

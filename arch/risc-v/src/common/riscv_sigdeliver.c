@@ -31,8 +31,8 @@
 #include <sched.h>
 #include <syscall.h>
 #include <assert.h>
-#include <debug.h>
 
+#include <nuttx/debug.h>
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/board.h>
@@ -159,9 +159,7 @@ retry:
 #ifdef CONFIG_SMP
   /* We need to keep the IRQ lock until task switching */
 
-  rtcb->irqcount++;
-  leave_critical_section(regs[REG_INT_CTX]);
-  rtcb->irqcount--;
+  leave_critical_section(up_irq_save());
 #endif
 
   rtcb->xcp.regs = regs;

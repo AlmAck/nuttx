@@ -242,7 +242,8 @@ echo "  Copy files"
 ln -sf ${src_makedefs} ${dest_makedefs} || \
   { echo "Failed to symlink ${src_makedefs}" ; exit 8 ; }
 ${TOPDIR}/tools/process_config.sh -I ${configpath}/../../common/configs \
-  -I ${configpath}/../common -I ${configpath} -o ${dest_config} ${src_config}
+  -I ${configpath}/../common -I ${configpath} -I ${TOPDIR}/../apps -I ${TOPDIR}/../nuttx-apps \
+  -o ${dest_config} ${src_config}
 install -m 644 ${src_config} "${backup_config}" || \
   { echo "Failed to backup ${src_config}" ; exit 10 ; }
 
@@ -354,6 +355,9 @@ echo "CONFIG_BASE_DEFCONFIG=\"$posboardconfig\"" >> "${dest_config}"
 # reconstitued before they can be used.
 
 ${TOPDIR}/tools/sethost.sh $host $*
+
+# Supply ROMFS root password from NUTTX_ROMFS_PASSWD_PASSWORD when absent
+"${TOPDIR}/tools/update_romfs_password.sh" "${dest_config}"
 
 # Save the original configuration file without CONFIG_BASE_DEFCONFIG
 # for later comparison

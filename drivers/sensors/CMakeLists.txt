@@ -29,12 +29,20 @@ if(CONFIG_SENSORS)
     list(APPEND SRCS usensor.c)
   endif()
 
+  if(CONFIG_SENSORS_MONITOR)
+    list(APPEND SRCS sensor_monitor.c)
+  endif()
+
   if(CONFIG_SENSORS_RPMSG)
     list(APPEND SRCS sensor_rpmsg.c)
   endif()
 
   if(CONFIG_SENSORS_NAU7802)
     list(APPEND SRCS nau7802.c)
+  endif()
+
+  if(CONFIG_SENSORS_L86_XXX)
+    list(APPEND SRCS l86xxx_uorb.c)
   endif()
 
   if(CONFIG_SENSORS_GNSS)
@@ -97,6 +105,10 @@ if(CONFIG_SENSORS)
 
     if(CONFIG_SENSORS_AK09912)
       list(APPEND SRCS ak09912.c)
+    endif()
+
+    if(CONFIG_SENSORS_MT6816)
+      list(APPEND SRCS mt6816.c)
     endif()
 
     if(CONFIG_SENSORS_AS5048B)
@@ -334,6 +346,16 @@ if(CONFIG_SENSORS)
 
     if(CONFIG_SENSORS_AMG88XX)
       list(APPEND SRCS amg88xx.c)
+    endif()
+
+    if(CONFIG_SENSORS_TMP112)
+      list(APPEND SRCS tmp112.c)
+    endif()
+
+    # QMI8658 6-axis IMU
+
+    if(CONFIG_SENSORS_QMI8658)
+      list(APPEND SRCS qmi8658_uorb.c)
     endif()
 
   endif() # CONFIG_I2C

@@ -35,6 +35,8 @@
 #include <nuttx/arch.h>
 
 #include "sched/sched.h"
+#include "sched/queue.h"
+#include "signal/signal.h"
 
 #ifdef CONFIG_SMP
 /****************************************************************************
@@ -44,7 +46,6 @@
 struct suspend_arg_s
 {
   pid_t pid;
-  cpu_set_t saved_affinity;
   bool need_restore;
 };
 
@@ -72,7 +73,6 @@ static int nxsched_suspend_handler(FAR void *cookie)
 
   if (arg->need_restore)
     {
-      tcb->affinity = arg->saved_affinity;
       tcb->flags &= ~TCB_FLAG_CPU_LOCKED;
     }
 
@@ -103,17 +103,34 @@ void nxsched_suspend(FAR struct tcb_s *tcb)
 {
   irqstate_t flags;
   bool switch_needed;
+#ifdef CONFIG_ENABLE_ALL_SIGNALS
+  FAR sq_entry_t *entry;
+#endif
 
   DEBUGASSERT(tcb != NULL);
 
   flags = enter_critical_section();
+
+#ifdef CONFIG_ENABLE_ALL_SIGNALS
+  /* Check if received SIGCONT */
+
+  sq_for_every(&tcb->sigpendactionq, entry)
+    {
+      FAR sigq_t *sigq = (FAR sigq_t *)entry;
+      if (sigq->info.si_signo == SIGCONT)
+        {
+          leave_critical_section(flags);
+          return;
+        }
+    }
+#endif
 
   /* Check the current state of the task */
 
   if (tcb->task_state >= FIRST_BLOCKED_STATE &&
       tcb->task_state <= LAST_BLOCKED_STATE)
     {
-      /* Remove the TCB from the the blocked task list. */
+      /* Remove the TCB from the blocked task list. */
 
       nxsched_remove_blocked(tcb);
 
@@ -131,6 +148,9 @@ void nxsched_suspend(FAR struct tcb_s *tcb)
     }
   else
     {
+#ifdef CONFIG_SMP
+      int cpu = this_cpu();
+#endif
       FAR struct tcb_s *rtcb = this_task();
 
       /* The task was running or runnable before being stopped.  Simply
@@ -145,7 +165,7 @@ void nxsched_suspend(FAR struct tcb_s *tcb)
       /* Remove the tcb task from the ready-to-run list. */
 
 #ifdef CONFIG_SMP
-      if (tcb->task_state == TSTATE_TASK_RUNNING && tcb->cpu != this_cpu())
+      if (tcb->task_state == TSTATE_TASK_RUNNING && tcb->cpu != cpu)
         {
           struct suspend_arg_s arg;
 
@@ -157,12 +177,8 @@ void nxsched_suspend(FAR struct tcb_s *tcb)
           else
             {
               arg.pid = tcb->pid;
-              arg.saved_affinity = tcb->affinity;
               arg.need_restore = true;
-
               tcb->flags |= TCB_FLAG_CPU_LOCKED;
-              CPU_ZERO(&tcb->affinity);
-              CPU_SET(tcb->cpu, &tcb->affinity);
             }
 
           nxsched_smp_call_single(tcb->cpu, nxsched_suspend_handler, &arg);
@@ -172,9 +188,13 @@ void nxsched_suspend(FAR struct tcb_s *tcb)
         {
           switch_needed = nxsched_remove_readytorun(tcb);
 
-          if (list_pendingtasks()->head)
+          if (switch_needed)
             {
-              switch_needed |= nxsched_merge_pending();
+#ifdef CONFIG_SMP
+              nxsched_deliver_task(cpu, tcb->cpu, SWITCH_HIGHER);
+#else
+              nxsched_merge_pending();
+#endif
             }
 
           /* Add the task to the specified blocked task list */

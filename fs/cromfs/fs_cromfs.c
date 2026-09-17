@@ -38,7 +38,7 @@
 #include <lzf.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
@@ -761,7 +761,7 @@ static int cromfs_open(FAR struct file *filep, FAR const char *relpath,
    * access is not permitted.
    */
 
-  if ((oflags & O_WRONLY) != 0 || (oflags & O_RDONLY) == 0)
+  if ((oflags & O_ACCMODE) != O_RDONLY)
     {
       ferr("ERROR: Only O_RDONLY supported\n");
       return -EACCES;
@@ -858,7 +858,7 @@ static ssize_t cromfs_read(FAR struct file *filep, FAR char *buffer,
   size_t remaining;
   uint32_t blkoffs;
   uint16_t ulen;
-  uint16_t clen;
+  uint16_t complen;
   unsigned int copysize;
   unsigned int copyoffs;
 
@@ -944,9 +944,9 @@ static ssize_t cromfs_read(FAR struct file *filep, FAR char *buffer,
 
               ulen    = (uint16_t)hdr1->lzf_ulen[0] << 8 |
                         (uint16_t)hdr1->lzf_ulen[1];
-              clen    = (uint16_t)hdr1->lzf_clen[0] << 8 |
+              complen = (uint16_t)hdr1->lzf_clen[0] << 8 |
                         (uint16_t)hdr1->lzf_clen[1];
-              blksize = (uint32_t)clen + LZF_TYPE1_HDR_SIZE;
+              blksize = (uint32_t)complen + LZF_TYPE1_HDR_SIZE;
             }
 
           nexthdr  = (FAR struct lzf_header_s *)
@@ -997,25 +997,30 @@ static ssize_t cromfs_read(FAR struct file *filep, FAR char *buffer,
 
               /* Get the address and offset in the CROMFS image to obtain
                * the data.  Check if we already have this offset in the
-               * cache.
+               * cache.  This path decompresses into the caller's buffer,
+               * not into ff_buffer, so it may only read the cache, never
+               * populate it.
                */
 
-              src     = (FAR const uint8_t *)currhdr + LZF_TYPE1_HDR_SIZE;
+              src = (FAR const uint8_t *)currhdr + LZF_TYPE1_HDR_SIZE;
               voloffs = cromfs_addr2offset(fs, src);
-              if (voloffs != ff->ff_offset)
+              if (voloffs == ff->ff_offset)
+                {
+                  DEBUGASSERT(ff->ff_ulen >= copysize);
+                  memcpy(dest, ff->ff_buffer, copysize);
+                }
+              else
                 {
                   unsigned int decomplen;
 
-                  decomplen = lzf_decompress(src, clen, dest, fs->cv_bsize);
-
-                  ff->ff_offset = voloffs;
-                  ff->ff_ulen   = decomplen;
+                  decomplen = lzf_decompress(src, complen, dest,
+                                             fs->cv_bsize);
+                  DEBUGASSERT(decomplen >= copysize);
                 }
 
               finfo("voloffs=%" PRIu32 " blkoffs=%" PRIu32
-                    " ulen=%" PRIu16 " ff_offset=%" PRIu32 " copysize=%u\n",
-                    voloffs, blkoffs, ulen, ff->ff_offset, copysize);
-              DEBUGASSERT(ff->ff_ulen >= copysize);
+                    " ulen=%" PRIu16 " copysize=%u\n",
+                    voloffs, blkoffs, ulen, copysize);
             }
           else
             {
@@ -1045,7 +1050,7 @@ static ssize_t cromfs_read(FAR struct file *filep, FAR char *buffer,
                 {
                   unsigned int decomplen;
 
-                  decomplen = lzf_decompress(src, clen, ff->ff_buffer,
+                  decomplen = lzf_decompress(src, complen, ff->ff_buffer,
                                              fs->cv_bsize);
 
                   ff->ff_offset = voloffs;
@@ -1053,9 +1058,9 @@ static ssize_t cromfs_read(FAR struct file *filep, FAR char *buffer,
                 }
 
               finfo("voloffs=%" PRIu32 " blkoffs=%" PRIu32 " ulen=%" PRIu16
-                    " clen=%" PRIu16 " ff_offset=%" PRIu32
+                    " complen=%" PRIu16 " ff_offset=%" PRIu32
                     "  copyoffs=%u copysize=%u\n",
-                    voloffs, blkoffs, ulen, clen, ff->ff_offset,
+                    voloffs, blkoffs, ulen, complen, ff->ff_offset,
                     copyoffs, copysize);
               DEBUGASSERT(ff->ff_ulen >= (copyoffs + copysize));
 

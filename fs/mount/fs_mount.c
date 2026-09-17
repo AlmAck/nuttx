@@ -31,13 +31,13 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/fs/fs.h>
 
 #include "driver/driver.h"
 #include "inode/inode.h"
-#include "notify/notify.h"
+#include "vfs/vfs.h"
 
 /****************************************************************************
  * Pre-processor Definitions

@@ -43,6 +43,10 @@ if(CONFIG_DRIVERS_AUDIO)
     list(APPEND SRCS cs4344.c)
   endif()
 
+  if(CONFIG_AUDIO_ES7210)
+    list(APPEND SRCS es7210.c)
+  endif()
+
   if(CONFIG_AUDIO_ES8311)
     list(APPEND SRCS es8311.c)
     if(CONFIG_ES8311_REGDUMP)
@@ -83,6 +87,10 @@ if(CONFIG_DRIVERS_AUDIO)
 
   if(CONFIG_AUDIO_NULL)
     list(APPEND SRCS audio_null.c)
+  endif()
+
+  if(CONFIG_AUDIO_FAKE)
+    list(APPEND SRCS audio_fake.c)
   endif()
 
   if(CONFIG_AUDIO_TONE)

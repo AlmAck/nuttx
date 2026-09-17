@@ -41,7 +41,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 
 #include <nuttx/kmalloc.h>
@@ -116,11 +116,11 @@
         } \
       else \
         { \
-          nxsig_usleep(usec); \
+          nxsched_usleep(usec); \
         } \
     } while (0)
 #else
-#  define MMCSD_USLEEP(usec) nxsig_usleep(usec)
+#  define MMCSD_USLEEP(usec) nxsched_usleep(usec)
 #endif
 
 /****************************************************************************
@@ -160,7 +160,9 @@ static int     mmcsd_get_r1(FAR struct mmcsd_state_s *priv,
                             FAR uint32_t *r1);
 static int     mmcsd_verifystate(FAR struct mmcsd_state_s *priv,
                                  uint32_t status);
+#ifdef CONFIG_MMCSD_MMCSUPPORT
 static int     mmcsd_switch(FAR struct mmcsd_state_s *priv, uint32_t arg);
+#endif
 
 /* Transfer helpers *********************************************************/
 
@@ -249,6 +251,7 @@ static const struct block_operations g_bops =
 static FAR const char *g_partname[MMCSD_PART_COUNT] =
     {
       "",
+#ifdef CONFIG_MMCSD_MMCSUPPORT
       "boot0",
       "boot1",
       "rpmb",
@@ -256,6 +259,7 @@ static FAR const char *g_partname[MMCSD_PART_COUNT] =
       "gp2",
       "gp3",
       "gp4"
+#endif
     };
 
 /****************************************************************************
@@ -951,7 +955,7 @@ static void mmcsd_decode_csd(FAR struct mmcsd_state_s *priv, uint32_t csd[4])
   finfo("  FILE_FORMAT: %d ECC: %d (MMC) CRC: %d\n",
         decoded.fileformat, decoded.mmcecc, decoded.crc);
 
-  finfo("Capacity: %luKb, Block size: %db, nblocks: %d wrprotect: %d\n",
+  finfo("Capacity: %luKB, Block size: %dB, nblocks: %d wrprotect: %d\n",
         (unsigned long)MMCSD_CAPACITY(priv->part[0].nblocks,
                                       priv->blockshift),
         priv->blocksize, priv->part[0].nblocks, priv->wrprotect);
@@ -1020,9 +1024,9 @@ static void mmcsd_decode_cid(FAR struct mmcsd_state_s *priv, uint32_t cid[4])
   decoded.mdt    = (cid[3] >> 8) & 0xff;
   decoded.crc    = (cid[3] >> 1) & 0x7f;
 
-  finfo("mid: %02x cbx: %01x oid: %01x pnm: %s prv: %d psn: %08x mdt: %02x\
-         crc: %02x\n", decoded.mid, decoded.cbx, decoded.oid, decoded.pnm,
-         decoded.prv, (unsigned long)decoded.psn, decoded.mdt, decoded.crc);
+  finfo("mid: %02x cbx: %01x oid: %01x pnm: %s prv: %d psn: %08" PRIx32
+        " mdt: %02x crc: %02x\n", decoded.mid, decoded.cbx, decoded.oid,
+        decoded.pnm, decoded.prv, decoded.psn, decoded.mdt, decoded.crc);
 }
 #endif
 
@@ -1110,6 +1114,7 @@ static void mmcsd_decode_scr(FAR struct mmcsd_state_s *priv, uint32_t scr[2])
  *
  ****************************************************************************/
 
+#ifdef CONFIG_MMCSD_MMCSUPPORT
 static int mmcsd_switch(FAR struct mmcsd_state_s *priv, uint32_t arg)
 {
   /* After putting a slave into transfer state, master sends
@@ -1155,6 +1160,7 @@ static int mmcsd_switch(FAR struct mmcsd_state_s *priv, uint32_t arg)
   priv->wrbusy = true;
   return mmcsd_recv_r1(priv, MMCSD_CMD6);
 }
+#endif
 
 /****************************************************************************
  * Name: mmcsd_get_r1
@@ -1519,7 +1525,9 @@ static ssize_t mmcsd_readsingle(FAR struct mmcsd_part_s *part,
                                 FAR uint8_t *buffer, off_t startblock)
 {
   FAR struct mmcsd_state_s *priv = part->priv;
+#ifdef CONFIG_MMCSD_MMCSUPPORT
   uint32_t partnum = part - priv->part;
+#endif
   off_t offset;
   int ret;
 
@@ -1534,6 +1542,7 @@ static ssize_t mmcsd_readsingle(FAR struct mmcsd_part_s *part,
       return -EPERM;
     }
 
+#ifdef CONFIG_MMCSD_MMCSUPPORT
   if (priv->partnum != partnum)
     {
       ret = mmcsd_switch(priv, MMC_CMD6_MODE(MMC_CMD6_MODE_WRITE_BYTE) |
@@ -1547,6 +1556,7 @@ static ssize_t mmcsd_readsingle(FAR struct mmcsd_part_s *part,
 
       priv->partnum = partnum;
     }
+#endif
 
 #if defined(CONFIG_SDIO_DMA) && defined(CONFIG_ARCH_HAVE_SDIO_PREFLIGHT)
   /* If we think we are going to perform a DMA transfer, make sure that we
@@ -1670,7 +1680,9 @@ static ssize_t mmcsd_readmultiple(FAR struct mmcsd_part_s *part,
 {
   FAR struct mmcsd_state_s *priv = part->priv;
   size_t nbytes = nblocks << priv->blockshift;
+#ifdef CONFIG_MMCSD_MMCSUPPORT
   uint32_t partnum = part - priv->part;
+#endif
   off_t  offset;
   int ret;
 
@@ -1685,6 +1697,7 @@ static ssize_t mmcsd_readmultiple(FAR struct mmcsd_part_s *part,
       return -EPERM;
     }
 
+#ifdef CONFIG_MMCSD_MMCSUPPORT
   if (priv->partnum != partnum)
     {
       ret = mmcsd_switch(priv, MMC_CMD6_MODE(MMC_CMD6_MODE_WRITE_BYTE) |
@@ -1698,6 +1711,7 @@ static ssize_t mmcsd_readmultiple(FAR struct mmcsd_part_s *part,
 
       priv->partnum = partnum;
     }
+#endif
 
 #if defined(CONFIG_SDIO_DMA) && defined(CONFIG_ARCH_HAVE_SDIO_PREFLIGHT)
   /* If we think we are going to perform a DMA transfer, make sure that we
@@ -1843,7 +1857,9 @@ static ssize_t mmcsd_writesingle(FAR struct mmcsd_part_s *part,
                                  FAR const uint8_t *buffer, off_t startblock)
 {
   FAR struct mmcsd_state_s *priv = part->priv;
+#ifdef CONFIG_MMCSD_MMCSUPPORT
   uint32_t partnum = part - priv->part;
+#endif
   off_t offset;
   int ret;
 
@@ -1860,6 +1876,7 @@ static ssize_t mmcsd_writesingle(FAR struct mmcsd_part_s *part,
       return -EPERM;
     }
 
+#ifdef CONFIG_MMCSD_MMCSUPPORT
   if (priv->partnum != partnum)
     {
       ret = mmcsd_switch(priv, MMC_CMD6_MODE(MMC_CMD6_MODE_WRITE_BYTE) |
@@ -1873,6 +1890,7 @@ static ssize_t mmcsd_writesingle(FAR struct mmcsd_part_s *part,
 
       priv->partnum = partnum;
     }
+#endif
 
 #if defined(CONFIG_SDIO_DMA) && defined(CONFIG_ARCH_HAVE_SDIO_PREFLIGHT)
   /* If we think we are going to perform a DMA transfer, make sure that we
@@ -2029,7 +2047,9 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_part_s *part,
 {
   FAR struct mmcsd_state_s *priv = part->priv;
   size_t nbytes = nblocks << priv->blockshift;
+#ifdef CONFIG_MMCSD_MMCSUPPORT
   uint32_t partnum = part - priv->part;
+#endif
   off_t  offset;
   int ret;
   int evret = OK;
@@ -2047,6 +2067,7 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_part_s *part,
       return -EPERM;
     }
 
+#ifdef CONFIG_MMCSD_MMCSUPPORT
   if (priv->partnum != partnum)
     {
       ret = mmcsd_switch(priv, MMC_CMD6_MODE(MMC_CMD6_MODE_WRITE_BYTE) |
@@ -2060,6 +2081,7 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_part_s *part,
 
       priv->partnum = partnum;
     }
+#endif
 
 #if defined(CONFIG_SDIO_DMA) && defined(CONFIG_ARCH_HAVE_SDIO_PREFLIGHT)
   /* If we think we are going to perform a DMA transfer, make sure that we
@@ -2569,7 +2591,7 @@ static int mmcsd_geometry(FAR struct inode *inode, struct geometry *geometry)
           finfo("available: true mediachanged: %s writeenabled: %s\n",
                  geometry->geo_mediachanged ? "true" : "false",
                  geometry->geo_writeenabled ? "true" : "false");
-          finfo("nsectors: %" PRIuOFF " sectorsize: %" PRIi16 "\n",
+          finfo("nsectors: %" PRIuOFF " sectorsize: %" PRId32 "\n",
                  geometry->geo_nsectors,
                  geometry->geo_sectorsize);
 
@@ -2822,15 +2844,32 @@ static int mmcsd_widebus(FAR struct mmcsd_state_s *priv)
     }
 #ifdef CONFIG_MMCSD_MMCSUPPORT
   else if (IS_MMC(priv->type) &&
-           ((priv->buswidth & MMCSD_SCR_BUSWIDTH_4BIT) != 0 &&
-           (priv->caps & SDIO_CAPS_1BIT_ONLY) == 0))
+           (priv->caps & SDIO_CAPS_1BIT_ONLY) == 0)
     {
-      /* SD card supports 4-bit BUS and host settings is not 1-bit only.
-       * Configuring MMC - Use MMC_SWITCH access modes.
+      /* Configuring MMC - Use MMC_SWITCH access modes.
+       * Select 8-bit if host supports it, otherwise 4-bit.
+       *
+       * Switch the host to wide bus operation before issuing the
+       * SWITCH command: on hosts that program the bus width in the
+       * widebus callback, switching the card first leaves the switch
+       * unfinished and all following transfers fail.
        */
 
-      mmcsd_sendcmdpoll(priv, MMCSD_CMD6,
-                        MMC_CMD6_BUSWIDTH(EXT_CSD_BUS_WIDTH_4));
+      SDIO_WIDEBUS(priv->dev, true);
+      priv->widebus = true;
+      MMCSD_USLEEP(MMCSD_CLK_DELAY);
+
+      if (priv->caps & SDIO_CAPS_8BIT)
+        {
+          mmcsd_sendcmdpoll(priv, MMCSD_CMD6,
+                            MMC_CMD6_BUSWIDTH(EXT_CSD_BUS_WIDTH_8));
+        }
+      else
+        {
+          mmcsd_sendcmdpoll(priv, MMCSD_CMD6,
+                            MMC_CMD6_BUSWIDTH(EXT_CSD_BUS_WIDTH_4));
+        }
+
       ret = mmcsd_recv_r1(priv, MMCSD_CMD6);
 
       if (ret != OK)
@@ -2906,7 +2945,13 @@ static int mmcsd_widebus(FAR struct mmcsd_state_s *priv)
           priv->mode = EXT_CSD_HS_TIMING_HS;
         }
 
-      SDIO_CLOCK(priv->dev, CLOCK_MMC_TRANSFER);
+      /* Select the MMC transfer clocking according to the negotiated
+       * bus width, mirroring the SD card path above, so that a later
+       * clock selection cannot revert the host to 1-bit operation.
+       */
+
+      SDIO_CLOCK(priv->dev, priv->widebus ? CLOCK_MMC_TRANSFER_4BIT :
+                                            CLOCK_MMC_TRANSFER);
     }
 #endif /* #ifdef CONFIG_MMCSD_MMCSUPPORT */
 
@@ -3140,6 +3185,15 @@ static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
     }
 
   mmcsd_decode_csd(priv, priv->csd);
+
+  /* Select high speed MMC clocking (which may depend on the DSR setting)
+   * before switching the bus width: on hosts that program the bus width
+   * in the clock callback, the transfer clock must already be in place
+   * before the switch sequence starts.
+   */
+
+  SDIO_CLOCK(priv->dev, CLOCK_MMC_TRANSFER);
+  MMCSD_USLEEP(MMCSD_CLK_DELAY);
 
   /* It's up to the driver to act on the widebus request.  mmcsd_widebus()
    * enables the CLOCK_MMC_TRANSFER, so call it here always.
@@ -3571,6 +3625,7 @@ static int mmcsd_iocmd(FAR struct mmcsd_part_s *part,
                priv->cid, sizeof(priv->cid));
       }
       break;
+#ifdef CONFIG_MMCSD_MMCSUPPORT
     case MMCSD_CMDIDX6: /* Switch commands */
       {
         ret = mmcsd_switch(priv, ic_ptr->arg);
@@ -3580,7 +3635,6 @@ static int mmcsd_iocmd(FAR struct mmcsd_part_s *part,
           }
       }
       break;
-#ifdef CONFIG_MMCSD_MMCSUPPORT
     case MMC_CMDIDX8: /* Get extended csd reg data */
       {
         ret = mmcsd_read_extcsd(priv,
@@ -4080,7 +4134,7 @@ static int mmcsd_cardidentify(FAR struct mmcsd_state_s *priv)
             {
               /* I am a little confused.. I think both SD and MMC cards
                * support CMD55 (but maybe only SD cards support CMD55).
-               * We'll make the the MMC vs. SD decision based on CMD1 and
+               * We'll make the MMC vs. SD decision based on CMD1 and
                * ACMD41.
                */
 
@@ -4377,7 +4431,7 @@ static int mmcsd_probe(FAR struct mmcsd_state_s *priv)
                 {
                   snprintf(devname, sizeof(devname), "/dev/mmcsd%d%s",
                            priv->minor, g_partname[i]);
-                  register_blockdriver(devname, &g_bops, 0666,
+                  register_blockdriver(devname, &g_bops, 0600,
                                        &priv->part[i]);
                 }
             }
@@ -4501,7 +4555,9 @@ static int mmcsd_hwinitialize(FAR struct mmcsd_state_s *priv)
    * removed from the slot (Initially all callbacks are disabled).
    */
 
+#if defined(CONFIG_SCHED_WORKQUEUE) && defined(CONFIG_SCHED_HPWORK)
   SDIO_REGISTERCALLBACK(priv->dev, mmcsd_mediachange, (FAR void *)priv);
+#endif
 
   /* Is there a card in the slot now? For an MMC/SD card, there are three
    * possible card detect mechanisms:

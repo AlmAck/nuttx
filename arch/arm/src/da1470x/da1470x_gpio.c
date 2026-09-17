@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/nrf53/nrf53_gpio.c
+ * arch/arm/src/da1470x/da1470x_gpio.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -30,149 +30,155 @@
 #include <errno.h>
 #include <debug.h>
 
-#include <nuttx/spinlock.h>
+#include <nuttx/irq.h>
+#include <arch/irq.h>
 
 #include "arm_internal.h"
 #include "hardware/da1470x_gpio.h"
+#include "hardware/da1470x_wakeup.h"
+#include "hardware/da1470x_crg_top.h"
 #include "da1470x_gpio.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#define GPIO_NPINS_PER_PORT   32
+
+/****************************************************************************
+ * Private Types
+ ****************************************************************************/
+
+#ifdef CONFIG_DA1470X_GPIO_IRQ
+struct da1470x_gpioirq_slot_s
+{
+  xcpt_t handler;
+  void  *arg;
+};
+#endif
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static const uint8_t g_port_npins[DA1470X_GPIO_NPORTS] =
+{
+  DA1470X_GPIO_PORT0_NPINS,
+  DA1470X_GPIO_PORT1_NPINS,
+  DA1470X_GPIO_PORT2_NPINS
+};
+
+#ifdef CONFIG_DA1470X_GPIO_IRQ
+static struct da1470x_gpioirq_slot_s
+  g_gpioirq[DA1470X_GPIO_NPORTS][GPIO_NPINS_PER_PORT];
+#endif
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: da1470x_gpio_regget
+ * Name: da1470x_gpio_decode
  *
  * Description:
- *   Get a register address for given GPIO port and register offset
+ *   Extract and validate port and pin from a pinset.
  *
  ****************************************************************************/
 
-static inline uint32_t da1470x_gpio_regget(int port, uint32_t offset)
+static int da1470x_gpio_decode(da1470x_pinset_t pinset,
+                               unsigned int *port, unsigned int *pin)
 {
-  uint32_t base = 0;
+  *port = GPIO_PORT_DECODE(pinset);
+  *pin  = GPIO_PIN_DECODE(pinset);
 
-  /* Get base address for port */
-
-  if (port == 0)
+  if (*port >= DA1470X_GPIO_NPORTS || *pin >= g_port_npins[*port])
     {
-      base = DA1470_GPIO_P0_DATA;
-    }
-  else if (port == 1)
-    {
-      base = DA1470_GPIO_P1_DATA;
-    }
-  else if (port == 2)
-    {
-      base = DA1470_GPIO_P2_DATA;
+      return -EINVAL;
     }
 
-  return (base + offset);
+  return OK;
 }
 
 /****************************************************************************
- * Name: da1470x_gpio_input
+ * Name: da1470x_gpio_latch_bits
  *
  * Description:
- *   Configure a GPIO input pin based on bit-encoded description of the pin.
+ *   Address of the SET_PAD_LATCH / RESET_PAD_LATCH register of a port.
  *
  ****************************************************************************/
 
-static inline void da1470x_gpio_input(unsigned int port, unsigned int pin)
+static uintptr_t da1470x_gpio_latch_reg(int port, bool set)
 {
-  /* Configure the pin as an input */
-  modifyreg32(DA1470_GPIO_PX_MODE(port, pin), GPIO_MODE_REG_PUPD_MASK, GPIO_MODE_INPUT_PULL_DISABLED);
-}
-
-/****************************************************************************
- * Name: da1470x_gpio_output
- *
- * Description:
- *   Configure a GPIO output pin based on bit-encoded description of the pin.
- *
- ****************************************************************************/
-
-static inline void da1470x_gpio_output(da1470x_pinset_t cfgset,
-                                     unsigned int port, unsigned int pin)
-{
-  /* Configure the pin as an output */
-
-  modifyreg32(DA1470_GPIO_PX_MODE(port, pin), GPIO_MODE_REG_PUPD_MASK, GPIO_MODE_OUTPUT_PULL_DISABLED);
-
-// TODO need to be done before setting the pin as output?
-  da1470x_gpio_write(cfgset, ((cfgset & GPIO_VALUE) != GPIO_VALUE_ZERO));
-}
-
-/****************************************************************************
- * Name: da1470x_gpio_mode
- *
- * Description:
- *   Configure a GPIO mode based on bit-encoded description of the pin.
- *
- ****************************************************************************/
-
-static inline void da1470x_gpio_mode(da1470x_pinset_t cfgset,
-                                   unsigned int port, unsigned int pin)
-{
-  uint32_t mode;
-  uint32_t dir;
-  uint32_t regval;
-  uint32_t offset;
-
-  offset = DA1470_GPIO_PX_MODE(port, pin);
-
-  mode = cfgset & GPIO_MODE_MASK;
-
-  dir = cfgset & GPIO_DIR_MASK;
-
-  regval = getreg32(offset);
-
-  regval &= ~GPIO_MODE_REG_PUPD_MASK;
-
-  if (dir == GPIO_INPUT)
+  switch (port)
     {
-      if (mode == GPIO_PULLUP)
+      case 1:
+        return set ? DA1470X_CRG_TOP_P1_SET_PAD_LATCH :
+                     DA1470X_CRG_TOP_P1_RESET_PAD_LATCH;
+
+      case 2:
+        return set ? DA1470X_CRG_TOP_P2_SET_PAD_LATCH :
+                     DA1470X_CRG_TOP_P2_RESET_PAD_LATCH;
+
+      case 0:
+      default:
+        return set ? DA1470X_CRG_TOP_P0_SET_PAD_LATCH :
+                     DA1470X_CRG_TOP_P0_RESET_PAD_LATCH;
+    }
+}
+
+/****************************************************************************
+ * Name: da1470x_gpioirq_dispatch
+ *
+ * Description:
+ *   Common per-port WKUP interrupt handler: acknowledge every pending pin
+ *   on the port and call the registered handlers.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_DA1470X_GPIO_IRQ
+static int da1470x_gpioirq_dispatch(int port)
+{
+  uint32_t status = getreg32(DA1470X_WAKEUP_STATUS_P(port));
+  uint32_t pending = status;
+  int pin;
+
+  /* Writing ones to WKUP_CLEAR_Px clears the matching STATUS bits */
+
+  putreg32(status, DA1470X_WAKEUP_CLEAR_P(port));
+
+  while (pending != 0)
+    {
+      pin      = __builtin_ctz(pending);
+      pending &= ~(1u << pin);
+
+      if (g_gpioirq[port][pin].handler != NULL)
         {
-          regval |= GPIO_MODE_INPUT_PULL_UP;
-        }
-      else if (mode == GPIO_PULLDOWN)
-        {
-          regval |= GPIO_MODE_INPUT_PULL_DOWN;
+          da1470x_pinset_t pinset = (port << GPIO_PORT_SHIFT) |
+                                    GPIO_PIN(pin);
+
+          g_gpioirq[port][pin].handler((int)pinset, NULL,
+                                       g_gpioirq[port][pin].arg);
         }
     }
-  else if (dir == GPIO_OUTPUT)
-    {
-      regval |= GPIO_MODE_OUTPUT_PULL_DISABLED;
-    }
 
-  putreg32(regval, offset);
+  return OK;
 }
 
-/****************************************************************************
- * Name: da1470x_gpio_function
- *
- * Description:
- *   Configure a GPIO function based on bit-encoded description of the pin.
- *
- ****************************************************************************/
-
-static inline void da1470x_gpio_function(da1470x_pinset_t cfgset,
-                                   unsigned int port, unsigned int pin)
+static int da1470x_gpioirq_isr_p0(int irq, void *ctx, void *arg)
 {
-  uint32_t function;
-  uint32_t regval;
-  uint32_t offset;
-
-  offset = DA1470_GPIO_PX_MODE(port, pin);
-
-  function = cfgset & GPIO_FUNC_MASK;
-
-  regval = getreg32(offset);
-  regval &= ~GPIO_MODE_REG_PID_MASK;
-  regval |= (function >> GPIO_FUNC_SHIFT);
-
-  putreg32(regval, offset);
+  return da1470x_gpioirq_dispatch(0);
 }
+
+static int da1470x_gpioirq_isr_p1(int irq, void *ctx, void *arg)
+{
+  return da1470x_gpioirq_dispatch(1);
+}
+
+static int da1470x_gpioirq_isr_p2(int irq, void *ctx, void *arg)
+{
+  return da1470x_gpioirq_dispatch(2);
+}
+#endif /* CONFIG_DA1470X_GPIO_IRQ */
 
 /****************************************************************************
  * Public Functions
@@ -180,156 +186,324 @@ static inline void da1470x_gpio_function(da1470x_pinset_t cfgset,
 
 /****************************************************************************
  * Name: da1470x_gpio_config
- *
- * Description:
- *   Configure a GPIO pin based on bit-encoded description of the pin.
- *
  ****************************************************************************/
 
 int da1470x_gpio_config(da1470x_pinset_t cfgset)
 {
-  unsigned int port = 0;
+  unsigned int port;
   unsigned int pin;
-  //irqstate_t flags;
-  int ret = OK;
+  irqstate_t flags;
+  uint32_t mode;
+  int ret;
 
-  /* Verify that this hardware supports the select GPIO port */
-
-  port = (cfgset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
-
-  if (port < DA1470_GPIO_NPORTS)
+  ret = da1470x_gpio_decode(cfgset, &port, &pin);
+  if (ret < 0)
     {
-      /* Get the pin number and select the port configuration register for
-       * that pin.
-       */
+      return ret;
+    }
 
-      pin = GPIO_PIN_DECODE(cfgset);
+  /* Build the Pxy_MODE value: function, pull/direction, open drain */
 
-      //flags = spin_lock_irqsave(NULL);
-      //     /* Interrupts must be disabled from here on out so that we have mutually
-      //  * exclusive access to all of the GPIO configuration registers.
-      //  */
+  mode = GPIO_FUNC_DECODE(cfgset) << GPIO_MODE_PID_SHIFT;
 
-      // flags = enter_critical_section();
-
-      /* First, configure the port as a generic input so that we have a
-       * known starting point and consistent behavior during the re-
-       * configuration.
-       */
-
-      da1470x_gpio_input(port, pin);
-
-      /* Set the mode bits */
-
-      da1470x_gpio_mode(cfgset, port, pin);
-
-      /* Set the Function bits */
-
-      da1470x_gpio_function(cfgset, port, pin);
-
-      //spin_unlock_irqrestore(NULL, flags);
+  if ((cfgset & GPIO_DIR_MASK) == GPIO_OUTPUT)
+    {
+      mode |= GPIO_MODE_PUPD_OUTPUT;
+    }
+  else if ((cfgset & GPIO_MODE_MASK) == GPIO_PULLUP)
+    {
+      mode |= GPIO_MODE_PUPD_PULLUP;
+    }
+  else if ((cfgset & GPIO_MODE_MASK) == GPIO_PULLDOWN)
+    {
+      mode |= GPIO_MODE_PUPD_PULLDOWN;
     }
   else
     {
-      ret = -EINVAL;
+      mode |= GPIO_MODE_PUPD_INPUT;
     }
 
-  return ret;
+  if ((cfgset & GPIO_OPENDRAIN) != 0)
+    {
+      mode |= GPIO_MODE_PPOD;
+    }
+
+  flags = enter_critical_section();
+
+  /* Preset the output level before enabling the driver so the pin never
+   * glitches to the wrong state.
+   */
+
+  if ((cfgset & GPIO_DIR_MASK) == GPIO_OUTPUT)
+    {
+      da1470x_gpio_write(cfgset, (cfgset & GPIO_VALUE) != 0);
+    }
+
+  /* Pad power rail selection */
+
+  if ((cfgset & GPIO_PADPWR_MASK) == GPIO_V18P)
+    {
+      modifyreg32(DA1470X_GPIO_PADPWR_CTRL(port), 0, 1u << pin);
+    }
+  else
+    {
+      modifyreg32(DA1470X_GPIO_PADPWR_CTRL(port), 1u << pin, 0);
+    }
+
+  putreg32(mode, DA1470X_GPIO_MODE(port, pin));
+
+  /* Open the pad latch so the new configuration reaches the pad */
+
+  putreg32(1u << pin, da1470x_gpio_latch_reg(port, true));
+
+  leave_critical_section(flags);
+  return OK;
 }
 
 /****************************************************************************
  * Name: da1470x_gpio_unconfig
- *
- * Description:
- *   Unconfigure a GPIO pin based on bit-encoded description of the pin.
- *
  ****************************************************************************/
 
 int da1470x_gpio_unconfig(da1470x_pinset_t cfgset)
 {
+  unsigned int port;
   unsigned int pin;
-  unsigned int port = 0;
-  uint32_t offset;
+  int ret;
 
-  /* Get port and pin number */
+  ret = da1470x_gpio_decode(cfgset, &port, &pin);
+  if (ret < 0)
+    {
+      return ret;
+    }
 
-  pin  = GPIO_PIN_DECODE(cfgset);
-  port = GPIO_PORT_DECODE(cfgset);
-
-  /* Get address offset */
-
-  offset = DA1470_GPIO_MODE_OFFSET(port, pin);
-
-  /* Configure as input and disconnect input buffer */
-
-  putreg32(GPIO_MODE_INPUT_PULL_DISABLED, offset); //set as input
-
+  putreg32(GPIO_MODE_PUPD_INPUT, DA1470X_GPIO_MODE(port, pin));
   return OK;
 }
 
 /****************************************************************************
  * Name: da1470x_gpio_write
- *
- * Description:
- *   Write one or zero to the selected GPIO pin
- *
  ****************************************************************************/
 
 void da1470x_gpio_write(da1470x_pinset_t pinset, bool value)
 {
+  unsigned int port;
   unsigned int pin;
-  unsigned int port = 0;
-  uint32_t offset;
 
-  /* Get port and pin number */
-
-  pin  = GPIO_PIN_DECODE(pinset);
-  port = GPIO_PORT_DECODE(pinset);
-
-  /* Get register address */
-
-  if (value == true)
+  if (da1470x_gpio_decode(pinset, &port, &pin) < 0)
     {
-      offset = DA1470_GPIO_PX_SET_DATA(port);
+      return;
+    }
+
+  if (value)
+    {
+      putreg32(1u << pin, DA1470X_GPIO_SET_DATA(port));
     }
   else
     {
-      offset = DA1470_GPIO_PX_RESET_DATA(port);
+      putreg32(1u << pin, DA1470X_GPIO_RESET_DATA(port));
     }
-
-  /* Put register value */
-
-  putreg32(1 << pin, offset);
 }
 
 /****************************************************************************
  * Name: da1470x_gpio_read
- *
- * Description:
- *   Read one or zero from the selected GPIO pin
- *
  ****************************************************************************/
 
 bool da1470x_gpio_read(da1470x_pinset_t pinset)
 {
   unsigned int port;
   unsigned int pin;
-  uint32_t regval;
-  uint32_t offset;
 
-  /* Get port and pin number */
+  if (da1470x_gpio_decode(pinset, &port, &pin) < 0)
+    {
+      return false;
+    }
 
-  pin  = GPIO_PIN_DECODE(pinset);
-  port = GPIO_PORT_DECODE(pinset);
-
-  /* Get register address */
-
-  offset = DA1470_GPIO_DATA_OFFSET(port);
-
-  /* Get register value */
-
-  regval = getreg32(offset);
-
-  return (regval >> pin) & 1;
+  return ((getreg32(DA1470X_GPIO_DATA(port)) >> pin) & 1) != 0;
 }
 
+/****************************************************************************
+ * Name: da1470x_gpio_latch_enable / da1470x_gpio_latch_disable
+ ****************************************************************************/
+
+void da1470x_gpio_latch_enable(int port)
+{
+  if (port >= 0 && port < DA1470X_GPIO_NPORTS)
+    {
+      putreg32(0xffffffff, da1470x_gpio_latch_reg(port, true));
+    }
+}
+
+void da1470x_gpio_latch_disable(int port)
+{
+  if (port >= 0 && port < DA1470X_GPIO_NPORTS)
+    {
+      putreg32(0xffffffff, da1470x_gpio_latch_reg(port, false));
+    }
+}
+
+/****************************************************************************
+ * Name: da1470x_gpio_dump
+ ****************************************************************************/
+
+#ifdef CONFIG_DEBUG_GPIO_INFO
+int da1470x_gpio_dump(da1470x_pinset_t pinset, const char *msg)
+{
+  unsigned int port;
+  unsigned int pin;
+  irqstate_t flags;
+
+  if (da1470x_gpio_decode(pinset, &port, &pin) < 0)
+    {
+      return -EINVAL;
+    }
+
+  flags = enter_critical_section();
+  gpioinfo("P%u_%02u (%s):\n", port, pin, msg);
+  gpioinfo("  MODE: %08" PRIx32 " DATA: %08" PRIx32 "\n",
+           getreg32(DA1470X_GPIO_MODE(port, pin)),
+           getreg32(DA1470X_GPIO_DATA(port)));
+  gpioinfo("  PADPWR: %08" PRIx32 " LATCH: %08" PRIx32 "\n",
+           getreg32(DA1470X_GPIO_PADPWR_CTRL(port)),
+           getreg32(DA1470X_CRG_TOP_P0_PAD_LATCH + (port * 12)));
+  leave_critical_section(flags);
+  return OK;
+}
+#endif
+
+#ifdef CONFIG_DA1470X_GPIO_IRQ
+
+/****************************************************************************
+ * Name: da1470x_gpioirq_initialize
+ ****************************************************************************/
+
+void da1470x_gpioirq_initialize(void)
+{
+  int p;
+
+  /* The wake-up controller is clocked through CLK_TMR; its registers
+   * ignore writes until then.
+   */
+
+  modifyreg32(DA1470X_CRG_TOP_CLK_TMR, 0, CRG_TOP_CLK_TMR_WAKEUPCT_ENABLE);
+  putreg32(0, DA1470X_WAKEUP_WKUP_CTRL);
+
+  for (p = 0; p < DA1470X_GPIO_NPORTS; p++)
+    {
+      putreg32(0, DA1470X_WAKEUP_SELECT_P(p));
+      putreg32(0, DA1470X_WAKEUP_SEL_GPIO_P(p));
+      putreg32(0, DA1470X_WAKEUP_SEL1_GPIO_P(p));
+      putreg32(0, DA1470X_WAKEUP_POL_P(p));
+      putreg32(0xffffffff, DA1470X_WAKEUP_CLEAR_P(p));
+    }
+
+  /* No pin is selected yet, so enabling the NVIC lines is safe */
+
+  irq_attach(DA1470X_IRQ_GPIO_P0, da1470x_gpioirq_isr_p0, NULL);
+  irq_attach(DA1470X_IRQ_GPIO_P1, da1470x_gpioirq_isr_p1, NULL);
+  irq_attach(DA1470X_IRQ_GPIO_P2, da1470x_gpioirq_isr_p2, NULL);
+
+  up_enable_irq(DA1470X_IRQ_GPIO_P0);
+  up_enable_irq(DA1470X_IRQ_GPIO_P1);
+  up_enable_irq(DA1470X_IRQ_GPIO_P2);
+}
+
+/****************************************************************************
+ * Name: da1470x_gpioirq_attach
+ ****************************************************************************/
+
+int da1470x_gpioirq_attach(da1470x_pinset_t pinset,
+                           enum da1470x_gpio_edge_e edge,
+                           xcpt_t handler, void *arg)
+{
+  unsigned int port;
+  unsigned int pin;
+  irqstate_t flags;
+  uint32_t mask;
+  int ret;
+
+  ret = da1470x_gpio_decode(pinset, &port, &pin);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  mask  = 1u << pin;
+  flags = enter_critical_section();
+
+  g_gpioirq[port][pin].handler = handler;
+  g_gpioirq[port][pin].arg     = arg;
+
+  /* Polarity: 0 = rising, 1 = falling */
+
+  if (edge == DA1470X_GPIO_EDGE_FALLING)
+    {
+      modifyreg32(DA1470X_WAKEUP_POL_P(port), 0, mask);
+    }
+  else
+    {
+      modifyreg32(DA1470X_WAKEUP_POL_P(port), mask, 0);
+    }
+
+  /* Clear any stale event, then route the pin to the non-debounced
+   * GPIO_Px interrupt with edge sensitivity, or drop it.
+   */
+
+  putreg32(mask, DA1470X_WAKEUP_CLEAR_P(port));
+
+  if (handler != NULL)
+    {
+      modifyreg32(DA1470X_WAKEUP_SEL1_GPIO_P(port), 0, mask);
+      modifyreg32(DA1470X_WAKEUP_SEL_GPIO_P(port), 0, mask);
+    }
+  else
+    {
+      modifyreg32(DA1470X_WAKEUP_SEL_GPIO_P(port), mask, 0);
+      modifyreg32(DA1470X_WAKEUP_SEL1_GPIO_P(port), mask, 0);
+    }
+
+  leave_critical_section(flags);
+  return OK;
+}
+
+/****************************************************************************
+ * Name: da1470x_gpioirq_enable
+ ****************************************************************************/
+
+void da1470x_gpioirq_enable(da1470x_pinset_t pinset)
+{
+  unsigned int port;
+  unsigned int pin;
+  irqstate_t flags;
+
+  if (da1470x_gpio_decode(pinset, &port, &pin) < 0)
+    {
+      return;
+    }
+
+  flags = enter_critical_section();
+  putreg32(1u << pin, DA1470X_WAKEUP_CLEAR_P(port));
+  modifyreg32(DA1470X_WAKEUP_SEL_GPIO_P(port), 0, 1u << pin);
+  leave_critical_section(flags);
+}
+
+/****************************************************************************
+ * Name: da1470x_gpioirq_disable
+ ****************************************************************************/
+
+void da1470x_gpioirq_disable(da1470x_pinset_t pinset)
+{
+  unsigned int port;
+  unsigned int pin;
+  irqstate_t flags;
+
+  if (da1470x_gpio_decode(pinset, &port, &pin) < 0)
+    {
+      return;
+    }
+
+  flags = enter_critical_section();
+  modifyreg32(DA1470X_WAKEUP_SEL_GPIO_P(port), 1u << pin, 0);
+  leave_critical_section(flags);
+}
+
+#endif /* CONFIG_DA1470X_GPIO_IRQ */

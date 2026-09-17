@@ -29,7 +29,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/elf.h>
@@ -194,7 +194,7 @@ int up_relocateadd(const Elf32_Rela *rel, const Elf32_Sym *sym,
       break;
 
     case R_XTENSA_32:
-      (*(uint32_t *)addr) += value;
+      (*(uint32_t *)(up_textheap_data_address((void *)addr))) += value;
       break;
 
     case R_XTENSA_ASM_EXPAND:

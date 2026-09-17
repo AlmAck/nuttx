@@ -42,6 +42,10 @@
 #  include <nuttx/video/fb.h>
 #endif
 
+#if defined(CONFIG_USERLED_LOWER) && !defined(CONFIG_ARCH_LEDS)
+#  include <nuttx/leds/userled.h>
+#endif
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -54,9 +58,6 @@
  *
  *   CONFIG_BOARD_LATE_INITIALIZE=y :
  *     Called from board_late_initialize().
- *
- *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_BOARDCTL=y :
- *     Called from the NSH library
  *
  ****************************************************************************/
 
@@ -137,6 +138,14 @@ int stm32_bringup(void)
     }
 #endif
 
+#ifdef CONFIG_MTD_W25QXXXJV
+  ret = stm32_w25qxxx_setup();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: stm32_w25qxxx_setup failed: %d\n", ret);
+    }
+#endif
+
 #ifdef HAVE_SDIO
   ret = stm32_sdio_initialize();
   if (ret < 0)
@@ -150,6 +159,14 @@ int stm32_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: stm32_wm8994_initialize failed: %d\n", ret);
+    }
+#endif
+
+#if defined(CONFIG_USERLED_LOWER) && !defined(CONFIG_ARCH_LEDS)
+  ret = userled_lower_initialize("/dev/led0");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: userled_lower_initialize() failed: %d\n", ret);
     }
 #endif
 

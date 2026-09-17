@@ -33,7 +33,7 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/fs/fs.h>
 #include <nuttx/irq.h>
@@ -303,7 +303,7 @@ FAR void *efuse_register(FAR const char *path,
 
   /* Register the efuse timer device */
 
-  ret = register_driver(path, &g_efuseops, 0666, upper);
+  ret = register_driver(path, &g_efuseops, 0600, upper);
   if (ret < 0)
     {
       merr("register_driver failed: %d\n", ret);

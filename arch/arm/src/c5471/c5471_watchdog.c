@@ -31,7 +31,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 
 #include <nuttx/fs/fs.h>
@@ -359,7 +359,7 @@ int arm_wdtinit(void)
 
   /* Register as /dev/wdt */
 
-  ret = register_driver("/dev/wdt", &g_wdtops, 0666, NULL);
+  ret = register_driver("/dev/wdt", &g_wdtops, 0600, NULL);
   if (ret)
     {
       return ERROR;

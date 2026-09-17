@@ -28,7 +28,7 @@
 
 #include <sys/types.h>
 #include <errno.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/fs/fs.h>
 #include <nuttx/drivers/drivers.h>
@@ -295,10 +295,26 @@ static ssize_t lwlconsole_write(FAR struct file *filep,
  ****************************************************************************/
 
 /****************************************************************************
+ * Name: up_putc
+ ****************************************************************************/
+
+void up_putc(int ch)
+{
+  /* If link not initialize just return */
+
+  if (!linkactive())
+    {
+      return;
+    }
+
+  write8bits(LWL_PORT_CONSOLE, (uint8_t)ch);
+}
+
+/****************************************************************************
  * Name: lwlconsole_init
  ****************************************************************************/
 
 void lwlconsole_init(void)
 {
-  register_driver("/dev/console", &g_consoleops, 0666, NULL);
+  register_driver("/dev/console", &g_consoleops, 0620, NULL);
 }

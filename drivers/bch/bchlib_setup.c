@@ -34,7 +34,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
@@ -55,10 +55,11 @@
  *
  ****************************************************************************/
 
-int bchlib_setup(FAR const char *blkdev, bool readonly, FAR void **handle)
+int bchlib_setup(FAR const char *blkdev, int oflags, FAR void **handle)
 {
   FAR struct bchlib_s *bch;
   struct geometry geo;
+  bool readonly = (oflags & O_ACCMODE) == O_RDONLY;
   int ret;
 
   DEBUGASSERT(blkdev);
@@ -74,7 +75,7 @@ int bchlib_setup(FAR const char *blkdev, bool readonly, FAR void **handle)
 
   /* Open the block driver */
 
-  ret = open_blockdriver(blkdev, readonly ? MS_RDONLY : 0, &bch->inode);
+  ret = open_blockdriver(blkdev, oflags, &bch->inode);
   if (ret < 0)
     {
       ferr("ERROR: Failed to open driver %s: %d\n", blkdev, -ret);

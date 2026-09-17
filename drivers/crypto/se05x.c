@@ -28,7 +28,7 @@
 
 #include "pnt/pnt_se05x_api.h"
 #include "se05x_internal.h"
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <nuttx/config.h>
 #include <nuttx/crypto/se05x.h>
 #include <nuttx/fs/fs.h>
@@ -263,7 +263,7 @@ int se05x_register(FAR const char *devpath, FAR struct i2c_master_s *i2c,
 
   /* Register driver */
 
-  ret = register_driver(devpath, &g_fops, 0666, priv);
+  ret = register_driver(devpath, &g_fops, 0600, priv);
   if (ret < 0)
     {
       crypterr("ERROR: Failed to register driver: %d\n", ret);

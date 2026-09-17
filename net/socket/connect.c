@@ -32,7 +32,7 @@
 #include <stdint.h>
 #include <errno.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 
 #include <nuttx/cancelpt.h>
 #include <nuttx/fs/fs.h>
@@ -241,7 +241,7 @@ int connect(int sockfd, FAR const struct sockaddr *addr, socklen_t addrlen)
   if (ret == OK)
     {
       ret = psock_connect(psock, addr, addrlen);
-      fs_putfilep(filep);
+      file_put(filep);
     }
 
   if (ret < 0)

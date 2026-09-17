@@ -31,7 +31,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <assert.h>
-#include <debug.h>
+#include <nuttx/debug.h>
 #include <errno.h>
 
 #include <nuttx/kmalloc.h>
@@ -622,6 +622,7 @@ static int rpmsgfs_readdir_handler(FAR struct rpmsg_endpoint *ept,
           size = MIN(size - len, strlen(entry->d_name) + 1);
           msg->type = entry->d_type;
           strlcpy(msg->name, entry->d_name, size);
+          msg->ino = entry->d_ino;
           len += size;
           ret = 0;
         }

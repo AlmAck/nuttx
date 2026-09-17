@@ -187,23 +187,23 @@
 
 /* Timers driven from APB1 will be twice PCLK1 */
 
-#define STM32_APB1_TIM2_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM3_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM4_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM5_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM6_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM7_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM12_CLKIN  (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM13_CLKIN  (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM14_CLKIN  (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM2_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM3_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM4_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM5_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM6_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM7_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM12_CLKIN  (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM13_CLKIN  (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM14_CLKIN  (2*STM32_PCLK1_FREQUENCY)
 
 /* Timers driven from APB2 will be twice PCLK2 */
 
-#define STM32_APB2_TIM1_CLKIN   (2*STM32_PCLK2_FREQUENCY)
-#define STM32_APB2_TIM8_CLKIN   (2*STM32_PCLK2_FREQUENCY)
-#define STM32_APB2_TIM15_CLKIN  (2*STM32_PCLK2_FREQUENCY)
-#define STM32_APB2_TIM16_CLKIN  (2*STM32_PCLK2_FREQUENCY)
-#define STM32_APB2_TIM17_CLKIN  (2*STM32_PCLK2_FREQUENCY)
+#define STM32_TIM1_CLKIN   (2*STM32_PCLK2_FREQUENCY)
+#define STM32_TIM8_CLKIN   (2*STM32_PCLK2_FREQUENCY)
+#define STM32_TIM15_CLKIN  (2*STM32_PCLK2_FREQUENCY)
+#define STM32_TIM16_CLKIN  (2*STM32_PCLK2_FREQUENCY)
+#define STM32_TIM17_CLKIN  (2*STM32_PCLK2_FREQUENCY)
 
 /* Kernel Clock Configuration
  *
@@ -340,7 +340,7 @@
 
 #define BOARD_FMC_CLK                   RCC_D1CCIPR_FMCSEL_HCLK
 
-#if CONFIG_STM32H7_FMC
+#if CONFIG_STM32_FMC
 #  define FMC_SDCLK_FREQUENCY  (STM32_HCLK_FREQUENCY / 2)
 #  if FMC_SDCLK_FREQUENCY > 100000000
 #    error "FMC SDRAM settings need to be adjusted for a higher FMC_SDCLK frequency"
@@ -475,7 +475,7 @@
 #define LED_SIGNAL         5 /* In a signal handler      N/C    GLOW  N/C  */
 #define LED_ASSERTION      6 /* An assertion failed      GLOW   N/C   GLOW */
 #define LED_PANIC          7 /* The system has crashed   Blink  OFF   N/C  */
-#define LED_IDLE           8 /* MCU is is sleep mode     ON     OFF   OFF  */
+#define LED_IDLE           8 /* MCU is in sleep mode     ON     OFF   OFF  */
 
 /* Thus if the Green LED is statically on, NuttX has successfully booted and
  * is, apparently, running normally.  If the Red LED is flashing at
