@@ -113,16 +113,54 @@ XRST P0.22, VCOM/FRP P0.19, RED P0.17/P0.23, GREEN P0.24/P1.00, BLUE
 P1.01/P0.21) and the panel enable is ``BOARD_JDI_PEN_PIN`` (P1.07).
 Untested on hardware.
 
-Debugging without the UART
---------------------------
+Console over the debugger (RTT)
+-------------------------------
 
-When the FT2232 console is not available, the Segger RTT console works
-through the on-board J-Link: enable ``CONFIG_SEGGER_RTT``,
-``CONFIG_SERIAL_RTT0`` and ``CONFIG_SERIAL_RTT_CONSOLE`` and select "No
-serial console".  Then run ``JLinkExe -device Cortex-M33 -if SWD
--RTTTelnetPort 19021``, give it ``exec SetRTTAddr <address of
-_SEGGER_RTT>`` (from ``nm nuttx``) before ``connect``, and attach
-``telnet localhost 19021`` to get NSH.
+When the FT2232 console is not available, the NuttShell runs over Segger
+RTT through the on-board J-Link.  A configuration needs
+``CONFIG_SEGGER_RTT``, ``CONFIG_SERIAL_RTT0`` and
+``CONFIG_SERIAL_RTT_CONSOLE`` with "No serial console" selected; the
+``lvgl_rtt`` configuration below is built that way.  Raise
+``CONFIG_SEGGER_RTT_BUFFER_SIZE_DOWN`` from its 16-byte default, or
+anything typed is truncated after 16 characters.
+
+``tools/da1470x_console.sh <serial> [nuttx ELF] [command ...]`` opens it.
+It reads the address of the RTT control block from the ELF, so that ELF
+has to be the image running on the board.  Without commands it is an
+interactive terminal (leave with Ctrl-C); with commands it sends each
+one, prints the answer and exits, which is what scripts want::
+
+  tools/da1470x_console.sh 900010639                     # interactive
+  tools/da1470x_console.sh 900010639 nuttx "free" "gpu2d"
+
+It never resets the board, so it can also be attached to firmware that
+is already running.
+
+Running an example
+------------------
+
+Configure, build, flash, then call the example by name on the console::
+
+  cd nuttx
+  ./tools/configure.sh da14706-00hzdevkt-p:lvgl_rtt
+  make -j
+
+  tools/da1470x_flash.sh 900010639 nuttx.bin
+  tools/da1470x_console.sh 900010639
+
+The serial number is the one printed by ``JLinkExe`` for the on-board
+debugger.  In the shell that comes up::
+
+  nsh> gpu2d                  # GPU fill, blit and rotation self-test
+  nsh> lvgpucheck             # GPU draw unit against LVGL's renderer
+  nsh> lvgldemo widgets       # LVGL widgets demo on the panel
+  nsh> lvgldemo benchmark     # LVGL benchmark, prints a summary table
+  nsh> fb                     # framebuffer rectangles
+  nsh> gpio -o 1 /dev/gpio0   # drive LED1
+
+``lvgldemo`` keeps running until the demo ends; the benchmark takes about
+four minutes and prints its table at the end.  The graphical ones draw on
+the panel, so watch the display, not the console.
 
 Configurations
 ==============
@@ -140,4 +178,13 @@ lvgl
 Everything in ``nsh_cpuapp`` plus LVGL 9.2.1 with the widgets and
 benchmark demos (``lvgldemo widgets``), two frame buffers, tearing-effect
 sync, the touch panel, the FPU, the 160 MHz PLL and the GPU draw unit.
-The image is about 1 MB: flash it with ``tools/da1470x_flash.sh``.
+The image is about 1 MB: flash it with ``tools/da1470x_flash.sh``.  The
+console is UART0.
+
+lvgl_rtt
+--------
+
+The same as ``lvgl`` but with the console on Segger RTT instead of UART0,
+and with ``lvgpucheck`` built in.  Use it when the FT2232 console is not
+usable, which is the case on the development machine this port was
+written on.
