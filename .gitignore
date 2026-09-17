@@ -82,6 +82,7 @@ uImage
 .fakelnk
 .vscode
 .idea
+.vscode-ctags
 .DS_Store
 tools/gdb/__pycache__
 /build*
