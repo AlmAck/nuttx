@@ -53,7 +53,6 @@ static const struct da1470x_pwmled_config_s g_pwmled_config =
   {
     0, 0, 0
   },
-  .chmask    = 0x07,
 };
 
 /****************************************************************************

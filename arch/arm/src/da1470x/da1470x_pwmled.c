@@ -319,7 +319,6 @@ static int pwmled_start(struct pwm_lowerhalf_s *dev,
       return ret;
     }
 
-#ifdef CONFIG_PWM_MULTICHAN
   for (i = 0; i < CONFIG_PWM_NCHANNELS; i++)
     {
       int ch = info->channels[i].channel;
@@ -337,16 +336,6 @@ static int pwmled_start(struct pwm_lowerhalf_s *dev,
       pwmled_set_duty(priv, ch - 1, info->channels[i].duty);
       mask |= 1 << (ch - 1);
     }
-#else
-  for (i = 0; i < DA1470X_PWMLED_NCHANNELS; i++)
-    {
-      if ((priv->config->chmask & (1 << i)) != 0)
-        {
-          pwmled_set_duty(priv, i, info->duty);
-          mask |= 1 << i;
-        }
-    }
-#endif
 
   /* Channels not in this request are switched off */
 

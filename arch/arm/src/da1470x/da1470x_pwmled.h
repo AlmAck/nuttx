@@ -58,9 +58,6 @@ struct da1470x_pwmled_config_s
 {
   uint8_t load_sel[DA1470X_PWMLED_NCHANNELS];  /* Sink selection per LED */
   uint8_t curr_trim[DA1470X_PWMLED_NCHANNELS]; /* Current trim, 0..15 */
-  uint8_t chmask;                              /* Channels used when
-                                                * CONFIG_PWM_MULTICHAN is
-                                                * off (bit n = LED n+1) */
 };
 
 /****************************************************************************
