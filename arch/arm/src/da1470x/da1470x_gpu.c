@@ -50,6 +50,7 @@
 #include "hardware/da1470x_gpu_core.h"
 #include "hardware/da1470x_gpu_reg.h"
 #include "hardware/da1470x_crg_gpu.h"
+#include "hardware/da1470x_cache.h"
 #include "da1470x_gpu.h"
 #include "da1470x_pmu.h"
 
@@ -62,12 +63,16 @@
 #define GPU_TIMEOUT_MS          100
 
 /* The core is an AHB master without the CPU's address remapping and
- * without the flash cache in its path: the boot flash, which the CPU
- * sees at address 0, is reached through the controller's second window.
+ * without the flash cache in its path.  The CPU sees the firmware image
+ * at address 0; physically it lies in the flash at the region base plus
+ * the region offset the boot ROM programmed into CACHE_FLASH_REG (the
+ * image does not start at the beginning of the flash), and the GPU
+ * reaches the flash through the controller's second window, 0x20000000
+ * above the first.
  */
 
 #define GPU_FLASH_CPU_WINDOW    0x08000000
-#define GPU_FLASH_BUS_BASE      0x38000000
+#define GPU_FLASH_BUS_OFFSET    0x20000000
 #define GPU_IDLE_LOOPS          1000000
 
 #define GPU_BUSY_MASK           (GPU_CORE_D2_STATUS_D2C_BUSY_ENUM | \
@@ -258,7 +263,16 @@ static uintptr_t gpu_bus_addr(uintptr_t addr)
 {
   if (addr < GPU_FLASH_CPU_WINDOW)
     {
-      return addr + GPU_FLASH_BUS_BASE;
+      uint32_t regval = getreg32(DA1470X_CACHE_FLASH);
+      uint32_t base;
+      uint32_t offset;
+
+      base   = (regval & CACHE_FLASH_FLASH_REGION_BASE_MASK) >>
+               CACHE_FLASH_FLASH_REGION_BASE_SHIFT;
+      offset = (regval & CACHE_FLASH_FLASH_REGION_OFFSET_MASK) >>
+               CACHE_FLASH_FLASH_REGION_OFFSET_SHIFT;
+
+      return addr + (base << 16) + (offset << 2) + GPU_FLASH_BUS_OFFSET;
     }
 
   return addr;

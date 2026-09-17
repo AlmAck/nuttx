@@ -141,6 +141,15 @@ selects one of two interfaces:
   **This mode is implemented from the datasheet and the SDK sources and
   has been compiled only: no JDI panel was available to test it.**
 
+With two frame buffers (``CONFIG_DA1470X_LCDC_NBUFFERS=2``) and
+``CONFIG_DA1470X_LCDC_ASYNC`` an update taken from another buffer than the
+previous one returns at once and a driver thread sends the frame, so a
+double-buffering client such as LVGL draws its next frame during the
+transfer and the tearing-effect wait.  Updates of the same buffer stay
+synchronous.  LVGL's refresh timer sleeps in system ticks: with the
+default 10 ms tick its 16 ms period becomes 30 ms, so the ``lvgl``
+configuration uses a 1 ms tick.
+
 GPU
 ---
 
@@ -155,8 +164,10 @@ texture addressing) were recovered from the display lists the vendor
 library builds and verified pixel by pixel; ``apps/examples/gpu2d``
 checks them.  The core is a bus master without
 the CPU's address remapping and without the flash cache in its path, so
-the driver rebases sources below the SRAM onto the flash controller's
-second window at 0x38000000.  Reads from flash are latency bound (the
+the driver translates addresses in the execute-in-place window: the
+region base and offset the boot ROM left in ``CACHE_FLASH_REG`` (the image
+starts 0x3400 into the flash) plus the flash controller's second window,
+0x20000000 above the first.  Reads from flash are latency bound (the
 controller fetches short bursts), so assets the GPU should blit fast
 belong in RAM.
 
@@ -167,6 +178,12 @@ and layer blits; opaque fills stay on the CPU, which stores them as fast
 as the GPU.  The
 application calls ``lv_draw_da1470x_init()`` after ``lv_init()``; any
 task the GPU declines or fails is redrawn by the software renderer.
+Rotated and scaled images go through the texture-mapped box; its limiters
+fade the last pixel of each edge, so edges look about half a pixel
+smaller than LVGL's hard-cut ones.  ``apps/examples/lvgpucheck`` renders
+a set of rotated, scaled and translucent images, from RAM and from flash,
+with both renderers into a memory display and compares them pixel by
+pixel; it also prints the time each took.
 
 Supported Boards
 ================

@@ -44,6 +44,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
 #include <nuttx/kmalloc.h>
+#include <nuttx/kthread.h>
 #include <nuttx/power/pm.h>
 #include <nuttx/mutex.h>
 #include <nuttx/semaphore.h>
@@ -74,6 +75,11 @@
 
 #define LCDC_NBUFFERS           CONFIG_DA1470X_LCDC_NBUFFERS
 
+#ifdef CONFIG_DA1470X_LCDC_ASYNC
+#  define LCDC_THREAD_PRIORITY  CONFIG_DA1470X_LCDC_ASYNC_PRIORITY
+#  define LCDC_THREAD_STACKSIZE 2048
+#endif
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -92,6 +98,12 @@ struct da1470x_lcdc_s
   struct fb_area_s pending;                   /* Last area sent */
   int      lastbuf;                           /* Buffer it was sent from */
   int      shown;                             /* Buffer the panel shows */
+#ifdef CONFIG_DA1470X_LCDC_ASYNC
+  sem_t    request;                           /* Wakes the transfer thread */
+  sem_t    idle;                              /* No transfer in flight */
+  struct fb_area_s req;                       /* Queued transfer: area */
+  int      reqbuf;                            /* Queued transfer: buffer */
+#endif
   bool     initialized;
 };
 
@@ -123,6 +135,10 @@ static struct da1470x_lcdc_s g_lcdc =
   },
   .lock  = NXMUTEX_INITIALIZER,
   .frame = SEM_INITIALIZER(0),
+#ifdef CONFIG_DA1470X_LCDC_ASYNC
+  .request = SEM_INITIALIZER(0),
+  .idle    = SEM_INITIALIZER(1),
+#endif
 };
 
 /****************************************************************************
@@ -600,6 +616,87 @@ static int lcdc_send_region(struct da1470x_lcdc_s *priv, int buf,
 }
 
 /****************************************************************************
+ * Name: lcdc_thread
+ *
+ * Description:
+ *   Sends the queued transfer and reports the controller idle again.
+ *   With two frame buffers the client that alternates between them can
+ *   draw its next frame while this thread waits for the tearing-effect
+ *   edge and for the end of the frame.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_DA1470X_LCDC_ASYNC
+static int lcdc_thread(int argc, char *argv[])
+{
+  struct da1470x_lcdc_s *priv = &g_lcdc;
+  int ret;
+
+  for (; ; )
+    {
+      ret = nxsem_wait_uninterruptible(&priv->request);
+      if (ret < 0)
+        {
+          continue;
+        }
+
+      ret = lcdc_send_region(priv, priv->reqbuf, priv->req.x, priv->req.y,
+                             priv->req.w, priv->req.h);
+      if (ret < 0)
+        {
+          lcderr("Queued transfer failed: %d\n", ret);
+        }
+
+      nxsem_post(&priv->idle);
+    }
+
+  return 0;
+}
+#endif
+
+/****************************************************************************
+ * Name: lcdc_transfer
+ *
+ * Description:
+ *   Wait for the transfer in flight, if any, then send a region either
+ *   from the driver thread (returning at once) or from the caller.  The
+ *   lock must be held.
+ *
+ ****************************************************************************/
+
+static int lcdc_transfer(struct da1470x_lcdc_s *priv, int buf, uint16_t x,
+                         uint16_t y, uint16_t w, uint16_t h, bool async)
+{
+#ifdef CONFIG_DA1470X_LCDC_ASYNC
+  int ret;
+
+  ret = nxsem_wait_uninterruptible(&priv->idle);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  if (async)
+    {
+      priv->reqbuf = buf;
+      priv->req.x  = x;
+      priv->req.y  = y;
+      priv->req.w  = w;
+      priv->req.h  = h;
+      nxsem_post(&priv->request);
+      return OK;
+    }
+
+  ret = lcdc_send_region(priv, buf, x, y, w, h);
+  nxsem_post(&priv->idle);
+  return ret;
+#else
+  UNUSED(async);
+  return lcdc_send_region(priv, buf, x, y, w, h);
+#endif
+}
+
+/****************************************************************************
  * Name: lcdc_panwork
  *
  * Description:
@@ -747,7 +844,14 @@ static int lcdc_updatearea(struct fb_vtable_s *vtable,
       return ret;
     }
 
-  ret = lcdc_send_region(priv, buf, x0, y0, x1 - x0, y1 - y0);
+  /* A client that hands over another buffer than last time is double
+   * buffering: it will not touch this one until the next swap, so the
+   * frame can go out while it draws.  Anybody else may redraw the same
+   * buffer as soon as this returns and gets a finished transfer.
+   */
+
+  ret = lcdc_transfer(priv, buf, x0, y0, x1 - x0, y1 - y0,
+                      buf != priv->lastbuf);
 
   priv->pending.x = x0;
   priv->pending.y = y0;
@@ -797,8 +901,8 @@ static int lcdc_pandisplay(struct fb_vtable_s *vtable,
 
   if (buf != priv->lastbuf && priv->pending.w != 0)
     {
-      lcdc_send_region(priv, buf, priv->pending.x, priv->pending.y,
-                       priv->pending.w, priv->pending.h);
+      lcdc_transfer(priv, buf, priv->pending.x, priv->pending.y,
+                    priv->pending.w, priv->pending.h, false);
       priv->lastbuf = buf;
     }
 
@@ -967,6 +1071,18 @@ int da1470x_lcdc_register(const struct da1470x_lcdc_panel_s *panel)
           return ret;
         }
     }
+
+#ifdef CONFIG_DA1470X_LCDC_ASYNC
+  ret = kthread_create("lcdc", LCDC_THREAD_PRIORITY, LCDC_THREAD_STACKSIZE,
+                       lcdc_thread, NULL);
+  if (ret < 0)
+    {
+      lcderr("Transfer thread failed: %d\n", ret);
+      kmm_free(priv->fbmem);
+      priv->fbmem = NULL;
+      return ret;
+    }
+#endif
 
   priv->initialized = true;
 

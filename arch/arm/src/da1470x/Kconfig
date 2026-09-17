@@ -258,6 +258,23 @@ config DA1470X_LCDC_NBUFFERS
 		height; clients draw into either half and pan to it, which
 		lets a renderer prepare one frame while the other is shown.
 
+config DA1470X_LCDC_ASYNC
+	bool "Send frames from a driver thread"
+	default y
+	depends on DA1470X_LCDC && DA1470X_LCDC_NBUFFERS = 2
+	---help---
+		An update taken from another frame buffer than the previous
+		one returns at once and the frame goes out from a driver
+		thread, so a double-buffering client (LVGL) draws its next
+		frame during the transfer and the tearing-effect wait.
+		Updates of the same buffer stay synchronous.
+
+config DA1470X_LCDC_ASYNC_PRIORITY
+	int "Priority of the frame transfer thread"
+	default 180
+	depends on DA1470X_LCDC_ASYNC
+
+
 config DA1470X_GPU
 	bool "GPU (D/AVE 2D) driver"
 	default n
