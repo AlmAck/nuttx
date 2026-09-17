@@ -96,12 +96,11 @@ Renesas ``ezFlashCLI`` tool through the on-board J-Link::
 The tool places the image at flash offset 0x3400 and only programs the
 first 512 KiB of the flash.  ``tools/da1470x_flash.sh <serial> nuttx.bin``
 wraps it: it writes the part of a larger image past that boundary
-separately and then resets the board under the debugger and, while the
-core is still halted at the reset vector, restores the system clock (a
-reset request keeps the previous firmware's PLL selection, which the
-boot ROM cannot start from) and flushes the flash cache (the boot ROM
-leaves stale cache lines when it re-sizes the cacheable window for a
-new image).  Always use the script for images above 510 KB.
+separately and then resets the board through the reset pin under the
+debugger.  A plain reset request is not enough after programming: the
+programmer leaves the flash controller out of its memory-mapped mode,
+and a reset request keeps the previous firmware's clock tree, which the
+boot ROM cannot start from when that was the PLL.  Always use the script for images above 510 KB.
 
 Debugging without the UART
 --------------------------

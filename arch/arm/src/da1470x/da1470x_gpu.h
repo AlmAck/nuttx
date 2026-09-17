@@ -75,6 +75,17 @@ int da1470x_gpu_fill(const struct da1470x_gpu_fill_s *op);
 int da1470x_gpu_blit(const struct da1470x_gpu_blit_s *op);
 
 /****************************************************************************
+ * Name: da1470x_gpu_texbox
+ *
+ * Description:
+ *   Texture-mapped box: affine mapping, optional bilinear filter and up
+ *   to four half-plane limiters, source alpha times the opacity.
+ *
+ ****************************************************************************/
+
+int da1470x_gpu_texbox(const struct da1470x_gpu_texbox_s *op);
+
+/****************************************************************************
  * Name: da1470x_gpu_revision
  ****************************************************************************/
 

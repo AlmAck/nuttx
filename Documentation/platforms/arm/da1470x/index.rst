@@ -47,8 +47,8 @@ RCLP; select ``XTAL32K`` for an accurate RTC and for controller sleep.
 A core reset request (``up_systemreset``, or ``r`` in a debugger) does
 not reset the clock tree, and the boot ROM hangs when it starts with the
 PLL selected.  ``board_reset`` therefore resets through the watchdog,
-and ``tools/da1470x_flash.sh`` puts the clocks back before running the
-ROM.  When resetting from a debugger by hand, write ``0x1`` to
+and ``tools/da1470x_flash.sh`` resets through the reset pin.  From a
+debugger use ``rsettype 2`` before ``r`` (J-Link), or write ``0x1`` to
 ``CLK_CTRL_REG`` (0x50000014), ``0x1040`` to ``CLK_AMBA_REG``
 (0x50000000) and ``0xE8A0`` to ``PLL_SYS_CTRL1_REG`` (0x50050460) while
 the core is halted at the reset vector.
@@ -125,10 +125,15 @@ GPU
 ---
 
 ``CONFIG_DA1470X_GPU`` drives the D/AVE 2D core directly: ``/dev/gpu0``
-accepts a rectangle fill with an ARGB colour (blended by its alpha) and a
+accepts a rectangle fill with an ARGB colour (blended by its alpha), a
 rectangle copy from an RGB565 or ARGB8888 surface (blended by the pixel
-alpha; the core has no texture operation unit, so no constant opacity on
-top of it).  The core is a bus master without
+alpha times an opacity) and a texture-mapped box (any affine mapping of
+such a surface, bilinear filtering and up to four edge limiters, which
+draw rotated and scaled images with anti-aliased edges).  The register
+recipes (blend factors, the two colour registers carrying the opacity,
+texture addressing) were recovered from the display lists the vendor
+library builds and verified pixel by pixel; ``apps/examples/gpu2d``
+checks them.  The core is a bus master without
 the CPU's address remapping and without the flash cache in its path, so
 the driver rebases sources below the SRAM onto the flash controller's
 second window at 0x38000000.  Reads from flash are latency bound (the

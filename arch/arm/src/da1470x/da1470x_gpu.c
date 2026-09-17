@@ -83,6 +83,15 @@
 
 #define GPU_FIX16_ONE           0x00010000
 
+/* Source over destination: source factor alpha, destination factor
+ * one minus alpha.  The alpha is the primitive alpha (COLOR1 for fills)
+ * times the texel alpha times the COLOR2 alpha for textured boxes.
+ */
+
+#define GPU_BLEND_SRC_OVER      (GPU_CORE_D2_CONTROL2_D2C_BSF | \
+                                 GPU_CORE_D2_CONTROL2_D2C_BDF | \
+                                 GPU_CORE_D2_CONTROL2_D2C_BDI)
+
 /* Burst length limit: 8 words on every master interface */
 
 #define GPU_CONTROL3_BURST8     (GPU_CORE_D2_CONTROL3_BURSTLENGTH_MFBR(3) | \
@@ -169,6 +178,15 @@ static unsigned int gpu_bpp(uint8_t format)
       default:
         return 0;
     }
+}
+
+/****************************************************************************
+ * Name: gpu_has_alpha
+ ****************************************************************************/
+
+static bool gpu_has_alpha(uint8_t format)
+{
+  return format != DA1470X_GPU_FMT_RGB565;
 }
 
 /****************************************************************************
@@ -376,7 +394,6 @@ static int gpu_render(struct da1470x_gpu_s *priv,
   origin = gpu_bus_addr(dst->addr) +
            ((uintptr_t)y * dst->pitch + x) * gpu_bpp(dst->format);
 
-
   priv->buserror = false;
 
   /* Drain any stale completion */
@@ -447,6 +464,10 @@ static int gpu_ioctl(struct file *filep, int cmd, unsigned long arg)
         ret = da1470x_gpu_blit((const struct da1470x_gpu_blit_s *)arg);
         break;
 
+      case GPUIOC_TEXBOX:
+        ret = da1470x_gpu_texbox((const struct da1470x_gpu_texbox_s *)arg);
+        break;
+
       case GPUIOC_WAIT:
         ret = nxmutex_lock(&g_gpu.lock);
         if (ret == OK)
@@ -515,6 +536,58 @@ uint32_t da1470x_gpu_revision(void)
 }
 
 /****************************************************************************
+ * Name: gpu_texture_setup
+ *
+ * Description:
+ *   Common part of the textured operations: formats, blend factors,
+ *   opacity, and the texture base, pitch and size.
+ *
+ ****************************************************************************/
+
+static void gpu_texture_setup(const struct da1470x_gpu_surface_s *src,
+                              const struct da1470x_gpu_surface_s *dst,
+                              uintptr_t texorigin, uint8_t alpha,
+                              bool filter)
+{
+  uint32_t control2;
+
+  control2 = gpu_writeformat(dst->format) |
+             gpu_readformat(src->format) |
+             GPU_CORE_D2_CONTROL2_D2C_TEXTUREENABLE |
+             GPU_CORE_D2_CONTROL2_D2C_TEXTURECLAMPX |
+             GPU_CORE_D2_CONTROL2_D2C_TEXTURECLAMPY |
+             GPU_CORE_D2_CONTROL2_D2C_WRITEALPHA1 |
+             GPU_BLEND_SRC_OVER;
+
+  if (filter)
+    {
+      control2 |= GPU_CORE_D2_CONTROL2_D2C_TEXTUREFILTERX |
+                  GPU_CORE_D2_CONTROL2_D2C_TEXTUREFILTERY;
+    }
+
+  /* The fragment alpha is texel_alpha * COLOR2.alpha +
+   * (1 - texel_alpha) * COLOR1.alpha.  A source with an alpha channel
+   * gets its alpha scaled by the opacity; one without reports a texel
+   * alpha of zero and takes the opacity from COLOR1.
+   */
+
+  gpu_putreg(DA1470X_GPU_CORE_D2_CONTROL2_OFFSET, control2);
+  gpu_putreg(DA1470X_GPU_CORE_D2_COLOR1_OFFSET,
+             gpu_has_alpha(src->format) ? 0 : (uint32_t)alpha << 24);
+  gpu_putreg(DA1470X_GPU_CORE_D2_COLOR2_OFFSET,
+             ((uint32_t)alpha << 24) | 0x00ffffff);
+
+  gpu_putreg(DA1470X_GPU_CORE_D2_TEXORIGIN_OFFSET, (uint32_t)texorigin);
+  gpu_putreg(DA1470X_GPU_CORE_D2_TEXPITCH_OFFSET, src->pitch);
+  /* TEXMASK masks the linear texel offset (v * pitch + u), which only
+   * describes a texture whose pitch is 2048; leave it open and keep the
+   * samples inside the source by construction.
+   */
+
+  gpu_putreg(DA1470X_GPU_CORE_D2_TEXMASK_OFFSET, 0xffffffff);
+}
+
+/****************************************************************************
  * Name: da1470x_gpu_fill
  *
  * Description:
@@ -544,7 +617,7 @@ int da1470x_gpu_fill(const struct da1470x_gpu_fill_s *op)
 
   control2 = gpu_writeformat(op->dst.format) |
              GPU_CORE_D2_CONTROL2_D2C_WRITEALPHA1 |
-             GPU_CORE_D2_CONTROL2_D2C_BDI;
+             GPU_BLEND_SRC_OVER;
 
   gpu_putreg(DA1470X_GPU_CORE_D2_CONTROL_OFFSET, 0);
   gpu_putreg(DA1470X_GPU_CORE_D2_CONTROL2_OFFSET, control2);
@@ -571,7 +644,6 @@ int da1470x_gpu_blit(const struct da1470x_gpu_blit_s *op)
 {
   struct da1470x_gpu_s *priv = &g_gpu;
   uintptr_t texorigin;
-  uint32_t control2;
   int ret;
 
   if (op == NULL || !priv->initialized ||
@@ -579,6 +651,11 @@ int da1470x_gpu_blit(const struct da1470x_gpu_blit_s *op)
       !gpu_check_rect(&op->dst, op->dx, op->dy, op->w, op->h))
     {
       return -EINVAL;
+    }
+
+  if (op->alpha == 0)
+    {
+      return OK;
     }
 
   ret = nxmutex_lock(&priv->lock);
@@ -591,33 +668,11 @@ int da1470x_gpu_blit(const struct da1470x_gpu_blit_s *op)
               ((uintptr_t)op->sy * op->src.pitch + op->sx) *
               gpu_bpp(op->src.format);
 
-  control2 = gpu_writeformat(op->dst.format) |
-             gpu_readformat(op->src.format) |
-             GPU_CORE_D2_CONTROL2_D2C_TEXTUREENABLE |
-             GPU_CORE_D2_CONTROL2_D2C_TEXTURECLAMPX |
-             GPU_CORE_D2_CONTROL2_D2C_TEXTURECLAMPY |
-             GPU_CORE_D2_CONTROL2_D2C_WRITEALPHA1 |
-             GPU_CORE_D2_CONTROL2_D2C_BDI;
+  gpu_texture_setup(&op->src, &op->dst, texorigin, op->alpha, false);
 
-  /* The colour part of COLOR1 is added to the texel and must stay zero.
-   * Its alpha is ignored for textured boxes: this core has no texture
-   * operation unit, so a constant opacity cannot be applied on top of
-   * the source alpha.
+  /* U runs along x, V along y, one texel per pixel.  The integer parts
+   * of V are in texels, i.e. rows times the pitch.
    */
-
-  gpu_putreg(DA1470X_GPU_CORE_D2_CONTROL_OFFSET, 0);
-  gpu_putreg(DA1470X_GPU_CORE_D2_CONTROL2_OFFSET, control2);
-  gpu_putreg(DA1470X_GPU_CORE_D2_COLOR1_OFFSET, 0x00000000);
-  gpu_putreg(DA1470X_GPU_CORE_D2_COLOR2_OFFSET, 0xffffffff);
-
-  /* Texture: base, pitch, and clamp limits */
-
-  gpu_putreg(DA1470X_GPU_CORE_D2_TEXORIGIN_OFFSET, (uint32_t)texorigin);
-  gpu_putreg(DA1470X_GPU_CORE_D2_TEXPITCH_OFFSET, op->src.pitch);
-  gpu_putreg(DA1470X_GPU_CORE_D2_TEXMASK_OFFSET,
-             ((uint32_t)(op->h - 1) << 11) | ((op->w - 1) & 0x7ff));
-
-  /* U runs along x, V along y, one texel per pixel */
 
   gpu_putreg(DA1470X_GPU_CORE_D2_LUSTART_OFFSET, 0);
   gpu_putreg(DA1470X_GPU_CORE_D2_LUXADD_OFFSET, GPU_FIX16_ONE);
@@ -625,11 +680,97 @@ int da1470x_gpu_blit(const struct da1470x_gpu_blit_s *op)
   gpu_putreg(DA1470X_GPU_CORE_D2_LVSTARTI_OFFSET, 0);
   gpu_putreg(DA1470X_GPU_CORE_D2_LVSTARTF_OFFSET, 0);
   gpu_putreg(DA1470X_GPU_CORE_D2_LVXADDI_OFFSET, 0);
-  gpu_putreg(DA1470X_GPU_CORE_D2_LVYADDI_OFFSET, 1);
+  gpu_putreg(DA1470X_GPU_CORE_D2_LVYADDI_OFFSET, op->src.pitch);
   gpu_putreg(DA1470X_GPU_CORE_D2_LVYXADDF_OFFSET, 0);
 
+  gpu_putreg(DA1470X_GPU_CORE_D2_CONTROL_OFFSET, 0);
   ret = gpu_render(priv, &op->dst, op->dx, op->dy, op->w, op->h);
+  nxmutex_unlock(&priv->lock);
+  return ret;
+}
 
+/****************************************************************************
+ * Name: da1470x_gpu_texbox
+ *
+ * Description:
+ *   Texture-mapped box with an affine mapping and optional limiters:
+ *   rotations, scalings, and the source alpha blended by the opacity.
+ *   The texel sampled for a pixel is (floor(u), floor(v)); the V mapping
+ *   is programmed with its integer part in texels (rows times the pitch)
+ *   and its fraction in rows, as the core expects.
+ *
+ ****************************************************************************/
+
+int da1470x_gpu_texbox(const struct da1470x_gpu_texbox_s *op)
+{
+  struct da1470x_gpu_s *priv = &g_gpu;
+  uint32_t control = 0;
+  int32_t ustart;
+  int32_t vstart;
+  int32_t vint;
+  int32_t xint;
+  int32_t yint;
+  int ret;
+  int i;
+
+  if (op == NULL || !priv->initialized ||
+      op->src.addr == 0 || gpu_bpp(op->src.format) == 0 ||
+      op->src.pitch < op->src.width || op->src.width == 0 ||
+      op->src.height == 0 || op->nlimiters > DA1470X_GPU_MAX_LIMITERS ||
+      !gpu_check_rect(&op->dst, op->x, op->y, op->w, op->h))
+    {
+      return -EINVAL;
+    }
+
+  if (op->alpha == 0)
+    {
+      return OK;
+    }
+
+  ret = nxmutex_lock(&priv->lock);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  gpu_texture_setup(&op->src, &op->dst, gpu_bus_addr(op->src.addr),
+                    op->alpha, op->filter != 0);
+
+  ustart = op->ustart;
+  vstart = op->vstart;
+
+  gpu_putreg(DA1470X_GPU_CORE_D2_LUSTART_OFFSET, (uint32_t)ustart);
+  gpu_putreg(DA1470X_GPU_CORE_D2_LUXADD_OFFSET, (uint32_t)op->uxadd);
+  gpu_putreg(DA1470X_GPU_CORE_D2_LUYADD_OFFSET, (uint32_t)op->uyadd);
+
+  vint = vstart >> 16;
+  xint = op->vxadd >> 16;
+  yint = op->vyadd >> 16;
+  gpu_putreg(DA1470X_GPU_CORE_D2_LVSTARTI_OFFSET,
+             (uint32_t)(vint * (int32_t)op->src.pitch));
+  gpu_putreg(DA1470X_GPU_CORE_D2_LVSTARTF_OFFSET,
+             (uint32_t)vstart & 0xffff);
+  gpu_putreg(DA1470X_GPU_CORE_D2_LVXADDI_OFFSET,
+             (uint32_t)(xint * (int32_t)op->src.pitch));
+  gpu_putreg(DA1470X_GPU_CORE_D2_LVYADDI_OFFSET,
+             (uint32_t)(yint * (int32_t)op->src.pitch));
+  gpu_putreg(DA1470X_GPU_CORE_D2_LVYXADDF_OFFSET,
+             (((uint32_t)op->vyadd & 0xffff) << 16) |
+             ((uint32_t)op->vxadd & 0xffff));
+
+  for (i = 0; i < op->nlimiters; i++)
+    {
+      gpu_putreg(DA1470X_GPU_CORE_D2_L1START_OFFSET + 4 * i,
+                 (uint32_t)op->lim[i].start);
+      gpu_putreg(DA1470X_GPU_CORE_D2_L1XADD_OFFSET + 4 * i,
+                 (uint32_t)op->lim[i].xadd);
+      gpu_putreg(DA1470X_GPU_CORE_D2_L1YADD_OFFSET + 4 * i,
+                 (uint32_t)op->lim[i].yadd);
+      control |= GPU_CORE_D2_CONTROL_D2C_LIM1ENABLE << i;
+    }
+
+  gpu_putreg(DA1470X_GPU_CORE_D2_CONTROL_OFFSET, control);
+  ret = gpu_render(priv, &op->dst, op->x, op->y, op->w, op->h);
   nxmutex_unlock(&priv->lock);
   return ret;
 }

@@ -50,6 +50,7 @@
 #define GPUIOC_FILL       _DIOC(0x81)  /* IN:  struct da1470x_gpu_fill_s */
 #define GPUIOC_BLIT       _DIOC(0x82)  /* IN:  struct da1470x_gpu_blit_s */
 #define GPUIOC_WAIT       _DIOC(0x83)  /* Wait for the GPU to go idle */
+#define GPUIOC_TEXBOX     _DIOC(0x84)  /* IN:  struct da1470x_gpu_texbox_s */
 
 /****************************************************************************
  * Public Types
@@ -90,6 +91,50 @@ struct da1470x_gpu_blit_s
   uint16_t dy;
   uint16_t w;          /* Size in pixels */
   uint16_t h;
+  uint8_t  alpha;      /* Opacity applied on top of the source alpha:
+                        * 255 leaves the source alone, 0 draws nothing */
+};
+
+/* A half-plane limiter: the pixel (x, y) of the destination box is
+ * inside when start + x * xadd + y * yadd >= 0, all in 16.16 fixed
+ * point and evaluated at pixel centres (the caller folds the 0.5
+ * offsets into start).  Up to four limiters bound a convex quad.
+ */
+
+struct da1470x_gpu_limiter_s
+{
+  int32_t start;
+  int32_t xadd;
+  int32_t yadd;
+};
+
+/* Texture-mapped box: every destination pixel of the w x h box at
+ * (x, y) samples the source at (u, v) = (ustart + x * uxadd + y * uyadd,
+ * vstart + x * vxadd + y * vyadd), 16.16 fixed point in source pixels,
+ * clamped to the source; optionally bilinear filtered and bounded by
+ * limiters.  This is a rotation, a scaling or any affine transform.
+ */
+
+#define DA1470X_GPU_MAX_LIMITERS 4
+
+struct da1470x_gpu_texbox_s
+{
+  struct da1470x_gpu_surface_s src;
+  struct da1470x_gpu_surface_s dst;
+  uint16_t x;          /* Destination box */
+  uint16_t y;
+  uint16_t w;
+  uint16_t h;
+  uint8_t  alpha;      /* As for a blit */
+  uint8_t  filter;     /* Non-zero: bilinear filtering */
+  uint8_t  nlimiters;  /* 0..4 */
+  int32_t  ustart;     /* Mapping at the box origin, 16.16 */
+  int32_t  uxadd;
+  int32_t  uyadd;
+  int32_t  vstart;
+  int32_t  vxadd;
+  int32_t  vyadd;
+  struct da1470x_gpu_limiter_s lim[DA1470X_GPU_MAX_LIMITERS];
 };
 
 #endif /* __ARCH_ARM_INCLUDE_DA1470X_GPU_H */
