@@ -48,6 +48,10 @@ ifeq ($(CONFIG_DA14706_LCD_E120A390QSR),y)
 CSRCS += da1470x_e120a390qsr.c
 endif
 
+ifeq ($(CONFIG_DA14706_LCD_LPM012M134B),y)
+CSRCS += da1470x_lpm012m134b.c
+endif
+
 ifeq ($(CONFIG_DA14706_TOUCH_ZT2628),y)
 CSRCS += da1470x_zt2628.c
 endif

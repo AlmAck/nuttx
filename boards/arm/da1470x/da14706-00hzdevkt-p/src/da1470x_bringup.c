@@ -221,8 +221,13 @@ int da1470x_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_DA14706_LCD_E120A390QSR
+#if defined(CONFIG_DA14706_LCD_E120A390QSR) || \
+    defined(CONFIG_DA14706_LCD_LPM012M134B)
+#  ifdef CONFIG_DA14706_LCD_E120A390QSR
   ret = da1470x_e120a390_initialize();
+#  else
+  ret = da1470x_lpm012m134b_initialize();
+#  endif
   if (ret < 0)
     {
       syslog(LOG_ERR, "Failed to initialize the display: %d\n", ret);

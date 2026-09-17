@@ -121,6 +121,26 @@ rings, H4 framing) was recovered from the SDK objects for firmware
 "CMAC v1.0.0" of SDK 10.2.6.49; other SDK releases move the table addresses
 in ``da1470x_cmac.c``.  Radio trim values from OTP are not applied yet.
 
+Display controller
+------------------
+
+``CONFIG_DA1470X_LCDC`` registers the display controller as ``/dev/fb0``.
+A board describes its panel in a ``struct da1470x_lcdc_panel_s`` and
+selects one of two interfaces:
+
+* ``DA1470X_LCDC_IF_QSPI``: quad SPI with DCS commands, partial window
+  updates, optional tearing-effect synchronisation, RGB565 or RGBA8888.
+  Verified on the devkit's AMOLED panel.
+* ``DA1470X_LCDC_IF_JDI_PARALLEL``: JDI memory-in-pixel panels.  The
+  controller generates XRST, VST, VCK, HST, HCK and ENB and shifts two
+  bits per colour with two rows per VCK; the pulse widths follow the
+  vendor driver's derivation from the line length, the porches come from
+  the panel descriptor, and the VCOM/FRP square wave comes from the
+  ``LCD_EXT_CTRL`` divider of the 32 kHz clock so it keeps running in
+  sleep.  Frames are always whole-screen; the frame buffer is RGB332.
+  **This mode is implemented from the datasheet and the SDK sources and
+  has been compiled only: no JDI panel was available to test it.**
+
 GPU
 ---
 

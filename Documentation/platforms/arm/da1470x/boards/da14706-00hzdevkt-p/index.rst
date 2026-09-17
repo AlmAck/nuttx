@@ -102,6 +102,17 @@ programmer leaves the flash controller out of its memory-mapped mode,
 and a reset request keeps the previous firmware's clock tree, which the
 boot ROM cannot start from when that was the PLL.  Always use the script for images above 510 KB.
 
+JDI parallel panel
+------------------
+
+``CONFIG_DA14706_LCD_LPM012M134B`` (instead of the AMOLED board) registers
+a JDI LPM012M134B 240x240 memory-in-pixel panel on the JDI parallel
+interface.  The devkit does not carry one: the signals use the chip's
+fixed JDI pads (VCK P0.09, HCK P0.14, HST P0.15, VST P0.16, ENB P0.18,
+XRST P0.22, VCOM/FRP P0.19, RED P0.17/P0.23, GREEN P0.24/P1.00, BLUE
+P1.01/P0.21) and the panel enable is ``BOARD_JDI_PEN_PIN`` (P1.07).
+Untested on hardware.
+
 Debugging without the UART
 --------------------------
 

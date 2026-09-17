@@ -52,6 +52,7 @@
 
 #include "arm_internal.h"
 #include "hardware/da1470x_crg_sys.h"
+#include "hardware/da1470x_crg_top.h"
 #include "hardware/da1470x_lcdc.h"
 #include "da1470x_lcdc.h"
 #include "da1470x_pmu.h"
@@ -252,23 +253,128 @@ static void lcdc_qspi_configure(const struct da1470x_lcdc_panel_s *panel)
 }
 
 /****************************************************************************
- * Name: lcdc_set_timing
+ * Name: lcdc_jdi_configure
  *
  * Description:
- *   Program the resolution of the next transfer and the minimal
- *   porch/blanking values used for serial panels (fpx=1, blx=2, bpx=1,
- *   fpy=1, bly=1, bpy=1).
+ *   JDI memory-in-pixel parallel interface: the controller generates
+ *   XRST, VST, VCK, HST, HCK and ENB itself and shifts two bits per
+ *   colour on six data lines, two rows per VCK (double scan).  The
+ *   pulse widths and offsets are derived from the line length the way
+ *   the vendor driver does; the horizontal values count HCK quarters,
+ *   the vertical ones VCK halves.  There are no commands: a frame is
+ *   whole-screen, and the panel keeps it.
  *
  ****************************************************************************/
 
-static void lcdc_set_timing(uint16_t resx, uint16_t resy)
+static void lcdc_jdi_configure(const struct da1470x_lcdc_panel_s *panel)
 {
-  uint16_t fpx = resx + 1;
-  uint16_t blx = fpx + 2;
-  uint16_t bpx = blx + 1;
-  uint16_t fpy = resy + 1;
-  uint16_t bly = fpy + 1;
-  uint16_t bpy = bly + 1;
+  const struct da1470x_lcdc_jdi_s *jdi = &panel->jdi;
+  uint32_t line;
+  uint32_t hck_width;
+  uint32_t vck_width;
+  uint32_t xrst_width;
+  uint32_t regval;
+
+  putreg32(LCDC_DBIB_CFG_DBIB_RESX_OUT_EN |
+           LCDC_DBIB_CFG_DBIB_TE_DISABLE |
+           LCDC_DBIB_CFG_DBIB_COLOR_FMT(LCDC_OCM_RGB222),
+           DA1470X_LCDC_DBIB_CFG);
+
+  putreg32(LCDC_MODE_OUT_MODE_JDIMIP | LCDC_MODE_DSCAN |
+           LCDC_MODE_UNDERRUN_PREVENTION_EN, DA1470X_LCDC_MODE);
+
+  line       = (panel->xres + jdi->fpx + jdi->blx + jdi->bpx) / 2;
+  hck_width  = 2;
+  vck_width  = line * hck_width;
+  xrst_width = panel->yres * 2 + jdi->fpy + jdi->bly + jdi->bpy - 2;
+
+  regval = LCDC_FMTCTRL_JDIP_HST_WIDTH(hck_width) |
+           LCDC_FMTCTRL_JDIP_HST_OFFSET(hck_width) |
+           LCDC_FMTCTRL_JDIP_VST_WIDTH(vck_width) |
+           LCDC_FMTCTRL_JDIP_VST_OFFSET(vck_width / 2 + 2);
+  putreg32(regval, DA1470X_LCDC_FMTCTRL);
+
+  regval = LCDC_FMTCTRL_2_JDIP_ENB_WIDTH(vck_width / 2) |
+           LCDC_FMTCTRL_2_JDIP_ENB_OFFSET(vck_width / 4 + 3) |
+           LCDC_FMTCTRL_2_JDIP_XRST_OFFSET(vck_width / 4 + 2);
+  putreg32(regval, DA1470X_LCDC_FMTCTRL_2);
+
+  putreg32(LCDC_FMTCTRL_3_XRST_HIGH_STATE(xrst_width),
+           DA1470X_LCDC_FMTCTRL_3);
+
+  lcdc_clock_select(panel);
+
+  modifyreg32(DA1470X_LCDC_GPIO, LCDC_GPIO_GPIO_OUTPUT_MODE_MASK |
+              LCDC_GPIO_GPIO_SPI_SI_ON_SD_PAD | LCDC_GPIO_TE_INV,
+              LCDC_GPIO_OUTPUT_MODE_JDI | LCDC_GPIO_GPIO_OUTPUT_EN);
+
+  /* VCOM/FRP: a square wave from the 32 kHz sleep clock divided by
+   * 32 * (reload + 1), kept running by CRG_TOP so it survives sleep.
+   */
+
+  if (panel->ext_clk_dhz != 0)
+    {
+      uint32_t reload = (32000 * 10) / ((uint32_t)panel->ext_clk_dhz * 32);
+
+      if (reload > 0)
+        {
+          reload--;
+        }
+
+      if (reload > (CRG_TOP_LCD_EXT_CTRL_LCD_EXT_CNT_RELOAD_MASK >>
+                    CRG_TOP_LCD_EXT_CTRL_LCD_EXT_CNT_RELOAD_SHIFT))
+        {
+          reload = CRG_TOP_LCD_EXT_CTRL_LCD_EXT_CNT_RELOAD_MASK >>
+                   CRG_TOP_LCD_EXT_CTRL_LCD_EXT_CNT_RELOAD_SHIFT;
+        }
+
+      putreg32(CRG_TOP_LCD_EXT_CTRL_LCD_EXT_CLK_EN |
+               CRG_TOP_LCD_EXT_CTRL_LCD_EXT_CNT_RELOAD(reload),
+               DA1470X_CRG_TOP_LCD_EXT_CTRL);
+    }
+}
+
+/****************************************************************************
+ * Name: lcdc_set_timing
+ *
+ * Description:
+ *   Program the resolution of the next transfer and the porch/blanking
+ *   values: the minimal ones for serial panels (fpx=1, blx=2, bpx=1,
+ *   fpy=1, bly=1, bpy=1), the panel's own for JDI parallel.
+ *
+ ****************************************************************************/
+
+static void lcdc_set_timing(const struct da1470x_lcdc_panel_s *panel,
+                            uint16_t resx, uint16_t resy)
+{
+  uint16_t fpx;
+  uint16_t blx;
+  uint16_t bpx;
+  uint16_t fpy;
+  uint16_t bly;
+  uint16_t bpy;
+
+  if (panel->iface == DA1470X_LCDC_IF_JDI_PARALLEL)
+    {
+      /* Two rows per VCK, and the panel's own porches */
+
+      resy *= 2;
+      fpx = resx + panel->jdi.fpx;
+      blx = fpx + panel->jdi.blx;
+      bpx = blx + panel->jdi.bpx;
+      fpy = resy + panel->jdi.fpy;
+      bly = fpy + panel->jdi.bly;
+      bpy = bly + panel->jdi.bpy;
+    }
+  else
+    {
+      fpx = resx + 1;
+      blx = fpx + 2;
+      bpx = blx + 1;
+      fpy = resy + 1;
+      bly = fpy + 1;
+      bpy = bly + 1;
+    }
 
   putreg32(LCDC_XY_PACK(resx, resy),   DA1470X_LCDC_RESXY);
   putreg32(LCDC_XY_PACK(fpx, fpy),     DA1470X_LCDC_FRONTPORCHXY);
@@ -292,6 +398,13 @@ static void lcdc_set_layer0(struct da1470x_lcdc_s *priv, uint8_t *base,
   const struct da1470x_lcdc_panel_s *panel = priv->panel;
   uint32_t mode;
 
+  uint32_t cm;
+
+  if (panel->iface == DA1470X_LCDC_IF_JDI_PARALLEL)
+    {
+      h *= 2;                       /* Double scan */
+    }
+
   putreg32((uint32_t)(uintptr_t)base, DA1470X_LCDC_LAYER0_BASEADDR);
   putreg32(LCDC_XY_PACK(0, 0), DA1470X_LCDC_LAYER0_STARTXY);
   putreg32(LCDC_XY_PACK(w, h), DA1470X_LCDC_LAYER0_SIZEXY);
@@ -300,12 +413,13 @@ static void lcdc_set_layer0(struct da1470x_lcdc_s *priv, uint8_t *base,
 
   /* Opaque copy: source factor one, destination factor zero */
 
+  cm = panel->bpp == 32 ? LCDC_LCM_RGBA8888 :
+       panel->bpp == 16 ? LCDC_LCM_RGB565 : LCDC_LCM_RGB332;
+
   mode = LCDC_LAYER0_MODE_L0_EN | LCDC_LAYER0_MODE_L0_ALPHA(0xff) |
          LCDC_LAYER0_MODE_L0_SRC_BLEND(LCDC_BF_ONE) |
          LCDC_LAYER0_MODE_L0_DST_BLEND(LCDC_BF_ZERO) |
-         LCDC_LAYER0_MODE_L0_COLOR_MODE(panel->bpp == 32 ?
-                                        LCDC_LCM_RGBA8888 :
-                                        LCDC_LCM_RGB565);
+         LCDC_LAYER0_MODE_L0_COLOR_MODE(cm);
   putreg32(mode, DA1470X_LCDC_LAYER0_MODE);
 }
 
@@ -397,8 +511,32 @@ static int lcdc_send_region(struct da1470x_lcdc_s *priv, int buf,
   base = priv->fbmem + (size_t)buf * priv->buflen +
          (size_t)y * priv->stride + (size_t)x * (panel->bpp / 8);
 
-  lcdc_set_timing(w, h);
+  lcdc_set_timing(panel, w, h);
   lcdc_set_layer0(priv, base, w, h);
+
+  if (panel->iface == DA1470X_LCDC_IF_JDI_PARALLEL)
+    {
+      /* No command header, no chip select: fire the frame */
+
+#ifdef CONFIG_PM
+      pm_stay(PM_IDLE_DOMAIN, PM_NORMAL);
+#endif
+      modifyreg32(DA1470X_LCDC_INTERRUPT, 0, LCDC_INTERRUPT_FE_IRQ_EN);
+      modifyreg32(DA1470X_LCDC_MODE, 0, LCDC_MODE_SFRAME_UPD);
+      ret = nxsem_tickwait_uninterruptible(&priv->frame,
+                                           MSEC2TICK(LCDC_FRAME_TIMEOUT_MS));
+#ifdef CONFIG_PM
+      pm_relax(PM_IDLE_DOMAIN, PM_NORMAL);
+#endif
+      if (ret < 0)
+        {
+          lcderr("Frame timed out (status %08" PRIx32 ")\n",
+                 getreg32(DA1470X_LCDC_STATUS));
+          modifyreg32(DA1470X_LCDC_INTERRUPT, LCDC_INTERRUPT_FE_IRQ_EN, 0);
+        }
+
+      return ret;
+    }
 
 #ifdef CONFIG_DA1470X_LCDC_TE
   if (panel->te)
@@ -493,7 +631,9 @@ static int lcdc_getvideoinfo(struct fb_vtable_s *vtable,
     }
 
   memset(vinfo, 0, sizeof(*vinfo));
-  vinfo->fmt     = priv->panel->bpp == 32 ? FB_FMT_RGBA32 : FB_FMT_RGB16_565;
+  vinfo->fmt     = priv->panel->bpp == 32 ? FB_FMT_RGBA32 :
+                   priv->panel->bpp == 16 ? FB_FMT_RGB16_565 :
+                   FB_FMT_RGB8_332;
   vinfo->xres    = priv->panel->xres;
   vinfo->yres    = priv->panel->yres;
   vinfo->nplanes = 1;
@@ -570,6 +710,16 @@ static int lcdc_updatearea(struct fb_vtable_s *vtable,
   y0 = area->y % panel->yres;
   x1 = x0 + area->w;
   y1 = y0 + area->h;
+
+  if (panel->iface == DA1470X_LCDC_IF_JDI_PARALLEL)
+    {
+      /* The parallel interface addresses no window: whole frames only */
+
+      x0 = 0;
+      y0 = 0;
+      x1 = panel->xres;
+      y1 = panel->yres;
+    }
 
   x0 &= ~1;
   y0 &= ~1;
@@ -739,7 +889,8 @@ int da1470x_lcdc_register(const struct da1470x_lcdc_panel_s *panel)
   int ret;
 
   if (panel == NULL || panel->xres == 0 || panel->yres == 0 ||
-      (panel->bpp != 16 && panel->bpp != 32))
+      (panel->bpp != 16 && panel->bpp != 32 &&
+       !(panel->bpp == 8 && panel->iface == DA1470X_LCDC_IF_JDI_PARALLEL)))
     {
       return -EINVAL;
     }
@@ -784,8 +935,16 @@ int da1470x_lcdc_register(const struct da1470x_lcdc_panel_s *panel)
 
   /* Controller configuration, then the panel start-up sequence */
 
-  lcdc_qspi_configure(panel);
-  lcdc_set_timing(panel->xres, panel->yres);
+  if (panel->iface == DA1470X_LCDC_IF_JDI_PARALLEL)
+    {
+      lcdc_jdi_configure(panel);
+    }
+  else
+    {
+      lcdc_qspi_configure(panel);
+    }
+
+  lcdc_set_timing(panel, panel->xres, panel->yres);
   lcdc_set_layer0(priv, priv->fbmem, panel->xres, panel->yres);
 
   putreg32(0, DA1470X_LCDC_INTERRUPT);

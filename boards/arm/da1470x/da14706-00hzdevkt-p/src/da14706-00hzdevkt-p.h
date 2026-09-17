@@ -124,6 +124,19 @@ int da1470x_i2cdev_initialize(void);
 
 #ifdef CONFIG_DA14706_LCD_E120A390QSR
 int da1470x_e120a390_initialize(void);
+#endif
+
+/****************************************************************************
+ * Name: da1470x_lpm012m134b_initialize
+ *
+ * Description:
+ *   Register a JDI LPM012M134B panel on the JDI parallel interface with
+ *   the LCDC framebuffer driver.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_DA14706_LCD_LPM012M134B
+int da1470x_lpm012m134b_initialize(void);
 
 /****************************************************************************
  * Name: da1470x_pwmled_setup

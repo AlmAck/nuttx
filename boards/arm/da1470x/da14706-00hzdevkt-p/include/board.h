@@ -145,6 +145,26 @@
 
 /* LCDC / E120A390QSR display pins ******************************************/
 
+/* JDI parallel interface (CONFIG_DA14706_LCD_LPM012M134B, no such panel on
+ * the devkit): the signals have fixed pads handed to the LCDC through
+ * LCDC_MAP_CTRL; only the panel enable is a board choice.
+ */
+
+#define BOARD_JDI_VCK_PIN    (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(9))
+#define BOARD_JDI_HCK_PIN    (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(14))
+#define BOARD_JDI_HST_PIN    (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(15))
+#define BOARD_JDI_VST_PIN    (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(16))
+#define BOARD_JDI_RED0_PIN   (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(17))
+#define BOARD_JDI_ENB_PIN    (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(18))
+#define BOARD_JDI_VCOM_PIN   (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(19))
+#define BOARD_JDI_BLUE1_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(21))
+#define BOARD_JDI_XRST_PIN   (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(22))
+#define BOARD_JDI_RED1_PIN   (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(23))
+#define BOARD_JDI_GREEN0_PIN (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | GPIO_PIN(24))
+#define BOARD_JDI_GREEN1_PIN (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT1 | GPIO_PIN(0))
+#define BOARD_JDI_BLUE0_PIN  (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT1 | GPIO_PIN(1))
+#define BOARD_JDI_PEN_PIN    (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT1 | GPIO_PIN(7))
+
 /* Daughterboard "da1470x-sb-E120A390QSR" hard-straps the panel into QSPI
  * mode.  The LCDC pad mux is hard wired: SCLK/SD0..SD3/CSX are set as plain
  * GPIO outputs and the LCDC takes them over through LCDC_GPIO_REG.

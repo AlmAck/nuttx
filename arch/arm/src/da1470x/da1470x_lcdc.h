@@ -40,12 +40,38 @@
  * can send the panel's DCS start-up sequence with the helpers below.
  */
 
+/* Panel interface */
+
+#define DA1470X_LCDC_IF_QSPI          0  /* Quad SPI (DBI type C), commands */
+#define DA1470X_LCDC_IF_JDI_PARALLEL  1  /* JDI memory-in-pixel parallel */
+
+/* JDI parallel timings: horizontal values in HCK quarters, vertical
+ * values in VCK halves (the controller drives two rows per VCK).
+ */
+
+struct da1470x_lcdc_jdi_s
+{
+  uint16_t fpx;           /* Horizontal front porch */
+  uint16_t blx;           /* Horizontal blanking */
+  uint16_t bpx;           /* Horizontal back porch */
+  uint16_t fpy;           /* Vertical front porch */
+  uint16_t bly;           /* Vertical blanking */
+  uint16_t bpy;           /* Vertical back porch */
+};
+
 struct da1470x_lcdc_panel_s
 {
   uint16_t xres;          /* Visible columns */
   uint16_t yres;          /* Visible rows */
-  uint8_t  bpp;           /* Bits per pixel: 16 (RGB565) or 32 (RGBA8888) */
-  uint32_t sclk_max;      /* Highest serial clock the panel accepts (Hz) */
+  uint8_t  bpp;           /* Bits per pixel: 16 (RGB565), 32 (RGBA8888)
+                           * or 8 (RGB332, JDI parallel only) */
+  uint8_t  iface;         /* DA1470X_LCDC_IF_* */
+  uint32_t sclk_max;      /* Highest interface clock the panel accepts
+                           * (Hz): serial clock or HCK */
+  struct da1470x_lcdc_jdi_s jdi;
+                          /* JDI parallel timings */
+  uint16_t ext_clk_dhz;   /* VCOM/FRP square wave on the LCD external
+                           * clock pad, in tenths of a hertz; 0 = off */
   uint8_t  cmd_prefix;    /* QSPI write-command prefix byte (e.g. 0x02) */
   uint8_t  frame_prefix;  /* QSPI prefix for the pixel stream (e.g. 0x32) */
   uint8_t  ramwr;         /* DCS memory write command (0x2c) */
