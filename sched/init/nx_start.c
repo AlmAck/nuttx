@@ -718,7 +718,7 @@ void nx_start(void)
            * IDLE task.
            */
 
-           DEBUGVERIFY(group_setupidlefiles());
+          DEBUGVERIFY(group_setupidlefiles());
         }
     }
 

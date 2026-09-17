@@ -39,19 +39,19 @@
 
 #include <nuttx/config.h>
 
-#include "arm_internal.h"
 #include "chip.h"
-#include "nvic.h"
+#include "arm_internal.h"
 #include "ram_vectors.h"
+#include "nvic.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define IDLE_STACK (_ebss + CONFIG_IDLETHREAD_STACKSIZE)
+#define IDLE_STACK      (_ebss + CONFIG_IDLETHREAD_STACKSIZE)
 
 #ifndef ARMV8M_PERIPHERAL_INTERRUPTS
-#error ARMV8M_PERIPHERAL_INTERRUPTS must be defined to the number of I/O interrupts to be supported
+#  error ARMV8M_PERIPHERAL_INTERRUPTS must be defined to the number of I/O interrupts to be supported
 #endif
 
 /****************************************************************************
@@ -62,11 +62,12 @@
 
 extern void __start(void);
 
-static void start(void) {
+static void start(void)
+{
   /* Zero lr to mark the end of backtrace */
 
-  asm volatile("mov lr, #0\n\t"
-               "b  __start\n\t");
+  asm volatile ("mov lr, #0\n\t"
+                "b  __start\n\t");
 }
 
 /****************************************************************************
@@ -91,18 +92,20 @@ extern void exception_direct(void);
  * Note that the [ ... ] designated initializer is a GCC extension.
  */
 
-const void *const _vectors[] locate_data(".vectors")
-    aligned_data(VECTAB_ALIGN) = {
-        /* Initial stack */
+const void * const _vectors[] locate_data(".vectors")
+                              aligned_data(VECTAB_ALIGN) =
+{
+  /* Initial stack */
 
-        IDLE_STACK,
+  IDLE_STACK,
 
-        /* Reset exception handler */
+  /* Reset exception handler */
 
-        start,
+  start,
 
-        /* Vectors 2 - n point directly at the generic handler */
+  /* Vectors 2 - n point directly at the generic handler */
 
-        [2 ... NVIC_IRQ_PENDSV] = &exception_common,
-        [(NVIC_IRQ_PENDSV +
-          1)...(15 + ARMV8M_PERIPHERAL_INTERRUPTS)] = &exception_direct};
+  [2 ... NVIC_IRQ_PENDSV] = &exception_common,
+  [(NVIC_IRQ_PENDSV + 1) ... (15 + ARMV8M_PERIPHERAL_INTERRUPTS)]
+                          = &exception_direct
+};
