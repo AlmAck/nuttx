@@ -92,7 +92,7 @@
 
 /* UART0 is routed to the FT2232HL of the devkit: TX on P0.8, RX on P2.1 */
 
-#define BOARD_UART0_RX_PIN  (GPIO_INPUT | GPIO_PULLDOWN | GPIO_FUNC_UART_RX | \
+#define BOARD_UART0_RX_PIN  (GPIO_INPUT | GPIO_PULLUP | GPIO_FUNC_UART_RX | \
                              GPIO_PORT2 | GPIO_PIN(1))
 #define BOARD_UART0_TX_PIN  (GPIO_OUTPUT | GPIO_FUNC_UART_TX | GPIO_PORT0 | \
                              GPIO_PIN(8))

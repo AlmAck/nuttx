@@ -115,6 +115,7 @@ config DA1470X_UART0
 	depends on DA1470X_HAVE_UART0
 	select UART0_SERIALDRIVER
 	select DA1470X_UART
+	select ARCH_HAVE_SERIAL_TERMIOS
 
 config DA1470X_UART1
 	bool "UART1 (datasheet UART2, RTS/CTS capable)"
@@ -122,6 +123,7 @@ config DA1470X_UART1
 	depends on DA1470X_HAVE_UART1
 	select UART1_SERIALDRIVER
 	select DA1470X_UART
+	select ARCH_HAVE_SERIAL_TERMIOS
 
 config DA1470X_UART2
 	bool "UART2 (datasheet UART3, RTS/CTS capable)"
@@ -129,6 +131,7 @@ config DA1470X_UART2
 	depends on DA1470X_HAVE_UART2
 	select UART2_SERIALDRIVER
 	select DA1470X_UART
+	select ARCH_HAVE_SERIAL_TERMIOS
 
 config DA1470X_SPI0
 	bool "SPI0 (datasheet SPI)"

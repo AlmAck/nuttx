@@ -113,6 +113,27 @@ XRST P0.22, VCOM/FRP P0.19, RED P0.17/P0.23, GREEN P0.24/P1.00, BLUE
 P1.01/P0.21) and the panel enable is ``BOARD_JDI_PEN_PIN`` (P1.07).
 Untested on hardware.
 
+Checking the UART without wiring
+--------------------------------
+
+``apps/examples/uartloop`` tests the UART when the board's USB serial
+adapter cannot be used.  It reads back the divisor the driver programmed
+and compares it with the one the requested baud rate needs, then sends a
+pattern through the controller's internal loopback.  The loopback cannot
+prove the bit rate, since both ends share the divisor, which is why the
+divisor is checked directly.  Measured on the devkit::
+
+  9600 baud     divisor 208+5/16   error 0.00%
+  115200 baud   divisor 17+6/16    error 0.08%
+  921600 baud   divisor 2+3/16     error 0.79%
+
+The receive pin needs a pull-up.  The controller reports busy for as long
+as the receive line is low, and while it is busy it refuses the write
+that clears the divisor latch access bit; left set, that bit keeps the
+transmit register hidden and nothing is sent at all.  The driver checks
+the bit and resets the controller rather than run blind, but a floating
+or low receive line still stops reception.
+
 Console over the debugger (RTT)
 -------------------------------
 

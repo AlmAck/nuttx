@@ -177,6 +177,7 @@ static void da1470x_setbaud(uintptr_t base,
   uint32_t divisor;
   uint32_t dlf;
   uint32_t lcr;
+  int i;
 
   if (baud == 0)
     {
@@ -195,16 +196,35 @@ static void da1470x_setbaud(uintptr_t base,
       dlf     = 0;
     }
 
-  da1470x_uart_waitidle(base);
+  for (i = 0; i < 2; i++)
+    {
+      da1470x_uart_waitidle(base);
 
-  lcr = getreg32(base + DA1470X_UART_LCR_OFFSET);
-  putreg32(lcr | UART_LCR_DLAB, base + DA1470X_UART_LCR_OFFSET);
+      lcr = getreg32(base + DA1470X_UART_LCR_OFFSET);
+      putreg32(lcr | UART_LCR_DLAB, base + DA1470X_UART_LCR_OFFSET);
 
-  putreg32(divisor & 0xff, base + DA1470X_UART_RBR_THR_DLL_OFFSET);
-  putreg32((divisor >> 8) & 0xff, base + DA1470X_UART_IER_DLH_OFFSET);
-  putreg32(dlf, base + DA1470X_UART_DLF_OFFSET);
+      putreg32(divisor & 0xff, base + DA1470X_UART_RBR_THR_DLL_OFFSET);
+      putreg32((divisor >> 8) & 0xff, base + DA1470X_UART_IER_DLH_OFFSET);
+      putreg32(dlf, base + DA1470X_UART_DLF_OFFSET);
 
-  putreg32(lcr & ~UART_LCR_DLAB, base + DA1470X_UART_LCR_OFFSET);
+      putreg32(lcr & ~UART_LCR_DLAB, base + DA1470X_UART_LCR_OFFSET);
+
+      /* The controller refuses the write that clears DLAB while it is
+       * busy, and it reports busy for as long as RX is held low (a
+       * disconnected or wrongly biased receive line does that).  Left
+       * set, DLAB keeps the transmit holding register hidden behind the
+       * divisor latch and nothing is ever sent, so check and start over
+       * from a reset controller rather than run blind.
+       */
+
+      if ((getreg32(base + DA1470X_UART_LCR_OFFSET) & UART_LCR_DLAB) == 0)
+        {
+          return;
+        }
+
+      putreg32(UART_SRR_UR | UART_SRR_RFR | UART_SRR_XFR,
+               base + DA1470X_UART_SRR_OFFSET);
+    }
 }
 
 /****************************************************************************
