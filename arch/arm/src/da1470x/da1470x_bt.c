@@ -48,6 +48,7 @@
 
 #include "da1470x_cmac.h"
 #include "da1470x_bt.h"
+#include "da1470x_tcs.h"
 
 #ifdef CONFIG_DA1470X_BLE
 
@@ -386,6 +387,18 @@ int da1470x_bt_initialize(const uint8_t *bdaddr)
     {
       memcpy(g_bt.bdaddr, bdaddr, 6);
     }
+  else if (da1470x_tcs_bdaddr(g_bt.bdaddr) == OK)
+    {
+      wlinfo("Using the address programmed at the factory\n");
+    }
+  else
+    {
+      wlwarn("WARNING: no factory address, using the built-in one\n");
+    }
+
+  wlinfo("Address %02x:%02x:%02x:%02x:%02x:%02x\n",
+         g_bt.bdaddr[5], g_bt.bdaddr[4], g_bt.bdaddr[3],
+         g_bt.bdaddr[2], g_bt.bdaddr[1], g_bt.bdaddr[0]);
 
   return bt_netdev_register(&g_bt.btdev);
 }

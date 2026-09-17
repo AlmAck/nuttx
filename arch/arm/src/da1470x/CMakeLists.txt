@@ -72,6 +72,10 @@ if(CONFIG_DA1470X_GPU)
   list(APPEND SRCS da1470x_gpu.c)
 endif()
 
+if(CONFIG_DA1470X_TCS)
+  list(APPEND SRCS da1470x_otp.c da1470x_tcs.c)
+endif()
+
 if(CONFIG_DA1470X_BLE)
   list(APPEND SRCS da1470x_cmac.c da1470x_bt.c)
 endif()

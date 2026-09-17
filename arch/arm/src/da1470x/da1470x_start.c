@@ -43,6 +43,9 @@
 #include "da1470x_serial.h"
 #include "da1470x_clockconfig.h"
 #include "da1470x_pmu.h"
+#ifdef CONFIG_DA1470X_TCS
+#  include "da1470x_tcs.h"
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -215,6 +218,20 @@ void __start(void)
     {
       *dest++ = *src++;
     }
+
+#ifdef CONFIG_DA1470X_TCS
+  /* Collect the factory trim values while the chip still runs on the
+   * 32MHz oscillator, which is what the OTP controller timings are set
+   * up for, and apply the groups that belong to the domains that are
+   * already powered.  The radio groups are applied by the Bluetooth
+   * controller when it starts.
+   */
+
+  da1470x_tcs_initialize();
+  da1470x_tcs_apply(DA1470X_TCS_PD_MEM);
+  da1470x_tcs_apply(DA1470X_TCS_PD_SYS);
+  da1470x_tcs_apply(DA1470X_TCS_PD_TMR);
+#endif
 
   da1470x_clockconfig();
   da1470x_lowsetup();

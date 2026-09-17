@@ -285,10 +285,35 @@ config DA1470X_GPU
 		Native register-level driver for the 2D graphics accelerator,
 		exposed as /dev/gpu0.
 
+config DA1470X_TCS
+	bool "Factory trim values from the OTP configuration script"
+	default n
+	---help---
+		Read the configuration script that the factory burnt into the
+		one-time-programmable memory and keep the per-die trim values
+		it carries.  The register pairs of the always-on domains are
+		written at boot; the radio and synthesiser values are handed
+		to the Bluetooth controller.
+
+		Without this the chip runs on reset trim values.  Everything
+		works, but the radio is tens of decibels off target, so this
+		is effectively required for Bluetooth.
+
+config DA1470X_TCS_DATA_WORDS
+	int "Words reserved for the trim values"
+	default 256
+	range 32 512
+	depends on DA1470X_TCS
+	---help---
+		Size of the array that holds the collected trim values.  The
+		configuration script cannot be longer than 256 words, so the
+		default always fits.
+
 config DA1470X_BLE
 	bool "Bluetooth LE (CMAC controller + HCI transport)"
 	default n
 	depends on DA1470X_PDC && (DA1470X_CLOCK_XTAL32M_SRC || DA1470X_CLOCK_PLL160_SRC)
+	select DA1470X_TCS
 	select ALLOW_BSD_COMPONENTS
 	select NET
 	select NETDEVICES

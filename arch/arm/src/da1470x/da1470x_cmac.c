@@ -54,6 +54,7 @@
 #include "da1470x_clockconfig.h"
 #include "da1470x_cmac.h"
 #include "da1470x_pdc.h"
+#include "da1470x_tcs.h"
 #include "da1470x_pmu.h"
 
 #ifdef CONFIG_DA1470X_BLE
@@ -72,6 +73,13 @@
 /* Where the image goes and the fixed tables inside it (firmware 1.0.0) */
 
 #define CMAC_CODE_BASE            DA1470X_SRAM10_BASE     /* 0x20150000 */
+
+/* Offset of the controller data window, written to CMI_DATA_BASE_REG
+ * before the controller is released.  The whole of RAM10 is left as its
+ * code region, so the window starts at zero.
+ */
+
+#define CMAC_DATA_WINDOW_BASE     0
 #define CMAC_AREA_SIZE            0x23024
 #define CMAC_CONFIG_TABLE         0x2016a0d8
 #define CMAC_DYNAMIC_TABLE        0x20172bb4
@@ -85,9 +93,10 @@
  * right after the firmware area, which the linker reserves.
  */
 
-#define CMAC_HOST_TCS_ATTR        0x20174000   /* uint32_t[12] */
-#define CMAC_HOST_TCS_DATA        0x20174040   /* uint32_t[4] */
-#define CMAC_HOST_TEMPSENS        0x20174050   /* uint32_t */
+#define CMAC_HOST_TCS_ATTR        0x20174000   /* uint16_t[0xe0], 448 B */
+#define CMAC_HOST_TCS_DATA        0x20174200   /* uint32_t[512], 2 KiB */
+#define CMAC_HOST_TCS_DATA_MAX    512
+#define CMAC_HOST_TEMPSENS        0x20174a00   /* uint32_t */
 
 /* Mailbox blocks: {u16 magic; u16 flags; u16 wr; u16 rd; u8 buf[504]} */
 
@@ -144,7 +153,6 @@
 #define TCS_ATTR_SIZE             4
 #define TCS_DATA_PTR              8
 #define TCS_DATA_SIZE             12
-#define TCS_GROUP_MAX             12
 
 /****************************************************************************
  * Private Types
@@ -240,6 +248,11 @@ static int cmac_wait_bits(uintptr_t addr, uint32_t mask, bool set)
  *   the controller itself.  Addresses below RAM8 are not visible to the
  *   controller and are returned unchanged.
  *
+ *   The window base has to be read back here rather than assumed: the
+ *   controller moves it while it boots, and pointers built from the value
+ *   this port writes are rejected, which leaves the controller spinning
+ *   on its mailbox.
+ *
  ****************************************************************************/
 
 static uint32_t cmac_m33_to_cmac_addr(uint32_t addr)
@@ -298,6 +311,10 @@ static void cmac_fill_tables(const uint8_t bdaddr[6])
   uint8_t  *cfg = (uint8_t *)CMAC_CONFIG_TABLE;
   uint8_t  *dyn = (uint8_t *)CMAC_DYNAMIC_TABLE;
   uint32_t *tcs = (uint32_t *)CMAC_TCS_TABLE;
+  const uint16_t *attr;
+  const uint32_t *data;
+  size_t nattr;
+  size_t ndata;
 
   memcpy(cfg + CFG_BD_ADDRESS, bdaddr, 6);
   cfg[CFG_LP_CLOCK_FREQ]        = cmac_lpclk_code();
@@ -309,18 +326,36 @@ static void cmac_fill_tables(const uint8_t bdaddr[6])
   *(uint16_t *)(cfg + CFG_RX_BUFFER_SIZE)   = 262;
   *(uint16_t *)(cfg + CFG_TX_BUFFER_SIZE)   = 262;
 
-  /* Empty TCS tables: the controller runs with default trims.  Loading
-   * the OTP configuration script is a follow-up.
+  /* Hand the controller the factory trim values.  It looks its own
+   * groups up in the attribute array, which is indexed by group
+   * identifier, and reads them out of the value array.  Both arrays are
+   * copied into the memory the controller can reach; the pointers are
+   * translated to its address view once it is running.
+   *
+   * These values are what puts the transmitter and the receiver of this
+   * particular die on target.  Without them the radio works but is tens
+   * of decibels down.
    */
 
-  memset((void *)CMAC_HOST_TCS_ATTR, 0, TCS_GROUP_MAX * sizeof(uint32_t));
-  memset((void *)CMAC_HOST_TCS_DATA, 0, 4 * sizeof(uint32_t));
+  attr = da1470x_tcs_attributes(&nattr);
+  data = da1470x_tcs_data(&ndata);
+
+  if (ndata > CMAC_HOST_TCS_DATA_MAX)
+    {
+      wlerr("ERROR: %zu trim words do not fit, truncated\n", ndata);
+      ndata = CMAC_HOST_TCS_DATA_MAX;
+    }
+
+  memcpy((void *)CMAC_HOST_TCS_ATTR, attr, nattr * sizeof(uint16_t));
+  memcpy((void *)CMAC_HOST_TCS_DATA, data, ndata * sizeof(uint32_t));
   putreg32(0, CMAC_HOST_TEMPSENS);
 
   tcs[TCS_ATTR_PTR / 4]  = CMAC_HOST_TCS_ATTR;
-  tcs[TCS_ATTR_SIZE / 4] = TCS_GROUP_MAX;
+  tcs[TCS_ATTR_SIZE / 4] = nattr;
   tcs[TCS_DATA_PTR / 4]  = CMAC_HOST_TCS_DATA;
-  tcs[TCS_DATA_SIZE / 4] = 0;
+  tcs[TCS_DATA_SIZE / 4] = ndata;
+
+  wlinfo("Trim tables: %zu groups, %zu values\n", nattr, ndata);
 
   dyn[DYN_SLEEP_ENABLE] = 0;
   *(uint32_t *)(dyn + DYN_POWER_CTRL_WAKEUP) =
@@ -680,7 +715,7 @@ static int cmac_boot(struct da1470x_cmac_s *priv, const uint8_t bdaddr[6])
   /* Memory windows, then the image */
 
   putreg32(CMAC_CODE_BASE, DA1470X_MEMCTRL_CMI_CODE_BASE);
-  putreg32(0, DA1470X_MEMCTRL_CMI_DATA_BASE);
+  putreg32(CMAC_DATA_WINDOW_BASE, DA1470X_MEMCTRL_CMI_DATA_BASE);
   putreg32(0, DA1470X_MEMCTRL_CMI_SHARED_BASE);
 
   memcpy((void *)CMAC_CODE_BASE, fw + CMAC_FW_HDR_SIZE, imgsize);

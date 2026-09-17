@@ -69,6 +69,10 @@ ifeq ($(CONFIG_DA1470X_GPU),y)
 CHIP_CSRCS += da1470x_gpu.c
 endif
 
+ifeq ($(CONFIG_DA1470X_TCS),y)
+CHIP_CSRCS += da1470x_otp.c da1470x_tcs.c
+endif
+
 ifeq ($(CONFIG_DA1470X_BLE),y)
 CHIP_CSRCS += da1470x_cmac.c da1470x_bt.c
 endif
