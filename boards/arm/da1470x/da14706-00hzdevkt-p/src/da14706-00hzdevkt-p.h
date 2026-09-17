@@ -137,6 +137,7 @@ int da1470x_e120a390_initialize(void);
 
 #ifdef CONFIG_DA14706_LCD_LPM012M134B
 int da1470x_lpm012m134b_initialize(void);
+#endif
 
 /****************************************************************************
  * Name: da1470x_pwmled_setup
@@ -160,7 +161,6 @@ int da1470x_pwmled_setup(void);
 
 #ifdef CONFIG_DA14706_TOUCH_ZT2628
 int da1470x_zt2628_initialize(void);
-#endif
 #endif
 
 #endif /* __ASSEMBLY__ */
