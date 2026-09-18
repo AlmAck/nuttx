@@ -68,3 +68,9 @@ endif
 DEPPATH += --dep-path board
 VPATH += :board
 CFLAGS += ${INCDIR_PREFIX}$(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)board$(DELIM)board
+
+ifeq ($(CONFIG_DA1470X_AUDIO),y)
+CSRCS += da1470x_audio.c
+else ifeq ($(CONFIG_DA1470X_VAD),y)
+CSRCS += da1470x_audio.c
+endif

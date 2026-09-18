@@ -77,6 +77,14 @@ ifeq ($(CONFIG_DA1470X_BLE),y)
 CHIP_CSRCS += da1470x_cmac.c da1470x_bt.c
 endif
 
+ifeq ($(CONFIG_DA1470X_AUDIO),y)
+CHIP_CSRCS += da1470x_audio.c
+endif
+
+ifeq ($(CONFIG_DA1470X_VAD),y)
+CHIP_CSRCS += da1470x_vad.c
+endif
+
 ifeq ($(CONFIG_DA1470X_PWMLED),y)
 CHIP_CSRCS += da1470x_pwmled.c
 endif

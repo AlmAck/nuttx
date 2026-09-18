@@ -251,6 +251,23 @@ int da1470x_bringup(void)
     }
 #endif
 
+#ifdef CONFIG_DA1470X_AUDIO
+  ret = da1470x_audio_setup();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: cannot set the audio unit up: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_DA1470X_VAD
+  ret = da1470x_vad_setup();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: cannot set the voice detector up: %d\n",
+             ret);
+    }
+#endif
+
 #ifdef CONFIG_DA1470X_PWMLED
   ret = da1470x_pwmled_setup();
   if (ret < 0)

@@ -149,6 +149,31 @@ int da1470x_lpm012m134b_initialize(void);
 
 #ifdef CONFIG_DA1470X_PWMLED
 int da1470x_pwmled_setup(void);
+
+/****************************************************************************
+ * Name: da1470x_audio_setup
+ *
+ * Description:
+ *   Mux the microphone pins and register the capture path as an audio
+ *   device.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_DA1470X_AUDIO
+int da1470x_audio_setup(void);
+#endif
+
+/****************************************************************************
+ * Name: da1470x_vad_setup
+ *
+ * Description:
+ *   Register the voice activity detector at /dev/vad0.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_DA1470X_VAD
+int da1470x_vad_setup(void);
+#endif
 #endif
 
 /****************************************************************************

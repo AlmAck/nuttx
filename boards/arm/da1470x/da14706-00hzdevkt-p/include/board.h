@@ -197,4 +197,24 @@
 #define BOARD_LCDC_IM1_PIN  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_FUNC_GPIO | \
                              GPIO_PORT1 | GPIO_PIN(0))
 
+/* Audio unit.  The development kit has no microphone and no codec fitted,
+ * and the package documentation assigns no pins to either interface, so
+ * these are free choices that have to be matched to whatever is actually
+ * wired up.  They are only used when the audio driver is built in.
+ */
+
+#define BOARD_PDM_DATA_PIN  (GPIO_INPUT | GPIO_FUNC_PDM_DATA | \
+                             GPIO_PORT1 | GPIO_PIN(4))
+#define BOARD_PDM_CLK_PIN   (GPIO_OUTPUT | GPIO_FUNC_PDM_CLK | \
+                             GPIO_PORT1 | GPIO_PIN(5))
+
+#define BOARD_PCM_DI_PIN    (GPIO_INPUT | GPIO_FUNC_PCM_DI | \
+                             GPIO_PORT1 | GPIO_PIN(6))
+#define BOARD_PCM_DO_PIN    (GPIO_OUTPUT | GPIO_FUNC_PCM_DO | \
+                             GPIO_PORT1 | GPIO_PIN(9))
+#define BOARD_PCM_FSC_PIN   (GPIO_OUTPUT | GPIO_FUNC_PCM_FSC | \
+                             GPIO_PORT1 | GPIO_PIN(10))
+#define BOARD_PCM_CLK_PIN   (GPIO_OUTPUT | GPIO_FUNC_PCM_CLK | \
+                             GPIO_PORT1 | GPIO_PIN(13))
+
 #endif /* __BOARDS_ARM_DA1470X_DA14706_00HZDEVKT_P_INCLUDE_BOARD_H */

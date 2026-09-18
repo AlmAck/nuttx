@@ -65,6 +65,10 @@ if(CONFIG_DA1470X_BLE)
     "DA1470X_CMAC_FW_PATH=\"${NUTTX_DIR}/${CONFIG_DA1470X_CMAC_FW_PATH}\"")
 endif()
 
+if(CONFIG_DA1470X_AUDIO OR CONFIG_DA1470X_VAD)
+  list(APPEND SRCS da1470x_audio.c)
+endif()
+
 target_sources(board PRIVATE ${SRCS})
 
 set_property(GLOBAL PROPERTY LD_SCRIPT "${NUTTX_BOARD_DIR}/scripts/flash_app.ld")

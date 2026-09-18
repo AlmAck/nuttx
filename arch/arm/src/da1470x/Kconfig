@@ -345,6 +345,65 @@ config DA1470X_PWMLED
 		block as a NuttX PWM lower half (channels 1..3 sharing one
 		period, 31 Hz..7.8 kHz).
 
+config DA1470X_AUDIO
+	bool "Audio unit (rate converter, microphone and serial port)"
+	default n
+	depends on DA1470X_DMA
+	select AUDIO
+	---help---
+		Capture and playback through the sample rate converter.  A
+		digital microphone on the pulse density interface, or a codec
+		on the pulse code serial port, becomes a NuttX audio device.
+
+		One channel per path only: the two channels of the converter
+		appear at separate data registers and would need a second DMA
+		channel and a second buffer.
+
+config DA1470X_AUDIO_BUFSIZE
+	int "Size of one audio buffer (bytes)"
+	default 4096
+	depends on DA1470X_AUDIO
+	---help---
+		Reported to the upper half when it asks how to size the
+		buffers it allocates.
+
+config DA1470X_AUDIO_NBUFFERS
+	int "Number of audio buffers"
+	default 4
+	range 2 16
+	depends on DA1470X_AUDIO
+	---help---
+		Two is the fewest that keeps the hardware fed while a finished
+		buffer is being handled.
+
+config DA1470X_VAD
+	bool "Voice activity detector"
+	default n
+	---help---
+		The always-on block that listens for a sound louder than the
+		background noise and raises an interrupt.  It runs from the
+		low power oscillator or the 32kHz crystal and keeps working
+		while the rest of the chip sleeps, so it can be used as a
+		wake-up source.
+
+		Detections are read from a character device, conventionally
+		/dev/vad0.
+
+config DA1470X_VAD_NEVENTS
+	int "Detections buffered"
+	default 8
+	range 1 64
+	depends on DA1470X_VAD
+	---help---
+		A reader that falls behind loses the oldest detections; each
+		delivered detection says how many were dropped before it.
+
+config DA1470X_VAD_NPOLLWAITERS
+	int "Poll waiters on the detector"
+	default 2
+	range 1 8
+	depends on DA1470X_VAD
+
 config DA1470X_WDOG_FREEZE
 	bool "Freeze the system watchdog at boot"
 	default y
