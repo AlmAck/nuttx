@@ -198,14 +198,15 @@
                              GPIO_PORT1 | GPIO_PIN(0))
 
 /* Audio unit.  The kit carries an analogue microphone, a CMM-3729AT, fed
- * from P0.29 through a zero ohm link and wired across the two amplifier
- * inputs.  Those inputs share their pads with P1.05 and P1.06, which come
+ * from P0.21 through a 100 ohm series resistor.  Its output reaches the
+ * voice detector directly through a zero ohm link, and the amplifier
+ * through a coupling capacitor.  Those inputs share their pads with P1.05 and P1.06, which come
  * out of reset as digital pins with a pull resistor, so both have to be
  * put in analogue mode or they load the microphone signal away.
  */
 
 #define BOARD_MIC_PWR_PIN   (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
-                             GPIO_PIN(29))
+                             GPIO_PIN(21))
 #define BOARD_PGA_P_PIN     (GPIO_INPUT | GPIO_FLOAT | GPIO_FUNC_ADC | \
                              GPIO_PORT1 | GPIO_PIN(5))
 #define BOARD_PGA_N_PIN     (GPIO_INPUT | GPIO_FLOAT | GPIO_FUNC_ADC | \

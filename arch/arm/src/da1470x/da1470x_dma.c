@@ -227,10 +227,22 @@ int da1470x_dma_setup(DMA_HANDLE handle,
   dmach->callback = callback;
   dmach->arg      = arg;
 
-  putreg32(config->src,     dmach->base + DA1470X_DMA_A_START_OFFSET);
-  putreg32(config->dest,    dmach->base + DA1470X_DMA_B_START_OFFSET);
-  putreg32(config->len,     dmach->base + DA1470X_DMA_LEN_OFFSET);
-  putreg32(config->int_len, dmach->base + DA1470X_DMA_INT_OFFSET);
+  /* Both length registers count from zero: a register value of n moves
+   * n + 1 items.  The interface here takes a plain count, so take one off
+   * each.  Writing the count itself moves one item too many, which lands
+   * outside the caller's buffer.
+   */
+
+  if (config->len == 0)
+    {
+      return -EINVAL;
+    }
+
+  putreg32(config->src,  dmach->base + DA1470X_DMA_A_START_OFFSET);
+  putreg32(config->dest, dmach->base + DA1470X_DMA_B_START_OFFSET);
+  putreg32(config->len - 1, dmach->base + DA1470X_DMA_LEN_OFFSET);
+  putreg32(config->int_len > 0 ? config->int_len - 1 : 0,
+           dmach->base + DA1470X_DMA_INT_OFFSET);
 
   if (config->ainc)
     {
@@ -335,7 +347,7 @@ uint16_t da1470x_dma_get_residue(DMA_HANDLE handle)
 
   DEBUGASSERT(dmach != NULL);
 
-  len = getreg32(dmach->base + DA1470X_DMA_LEN_OFFSET);
+  len = getreg32(dmach->base + DA1470X_DMA_LEN_OFFSET) + 1;
   idx = getreg32(dmach->base + DA1470X_DMA_IDX_OFFSET);
   return len - idx;
 }

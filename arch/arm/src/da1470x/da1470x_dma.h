@@ -90,8 +90,8 @@ struct da1470x_dma_config_s
 {
   uintptr_t src;         /* Source address */
   uintptr_t dest;        /* Destination address */
-  uint16_t  len;         /* Transfer length in bus-width units */
-  uint16_t  int_len;     /* Interrupt after this many transfers */
+  uint16_t  len;         /* Number of items to move, in bus-width units */
+  uint16_t  int_len;     /* Interrupt after this many items */
   uint8_t   bw;          /* Bus width (DA1470X_DMA_BW_*) */
   uint8_t   burst;       /* Burst mode (DA1470X_DMA_BURST_*) */
   uint8_t   prio;        /* Priority 0..7 */

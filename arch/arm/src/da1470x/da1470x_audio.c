@@ -1002,8 +1002,8 @@ static int audio_getcaps(struct audio_lowerhalf_s *dev, int type,
              */
 
             caps->ac_controls.hw[0] = priv->cfg->samplerate & 0xffff;
-            caps->ac_controls.hw[1] = priv->cfg->samplerate >> 16;
-            caps->ac_controls.b[3]  = priv->cfg->bits;
+            caps->ac_controls.b[2]  = priv->cfg->bits;
+            caps->ac_controls.b[3]  = priv->cfg->samplerate >> 16;
           }
         break;
 
@@ -1043,7 +1043,7 @@ static int audio_configure(struct audio_lowerhalf_s *dev,
       case AUDIO_TYPE_INPUT:
       case AUDIO_TYPE_OUTPUT:
         samplerate = caps->ac_controls.hw[0] |
-                     ((uint32_t)caps->ac_controls.hw[1] << 16);
+                     ((uint32_t)caps->ac_controls.b[3] << 16);
 
         if (samplerate != 0 && samplerate != cfg->samplerate)
           {
@@ -1085,6 +1085,9 @@ static int audio_shutdown(struct audio_lowerhalf_s *dev)
     {
       da1470x_dma_stop(priv->dma);
       audio_src_disable(priv);
+      work_cancel(LPWORK, &priv->work);
+      priv->done    = NULL;
+      priv->active  = NULL;
       priv->running = false;
     }
 
@@ -1201,6 +1204,14 @@ static int audio_stop(struct audio_lowerhalf_s *dev)
 
   da1470x_dma_stop(priv->dma);
   audio_src_disable(priv);
+
+  /* A buffer may be sitting with the worker, waiting to be handed back.
+   * Drop it here: once this returns the caller is free to release the
+   * buffers, and the worker must not reach them afterwards.
+   */
+
+  work_cancel(LPWORK, &priv->work);
+  priv->done = NULL;
 
   if (priv->cfg->iface == DA1470X_AUDIO_IF_PCM)
     {
