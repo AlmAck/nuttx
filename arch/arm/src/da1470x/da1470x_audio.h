@@ -46,6 +46,26 @@
 
 #define DA1470X_AUDIO_IF_PDM       0  /* Pulse density, digital microphone */
 #define DA1470X_AUDIO_IF_PCM       1  /* Pulse code serial port */
+#define DA1470X_AUDIO_IF_ADC       2  /* Analogue microphone through the
+                                       * amplifier and the sigma delta
+                                       * converter; capture only */
+
+/* Gain of the programmable amplifier in front of the converter */
+
+#define DA1470X_PGA_GAIN_MINUS12DB 0
+#define DA1470X_PGA_GAIN_MINUS6DB  1
+#define DA1470X_PGA_GAIN_0DB       2
+#define DA1470X_PGA_GAIN_6DB       3
+#define DA1470X_PGA_GAIN_12DB      4
+#define DA1470X_PGA_GAIN_18DB      5
+#define DA1470X_PGA_GAIN_24DB      6
+#define DA1470X_PGA_GAIN_30DB      7
+
+/* How the microphone is wired to the amplifier */
+
+#define DA1470X_PGA_MODE_DIFF      0  /* Both branches, differential */
+#define DA1470X_PGA_MODE_SE_N      1  /* Negative branch alone */
+#define DA1470X_PGA_MODE_SE_P      3  /* Positive branch alone */
 
 /* Frame format of the pulse code port */
 
@@ -97,6 +117,12 @@ struct da1470x_audio_config_s
   uint8_t  pdm_delay;    /* DA1470X_PDM_DELAY_* */
   bool     pdm_master;   /* Drive the clock rather than follow it */
   bool     pdm_swap;     /* Take the other clock edge for this channel */
+
+  /* Analogue interface */
+
+  uint8_t  pga_gain;     /* DA1470X_PGA_GAIN_* */
+  uint8_t  pga_mode;     /* DA1470X_PGA_MODE_* */
+  uint8_t  pga_bias;     /* Amplifier bias current, 0..7; 4 is nominal */
 
   /* Pulse code interface */
 

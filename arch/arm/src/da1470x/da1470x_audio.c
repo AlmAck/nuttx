@@ -61,6 +61,7 @@
 #include "da1470x_pmu.h"
 #include "hardware/da1470x_crg_aud.h"
 #include "hardware/da1470x_pcm.h"
+#include "hardware/da1470x_sdadc.h"
 #include "hardware/da1470x_src.h"
 
 #ifdef CONFIG_DA1470X_AUDIO
@@ -91,6 +92,10 @@
  */
 
 #define AUDIO_SRC_OK_RETRIES   100000
+
+/* How the converter presents a sample: a plain signed 16 bit value */
+
+#define AUDIO_SDADC_RESULT_NORMAL 2
 
 /* Byte offset added to a data register so that a narrow transfer lands on
  * the right lane of the 32 bit word.
@@ -371,6 +376,10 @@ static void audio_src_configure(struct da1470x_audio_dev_s *priv)
     {
       mux |= SRC_MUX_PDM1_MUX_IN;
     }
+  else if (capture && cfg->iface == DA1470X_AUDIO_IF_ADC)
+    {
+      mux |= SRC_MUX_MUX_IN(3);          /* From the analogue converter */
+    }
   else if (capture)
     {
       mux |= SRC_MUX_MUX_IN(1);          /* From the pulse code port */
@@ -397,7 +406,7 @@ static void audio_src_configure(struct da1470x_audio_dev_s *priv)
       putreg32(fs, audio_src_reg(priv, DA1470X_SRC_OUT_FS_OFFSET));
       ctrl |= SRC_CTRL_SRC_OUT_US(filter);
 
-      if (cfg->iface == DA1470X_AUDIO_IF_PCM)
+      if (cfg->iface != DA1470X_AUDIO_IF_PDM)
         {
           fs = audio_src_fs(cfg->samplerate, &filter);
           putreg32(fs, audio_src_reg(priv, DA1470X_SRC_IN_FS_OFFSET));
@@ -481,6 +490,87 @@ static void audio_src_disable(struct da1470x_audio_dev_s *priv)
 {
   modifyreg32(audio_src_reg(priv, DA1470X_SRC_CTRL_OFFSET),
               SRC_CTRL_SRC_EN, 0);
+}
+
+/****************************************************************************
+ * Name: audio_adc_configure
+ *
+ * Description:
+ *   Set the amplifier and the sigma delta converter up for an analogue
+ *   microphone.  The microphone sits on the 3V rail and is always
+ *   running, which is what lets the voice detector listen to the same
+ *   signal while this path is powered down.
+ *
+ ****************************************************************************/
+
+static int audio_adc_configure(struct da1470x_audio_dev_s *priv)
+{
+  const struct da1470x_audio_config_s *cfg = priv->cfg;
+  uint32_t branches;
+
+  if (cfg->direction != DA1470X_AUDIO_CAPTURE)
+    {
+      auderr("ERROR: the analogue path only captures\n");
+      return -EINVAL;
+    }
+
+  /* A single ended microphone only needs the branch it is wired to */
+
+  switch (cfg->pga_mode)
+    {
+      case DA1470X_PGA_MODE_SE_P:
+        branches = 1;
+        break;
+
+      case DA1470X_PGA_MODE_SE_N:
+        branches = 2;
+        break;
+
+      default:
+        branches = 3;
+        break;
+    }
+
+  putreg32(SDADC_PGA_CTRL_PGA_EN(branches) |
+           SDADC_PGA_CTRL_PGA_MODE(cfg->pga_mode) |
+           SDADC_PGA_CTRL_PGA_GAIN(cfg->pga_gain) |
+           SDADC_PGA_CTRL_PGA_BIAS(cfg->pga_bias),
+           DA1470X_SDADC_PGA_CTRL);
+
+  /* No offset correction on the decimation filter to start from */
+
+  putreg32(0, DA1470X_SDADC_AUDIO_FILT);
+
+  /* Hand whole samples to the converter chain rather than to an
+   * interrupt, with the audio decimation filter in the path.
+   */
+
+  putreg32(SDADC_CTRL_RESULT_MODE(AUDIO_SDADC_RESULT_NORMAL) |
+           SDADC_CTRL_AUDIO_FILTER_EN | SDADC_CTRL_DMA_EN |
+           SDADC_CTRL_MINT, DA1470X_SDADC_CTRL);
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: audio_adc_enable
+ ****************************************************************************/
+
+static void audio_adc_enable(struct da1470x_audio_dev_s *priv, bool on)
+{
+  if (on)
+    {
+      modifyreg32(DA1470X_SDADC_CTRL, 0, SDADC_CTRL_EN);
+      modifyreg32(DA1470X_SDADC_CTRL, 0, SDADC_CTRL_START);
+    }
+  else
+    {
+      modifyreg32(DA1470X_SDADC_CTRL,
+                  SDADC_CTRL_EN | SDADC_CTRL_START, 0);
+      putreg32(0, DA1470X_SDADC_PGA_CTRL);
+    }
+
+  UNUSED(priv);
 }
 
 /****************************************************************************
@@ -1014,6 +1104,10 @@ static int audio_start(struct audio_lowerhalf_s *dev)
     {
       ret = audio_pdm_configure(priv);
     }
+  else if (cfg->iface == DA1470X_AUDIO_IF_ADC)
+    {
+      ret = audio_adc_configure(priv);
+    }
   else
     {
       ret = audio_pcm_configure(priv);
@@ -1037,6 +1131,10 @@ static int audio_start(struct audio_lowerhalf_s *dev)
           putreg32(regval | CRG_AUD_PDM_DIV_CLK_PDM_EN,
                    DA1470X_CRG_AUD_PDM_DIV);
         }
+    }
+  else if (cfg->iface == DA1470X_AUDIO_IF_ADC)
+    {
+      audio_adc_enable(priv, true);
     }
   else
     {
@@ -1085,6 +1183,10 @@ static int audio_stop(struct audio_lowerhalf_s *dev)
   if (priv->cfg->iface == DA1470X_AUDIO_IF_PCM)
     {
       modifyreg32(DA1470X_PCM1_CTRL, PCM_CTRL_PCM_EN, 0);
+    }
+  else if (priv->cfg->iface == DA1470X_AUDIO_IF_ADC)
+    {
+      audio_adc_enable(priv, false);
     }
 
   priv->running = false;
@@ -1352,6 +1454,13 @@ da1470x_audio_initialize(const struct da1470x_audio_config_s *config)
 
   if (config->samplerate == 0)
     {
+      return NULL;
+    }
+
+  if (config->iface == DA1470X_AUDIO_IF_ADC &&
+      config->direction != DA1470X_AUDIO_CAPTURE)
+    {
+      auderr("ERROR: the analogue path only captures\n");
       return NULL;
     }
 

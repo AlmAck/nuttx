@@ -31,7 +31,6 @@
 #include <arch/board/board.h>
 
 #include "da1470x_audio.h"
-#include "da1470x_gpio.h"
 #include "da1470x_vad.h"
 #include "da14706-00hzdevkt-p.h"
 
@@ -41,23 +40,28 @@
 
 #ifdef CONFIG_DA1470X_AUDIO
 
-/* One microphone on the pulse density interface, sampled at the rate voice
- * work usually wants.  The bit clock is the lowest the converter accepts
- * for this rate, which keeps the interface quiet.
+/* The microphone fitted to this kit is analogue.  It sits on the 3V rail
+ * and runs all the time, feeding two places at once: the voice activity
+ * detector on its own dedicated pin, which keeps listening while the rest
+ * of the chip sleeps, and the programmable amplifier in front of the
+ * sigma delta converter, which is the recording path below.
+ *
+ * Measured on the kit: with the amplifier in differential mode the output
+ * sits at zero and follows its gain setting, while either single ended
+ * mode parks at a rail, so the microphone is wired across both branches.
  */
 
 static const struct da1470x_audio_config_s g_mic_config =
 {
-  .iface      = DA1470X_AUDIO_IF_PDM,
+  .iface      = DA1470X_AUDIO_IF_ADC,
   .direction  = DA1470X_AUDIO_CAPTURE,
   .srcid      = DA1470X_AUDIO_SRC1,
   .nchannels  = 1,
   .bits       = 16,
   .samplerate = 16000,
-  .pdm_rate   = 1024000,
-  .pdm_delay  = DA1470X_PDM_DELAY_0NS,
-  .pdm_master = true,
-  .pdm_swap   = false
+  .pga_gain   = DA1470X_PGA_GAIN_18DB,
+  .pga_mode   = DA1470X_PGA_MODE_DIFF,
+  .pga_bias   = 4
 };
 
 #endif
@@ -81,8 +85,9 @@ int da1470x_audio_setup(void)
   struct audio_lowerhalf_s *lower;
   int ret;
 
-  da1470x_gpio_config(BOARD_PDM_DATA_PIN);
-  da1470x_gpio_config(BOARD_PDM_CLK_PIN);
+  /* The analogue microphone needs no pin muxing: it lands on dedicated
+   * analogue balls, not on general purpose pins.
+   */
 
   lower = da1470x_audio_initialize(&g_mic_config);
   if (lower == NULL)
