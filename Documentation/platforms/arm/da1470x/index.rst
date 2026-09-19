@@ -187,6 +187,14 @@ a set of rotated, scaled and translucent images, from RAM and from flash,
 with both renderers into a memory display and compares them pixel by
 pixel; it also prints the time each took.
 
+Work in progress
+================
+
+.. toctree::
+   :maxdepth: 1
+
+   extended_sleep
+
 Supported Boards
 ================
 
