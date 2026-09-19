@@ -22,12 +22,12 @@ Two reasons, both measured on the kit:
   so the vendor SDK's "zero means wake-up" test cannot discriminate here.
   It reads 0x06 because ``PMU_CTRL_REG[RESET_ON_WAKEUP]`` routes the
   wake-up through the boot ROM, and that is a reset.
-* The power domain controller already has a trigger pending when the
-  system stops, so it wakes again immediately.  The button entry
-  registered in ``da1470x_bringup.c`` is the likeliest cause -- the pin
-  idles high behind its pull-up and nothing configures the wake-up
-  polarity -- with the ``COMBO`` entry in ``arm_pminitialize()`` behind
-  it.  Neither has been eliminated; see step 5.
+That is the only fault.  An earlier reading of this said the power domain
+controller also had a trigger permanently asserted, so the part woke the
+instant it stopped.  Measurement says otherwise -- see "What the
+registers actually say" below -- and the one-second cycle was simply
+``CONFIG_DA1470X_TICKLESS_MAX_SLEEP_MS`` set to 1000 for bring-up doing
+exactly what it was asked to, against a boot that takes most of a second.
 
 Why RESET_ON_WAKEUP has to go
 =============================
@@ -150,29 +150,50 @@ before ``da1470x_clockconfig()`` speeds anything up -- and
 readable again.  It already calls ``pm_restore_clock()``, which compares
 against what the hardware reports, so it copes with arriving on RCHS.
 
-5. Find the trigger that wakes it immediately
----------------------------------------------
+5. What the registers actually say
+----------------------------------
 
-Independent of the above and worth doing first, because it is cheap and
-it is currently masking everything else: read ``PDC_PENDING_CM33`` just
-before the ``WFI`` and see which entry is set.  Two candidates, both
-already registered:
+Dumped on the running board over SWD, with the restored console build and
+everything idle.  The PDC table holds five entries::
 
-* The ``COMBO`` entry in ``arm_pminitialize()``, kept so a debugger can
-  wake the part, covers VBUS, JTAG and CMAC2SYS -- and VBUS is present
-  whenever the kit is plugged in.
-* The button entry in ``da1470x_bringup.c``.  K1 is an input with a
-  pull-up, so it idles **high**, and nothing configures the wake-up
-  polarity for that pin unless a GPIO interrupt has been enabled on it.
-  If the default polarity counts high as the active level, that entry is
-  asserted permanently and the part wakes the instant it stops.  This is
-  the more likely of the two and it is cheap to test: flip
-  ``WKUP_POL_P1`` bit 22 and see whether the sleep holds.
+    0  0x08B3  PERIPHERAL  COMBO      CM33   EN_XTAL
+    1  0x0987  PERIPHERAL  TIMER2     CM33   EN_XTAL | EN_TMR
+    2  0x089B  PERIPHERAL  RTC_ALARM  CM33   EN_XTAL
+    3  0x08D9  P1_GPIO     pin 22     CM33   EN_XTAL      <- button K1
+    4  0x10A3  PERIPHERAL  MAC_TIMER  CMAC   EN_XTAL
 
-Either way the lesson generalises, so fix it once: a PDC entry is only
-safe to register together with the polarity that makes it inactive at
-rest, which means registering wake pins through the same code that
-configures the wake-up block -- see the next step.
+and ``PDC_PENDING_CM33`` reads zero, repeatedly.  Nothing is asserted, so
+the suspicion that a trigger was holding the part awake was wrong.
+
+The wake-up block tells a more interesting story::
+
+    WKUP_SEL_GPIO_P1  = 0x08     only P1.3
+    WKUP_POL_P1       = 0x08     only P1.3
+    WKUP_SELECT_P1    = 0x00
+    P1_DATA bit 22    = 1        K1 idle high behind its pull-up
+
+P1.3 is the touch controller's interrupt, and it is configured because
+the touch driver arms a GPIO interrupt on it.  Bit 22 is clear: **K1 was
+never routed into the wake-up block at all**, because nothing enables a
+GPIO interrupt on the buttons.
+
+So the two wake sources this board has are each broken, in opposite
+ways:
+
+* **K1** has a PDC entry and no wake-up block configuration, so the
+  trigger can never fire.
+* **Touch** has the wake-up block configured and no PDC entry, so the
+  event never reaches the power domain controller.
+
+Neither would wake the watch, and neither failure is visible until PD_SYS
+is actually switched off -- with the domain powered, the touch interrupt
+still arrives through the NVIC as usual and nobody notices the missing
+half.
+
+This is the argument for the next step in its strongest form: the entry
+and the pin configuration are kept in two different places, by two
+different pieces of code, and they have already drifted apart in both
+directions.
 
 6. Register the wake sources
 ----------------------------
@@ -199,7 +220,8 @@ Bluetooth event            --                     ``PERIPH_CMAC2SYS``
 K2 and the touch interrupt are missing today.  Adding them to the board
 bring-up alongside K1 is the small version of the fix.
 
-The better version is to stop keeping a list at all.  Have
+The better version, and the one the register dump above argues for, is to
+stop keeping a list at all.  Have
 ``da1470x_gpioirq_enable()`` add the entry and ``da1470x_gpioirq_disable()``
 remove it whenever extended sleep is configured.  Then any pin a driver
 arms an interrupt on becomes a wake source by construction -- buttons,
