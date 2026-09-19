@@ -179,6 +179,11 @@ void __start(void)
    * status: nothing sets it on a wake-up, and goto_deepsleep() zeroed it
    * on the way down, so a zero here means the RAM still holds a running
    * system and must not be re-initialised.
+   *
+   * This check has to stay ahead of every peripheral initialisation, not
+   * merely ahead of the data and bss setup.  da1470x_gpioirq_initialize()
+   * in particular clears the wake-up block's event status, and the event
+   * sitting there on a resume is the button press that caused it.
    */
 
   if (getreg32(DA1470X_CRG_TOP_RESET_STAT) == 0)

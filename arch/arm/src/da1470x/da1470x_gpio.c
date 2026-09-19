@@ -394,6 +394,15 @@ void da1470x_gpioirq_initialize(void)
       putreg32(0, DA1470X_WAKEUP_SEL_GPIO_P(p));
       putreg32(0, DA1470X_WAKEUP_SEL1_GPIO_P(p));
       putreg32(0, DA1470X_WAKEUP_POL_P(p));
+      /* This throws away every pending wake-up event, which is right on a
+       * cold boot and wrong on any other path: an event latched here is a
+       * button press that woke the system, and the press is lost if it is
+       * cleared before the driver reads it.  A resume from a sleep that
+       * switched PD_SYS off arrives through the reset vector like a boot
+       * does, so it has to branch away before reaching this -- see the
+       * check at the top of __start().
+       */
+
       putreg32(0xffffffff, DA1470X_WAKEUP_CLEAR_P(p));
     }
 
