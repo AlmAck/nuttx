@@ -102,6 +102,20 @@ enum da1470x_lpclk_e
 void da1470x_clockconfig(void);
 
 /****************************************************************************
+ * Name: da1470x_set_lpclk
+ *
+ * Description:
+ *   Point the low power clock at another source.  The 32.768 kHz crystal
+ *   has no ready flag and takes a few hundred milliseconds to start, so
+ *   the caller has to establish that it is oscillating -- in practice by
+ *   watching a counter clocked from it -- and switch back on its own if it
+ *   is not.
+ *
+ ****************************************************************************/
+
+void da1470x_set_lpclk(enum da1470x_lpclk_e clk);
+
+/****************************************************************************
  * Name: da1470x_set_sysclk
  *
  * Description:

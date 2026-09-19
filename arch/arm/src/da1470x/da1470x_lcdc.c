@@ -105,6 +105,8 @@ struct da1470x_lcdc_s
   int      reqbuf;                            /* Queued transfer: buffer */
 #endif
   bool     initialized;
+  bool     poweron;                            /* Panel is lit and holding
+                                               * the system at PM_NORMAL */
 };
 
 /****************************************************************************
@@ -119,6 +121,8 @@ static int lcdc_updatearea(struct fb_vtable_s *vtable,
                            const struct fb_area_s *area);
 static int lcdc_pandisplay(struct fb_vtable_s *vtable,
                            struct fb_planeinfo_s *pinfo);
+static int lcdc_getpower(struct fb_vtable_s *vtable);
+static int lcdc_setpower(struct fb_vtable_s *vtable, int power);
 
 /****************************************************************************
  * Private Data
@@ -132,6 +136,8 @@ static struct da1470x_lcdc_s g_lcdc =
     .getplaneinfo = lcdc_getplaneinfo,
     .updatearea   = lcdc_updatearea,
     .pandisplay   = lcdc_pandisplay,
+    .getpower     = lcdc_getpower,
+    .setpower     = lcdc_setpower,
   },
   .lock  = NXMUTEX_INITIALIZER,
   .frame = SEM_INITIALIZER(0),
@@ -790,6 +796,15 @@ static int lcdc_updatearea(struct fb_vtable_s *vtable,
       return -ENODEV;
     }
 
+  if (!priv->poweron)
+    {
+      /* A dark panel takes no pixels, but a client that keeps drawing is
+       * not in error either.
+       */
+
+      return OK;
+    }
+
   /* The row range names the buffer: rows beyond the visible height are
    * the second buffer.  Clients that pan (LVGL, the fb example) always
    * update with the offset of the buffer they drew into, so the area is
@@ -899,7 +914,7 @@ static int lcdc_pandisplay(struct fb_vtable_s *vtable,
    * transfer the same area from it.
    */
 
-  if (buf != priv->lastbuf && priv->pending.w != 0)
+  if (priv->poweron && buf != priv->lastbuf && priv->pending.w != 0)
     {
       lcdc_transfer(priv, buf, priv->pending.x, priv->pending.y,
                     priv->pending.w, priv->pending.h, false);
@@ -915,6 +930,110 @@ static int lcdc_pandisplay(struct fb_vtable_s *vtable,
     }
 
   return OK;
+}
+
+/****************************************************************************
+ * Name: lcdc_getpower
+ ****************************************************************************/
+
+static int lcdc_getpower(struct fb_vtable_s *vtable)
+{
+  struct da1470x_lcdc_s *priv = (struct da1470x_lcdc_s *)vtable;
+
+  return priv->poweron ? 1 : 0;
+}
+
+/****************************************************************************
+ * Name: lcdc_setpower
+ *
+ * Description:
+ *   Light the panel or put it out.  This is also where the display hands
+ *   the system back to the power manager: while the panel is lit the
+ *   driver holds PM_NORMAL, because the pixel clock is derived from the
+ *   system clock and a frame drawn at a quarter of the speed is a frame
+ *   that misses its refresh.  With the panel dark nothing here needs the
+ *   fast clock, the hold is released and the part is free to descend as
+ *   far as the rest of the system allows.
+ *
+ ****************************************************************************/
+
+static int lcdc_setpower(struct fb_vtable_s *vtable, int power)
+{
+  struct da1470x_lcdc_s *priv = (struct da1470x_lcdc_s *)vtable;
+  const struct da1470x_lcdc_panel_s *panel;
+  int ret = OK;
+
+  if (!priv->initialized)
+    {
+      return -ENODEV;
+    }
+
+  ret = nxmutex_lock(&priv->lock);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  panel = priv->panel;
+
+  if (power > 0 && !priv->poweron)
+    {
+#ifdef CONFIG_PM
+      pm_stay(PM_IDLE_DOMAIN, PM_NORMAL);
+#endif
+      putreg32(CRG_SYS_CLK_SYS_LCD_ENABLE, DA1470X_CRG_SYS_SET_CLK_SYS);
+
+      if (panel->iface == DA1470X_LCDC_IF_JDI_PARALLEL)
+        {
+          lcdc_jdi_configure(panel);
+        }
+      else
+        {
+          lcdc_qspi_configure(panel);
+        }
+
+      lcdc_set_timing(panel, panel->xres, panel->yres);
+      lcdc_set_layer0(priv, priv->fbmem + (size_t)priv->shown * priv->buflen,
+                      panel->xres, panel->yres);
+
+      if (panel->power != NULL)
+        {
+          panel->power(panel, true);
+        }
+
+      if (panel->init != NULL)
+        {
+          ret = panel->init(panel);
+        }
+
+      priv->poweron = true;
+    }
+  else if (power == 0 && priv->poweron)
+    {
+      /* Nothing may be on the wire when the panel loses its supply */
+
+#ifdef CONFIG_DA1470X_LCDC_ASYNC
+      nxsem_wait_uninterruptible(&priv->idle);
+      nxsem_post(&priv->idle);
+#endif
+
+      if (panel->power != NULL)
+        {
+          panel->power(panel, false);
+        }
+
+      putreg32(0, DA1470X_LCDC_INTERRUPT);
+      putreg32(CRG_SYS_CLK_SYS_LCD_ENABLE, DA1470X_CRG_SYS_RESET_CLK_SYS);
+
+      priv->poweron = false;
+      priv->pending.w = 0;
+#ifdef CONFIG_PM
+      pm_relax(PM_IDLE_DOMAIN, PM_NORMAL);
+#endif
+    }
+
+  nxmutex_unlock(&priv->lock);
+  return ret;
 }
 
 /****************************************************************************
@@ -1072,6 +1191,15 @@ int da1470x_lcdc_register(const struct da1470x_lcdc_panel_s *panel)
         }
     }
 
+  /* The panel is lit from here on, and holds the system at its full clock
+   * until something turns the display off through FBIOSET_POWER.
+   */
+
+  priv->poweron = true;
+#ifdef CONFIG_PM
+  pm_stay(PM_IDLE_DOMAIN, PM_NORMAL);
+#endif
+
 #ifdef CONFIG_DA1470X_LCDC_ASYNC
   ret = kthread_create("lcdc", LCDC_THREAD_PRIORITY, LCDC_THREAD_STACKSIZE,
                        lcdc_thread, NULL);
@@ -1158,9 +1286,17 @@ void up_fbuninitialize(int display)
   up_disable_irq(DA1470X_IRQ_LCD);
   irq_detach(DA1470X_IRQ_LCD);
 
-  if (priv->panel->power != NULL)
+  if (priv->poweron)
     {
-      priv->panel->power(priv->panel, false);
+      if (priv->panel->power != NULL)
+        {
+          priv->panel->power(priv->panel, false);
+        }
+
+      priv->poweron = false;
+#ifdef CONFIG_PM
+      pm_relax(PM_IDLE_DOMAIN, PM_NORMAL);
+#endif
     }
 
   putreg32(0, DA1470X_LCDC_LAYER0_MODE);

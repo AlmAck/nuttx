@@ -56,12 +56,25 @@ extern "C"
 void da1470x_pm_normal(void);
 
 /****************************************************************************
+ * Name: da1470x_pm_idle
+ *
+ * Description:
+ *   Prepare the PM_IDLE state: the clock tree the application asked for is
+ *   left alone and only the core stops at WFI, so the wake-up is free.
+ *
+ ****************************************************************************/
+
+void da1470x_pm_idle(void);
+
+/****************************************************************************
  * Name: da1470x_pm_standby
  *
  * Description:
- *   Prepare the PM_STANDBY state: the core clock is gated on WFI with all
- *   power domains and RAM retained (SCR.SLEEPDEEP with PMU SYS_SLEEP off).
- *   Any NVIC interrupt wakes the core.
+ *   Prepare the PM_STANDBY state: the system clock drops to the crystal so
+ *   the PLL and the high speed RC oscillator stop, and the core is allowed
+ *   to deep sleep at WFI with every power domain and all of the RAM still
+ *   alive (SCR.SLEEPDEEP with PMU SYS_SLEEP off).  Any NVIC interrupt
+ *   wakes the core.
  *
  ****************************************************************************/
 

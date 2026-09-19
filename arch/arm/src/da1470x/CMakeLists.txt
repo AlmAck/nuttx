@@ -25,8 +25,13 @@ set(SRCS
     da1470x_irq.c
     da1470x_lowputc.c
     da1470x_start.c
-    da1470x_systick.c
     da1470x_pmu.c)
+
+if(CONFIG_DA1470X_TICKLESS)
+  list(APPEND SRCS da1470x_tickless.c)
+else()
+  list(APPEND SRCS da1470x_systick.c)
+endif()
 
 if(NOT CONFIG_ARCH_IDLE_CUSTOM)
   list(APPEND SRCS da1470x_idle.c)

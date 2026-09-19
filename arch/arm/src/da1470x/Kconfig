@@ -199,6 +199,35 @@ config DA1470X_PDC
 		Driver for the PDC lookup table that wakes the M33 from sleep on
 		RTC, timer, GPIO or radio events.
 
+config DA1470X_TICKLESS
+	bool "Tickless system time from a low power timer"
+	default n
+	select SCHED_TICKLESS
+	select SCHED_TICKLESS_ALARM
+	---help---
+		Take the system time from one of the general purpose timers
+		running off the low power clock instead of from SysTick.
+
+		SysTick counts the processor clock, so with it as the time base
+		the core has to wake at every tick and loses time whenever its
+		clock stops.  The timer block sits in PD_TIM and keeps counting
+		while PD_SYS is off, so the idle logic can ask for a wake-up
+		seconds away and the part can actually sleep in between.
+
+		Resolution is one low power clock cycle, about 30 us with the
+		32768 Hz crystal.
+
+config DA1470X_TICKLESS_TIMER
+	int "Timer instance carrying the system time"
+	default 2
+	range 1 2
+	depends on DA1470X_TICKLESS
+	---help---
+		Only TIMER and TIMER2 can be clocked from the low power clock
+		and stay alive while the system sleeps.  TIMER is the one with
+		the four capture inputs, so the second is the better default to
+		spend on the clock.
+
 config DA1470X_PM
 	bool "Power management (CONFIG_PM lower half)"
 	default n
@@ -216,6 +245,21 @@ config DA1470X_PM_EXTENDED_SLEEP
 	---help---
 		Save the core context and let the PMU switch PD_SYS off for the
 		PM_SLEEP state, resuming through the reset vector.  Experimental.
+
+config DA1470X_PM_LOWER_V12
+	bool "Drop the core rail to 0.9 V while the clock is lowered"
+	default n
+	depends on DA1470X_PM
+	---help---
+		The core only needs 1.2 V for the PLL and for the faster
+		settings of the high speed RC oscillator.  While a low-power
+		state holds the system clock at the 32 MHz crystal the rail can
+		come down to 0.9 V.
+
+		This is off by default because the read timing the boot ROM
+		programmed into the flash controller was chosen at 1.2 V, so a
+		part that reads its code over OQSPI should be measured at the
+		lower voltage before trusting it.
 
 config DA1470X_OQSPI_MTD
 	bool "OQSPI flash controller MTD driver"
@@ -490,6 +534,19 @@ config DA1470X_CLOCK_LPCLK_SRC_EXTERNAL
 	bool "External clock on a GPIO"
 
 endchoice
+
+config DA1470X_XTAL32K_SETTLE_MS
+	int "How long to wait for the 32.768 kHz crystal to start"
+	default 1000
+	range 1 4000
+	depends on DA1470X_CLOCK_LPCLK_SRC_XTAL32K
+	---help---
+		The crystal has no ready flag, so the system runs on the RC
+		oscillator until a counter clocked from the low power clock is
+		seen to move with the crystal selected.  A watch crystal needs
+		a few hundred milliseconds of bias; this is how long to keep
+		looking before deciding it is not fitted and going back to the
+		RC oscillator.
 
 endif # DA1470X_USE_LFCLK
 

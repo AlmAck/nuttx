@@ -141,6 +141,19 @@ static int clk_select_sysclk(uint32_t sel, uint32_t running)
 }
 
 /****************************************************************************
+ * Name: clk_lpclk_select
+ ****************************************************************************/
+
+static void clk_lpclk_select(uint32_t sel)
+{
+  uint32_t regval = getreg32(DA1470X_CRG_TOP_CLK_CTRL);
+
+  regval &= ~CRG_TOP_CLK_CTRL_LP_CLK_SEL_MASK;
+  regval |= CRG_TOP_CLK_CTRL_LP_CLK_SEL(sel);
+  putreg32(regval, DA1470X_CRG_TOP_CLK_CTRL);
+}
+
+/****************************************************************************
  * Name: clk_lpclk_config
  *
  * Description:
@@ -151,16 +164,26 @@ static int clk_select_sysclk(uint32_t sel, uint32_t running)
 static void clk_lpclk_config(void)
 {
 #ifdef CONFIG_DA1470X_USE_LFCLK
-  uint32_t regval;
   uint32_t sel;
 
 #if defined(CONFIG_DA1470X_CLOCK_LPCLK_SRC_RCX)
   modifyreg32(DA1470X_CRG_TOP_CLK_RCX, 0, CRG_TOP_CLK_RCX_RCX_ENABLE);
   sel = LP_CLK_SEL_RCX;
 #elif defined(CONFIG_DA1470X_CLOCK_LPCLK_SRC_XTAL32K)
+
+  /* A watch crystal needs a few hundred milliseconds of bias before it
+   * produces anything, and there is no status bit that says when it does.
+   * So start it here and leave the system on the RC oscillator, which is
+   * running already; da1470x_set_lpclk() moves over to the crystal once
+   * something can see it counting.
+   */
+
   modifyreg32(DA1470X_CRG_TOP_CLK_XTAL32K, 0,
               CRG_TOP_CLK_XTAL32K_XTAL32K_ENABLE);
-  sel = LP_CLK_SEL_XTAL32K;
+  modifyreg32(DA1470X_CRG_TOP_CLK_RCLP, 0,
+              CRG_TOP_CLK_RCLP_RCLP_ENABLE |
+              CRG_TOP_CLK_RCLP_RCLP_LOW_SPEED_FORCE);
+  sel = LP_CLK_SEL_RCLP;
 #elif defined(CONFIG_DA1470X_CLOCK_LPCLK_SRC_EXTERNAL)
   sel = LP_CLK_SEL_EXTERNAL;
 #else
@@ -174,10 +197,7 @@ static void clk_lpclk_config(void)
   sel = LP_CLK_SEL_RCLP;
 #endif
 
-  regval  = getreg32(DA1470X_CRG_TOP_CLK_CTRL);
-  regval &= ~CRG_TOP_CLK_CTRL_LP_CLK_SEL_MASK;
-  regval |= CRG_TOP_CLK_CTRL_LP_CLK_SEL(sel);
-  putreg32(regval, DA1470X_CRG_TOP_CLK_CTRL);
+  clk_lpclk_select(sel);
 #endif
 }
 
@@ -533,6 +553,25 @@ uint32_t da1470x_get_lpclk(void)
 
         return DA1470X_RCLP_FAST_FREQ;
     }
+}
+
+/****************************************************************************
+ * Name: da1470x_set_lpclk
+ *
+ * Description:
+ *   Point the low power clock at another source.  The crystal has no ready
+ *   flag, so the caller is the one that has to know it is oscillating --
+ *   in practice by watching a counter that runs from this clock.
+ *
+ ****************************************************************************/
+
+void da1470x_set_lpclk(enum da1470x_lpclk_e clk)
+{
+  irqstate_t flags = enter_critical_section();
+
+  clk_lpclk_select((uint32_t)clk);
+
+  leave_critical_section(flags);
 }
 
 /****************************************************************************
