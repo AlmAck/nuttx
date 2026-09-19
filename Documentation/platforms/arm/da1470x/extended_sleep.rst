@@ -221,6 +221,28 @@ on their presses.  Worth knowing for anyone repeating it -- the
 coordinate with a person at the bench, so an instrumented handler and a
 long window is the way to test this.
 
+The delivery half is now answered for the state that works today.  With
+the panel off and the board asleep at 3.6 mA, a press on K1 reached the
+handler and took the system to 20.3 mA -- so the wake-up block latches the
+event, the interrupt survives the low-power state and the press is not
+lost.  The silicon guarantees this much: the datasheet says the port
+interrupt lines "are kept asserted until acknowledged by SW", precisely so
+that a processor whose domain was switched off can still take them.
+
+What that leaves is a software question, and an audit answers it.  Four
+places clear the wake-up status: the dispatcher clears what it delivers,
+attach and enable clear a stale event before arming -- all correct -- and
+``da1470x_gpioirq_initialize()`` wipes every port, which is right for a
+cold boot and destructive on a resume, because the event it throws away
+is the press that caused the wake-up.  The resume path itself touches
+nothing in the block.
+
+So the invariant to keep is one of ordering: **the resume check at the top
+of __start() must stay ahead of every peripheral initialisation**, not
+merely ahead of the data and bss setup.  Break that and button wake-up
+fails in a way that looks like a dropped press rather than a start-up
+ordering mistake.  Both sites now say so.
+
 What is still unproven is the other half of a press: that the event
 survives the resume and reaches the application.  The power domain
 controller brings the system back, and the press itself is then an
