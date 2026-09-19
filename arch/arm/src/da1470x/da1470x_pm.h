@@ -92,6 +92,54 @@ void da1470x_pm_standby(void);
 
 void da1470x_pm_sleep(void);
 
+/****************************************************************************
+ * Name: da1470x_pm_deepsleep_armed
+ *
+ * Description:
+ *   True when the last state change asked for PD_SYS to be switched off,
+ *   so the idle loop should save its context rather than plainly stop.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_DA1470X_PM_EXTENDED_SLEEP
+bool da1470x_pm_deepsleep_armed(void);
+
+/****************************************************************************
+ * Name: goto_deepsleep
+ *
+ * Description:
+ *   Write the processor state to retained RAM and stop with PD_SYS allowed
+ *   to go away.  Returns false if the part never slept, true if it slept
+ *   and has just come back -- in which case the return was manufactured by
+ *   the reset path, not by the WFI.
+ *
+ ****************************************************************************/
+
+bool goto_deepsleep(void);
+
+/****************************************************************************
+ * Name: wakeup_from_deepsleep
+ *
+ * Description:
+ *   Entry point the reset path jumps to when it finds the reset status
+ *   zeroed.  Never returns to its caller; it returns into goto_deepsleep's.
+ *
+ ****************************************************************************/
+
+void wakeup_from_deepsleep(void) noreturn_function;
+
+/****************************************************************************
+ * Name: da1470x_pm_resume
+ *
+ * Description:
+ *   Put back what PD_SYS going away cost us: the clock the application was
+ *   running on, and the core's floating point configuration.
+ *
+ ****************************************************************************/
+
+void da1470x_pm_resume(void);
+#endif
+
 #endif /* CONFIG_PM */
 
 #undef EXTERN

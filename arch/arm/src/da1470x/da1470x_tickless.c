@@ -51,6 +51,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
 #include <nuttx/clock.h>
+#include <sys/param.h>
 
 #include "arm_internal.h"
 #include "hardware/da1470x_timer.h"
@@ -88,7 +89,19 @@
  * wrap is always seen by the interrupt that follows it.
  */
 
-#define TL_MAX_DELAY  (TL_PERIOD / 2)
+#define TL_WRAP_DELAY (TL_PERIOD / 2)
+
+/* A configured limit shortens that, so the system is seen to be alive even
+ * when nothing is due.
+ */
+
+#if CONFIG_DA1470X_TICKLESS_MAX_SLEEP_MS > 0
+#  define TL_MAX_DELAY(freq) \
+     MIN(TL_WRAP_DELAY, \
+         ((uint64_t)(freq) * CONFIG_DA1470X_TICKLESS_MAX_SLEEP_MS) / 1000)
+#else
+#  define TL_MAX_DELAY(freq)  TL_WRAP_DELAY
+#endif
 
 /* The comparator value is resynchronised into the low power clock domain
  * and that takes up to two of its cycles, so a value less than three counts
@@ -183,7 +196,7 @@ static uint64_t tl_ts2count(const struct timespec *ts)
 static void tl_arm(void)
 {
   uint64_t now = tl_getcount();
-  uint64_t target = now + TL_MAX_DELAY;
+  uint64_t target = now + TL_MAX_DELAY(g_tickless.freq);
   uint32_t regval;
 
   if (g_tickless.alarm_set && g_tickless.alarm < target)

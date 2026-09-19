@@ -217,6 +217,21 @@ config DA1470X_TICKLESS
 		Resolution is one low power clock cycle, about 30 us with the
 		32768 Hz crystal.
 
+config DA1470X_TICKLESS_MAX_SLEEP_MS
+	int "Longest the system may sleep without waking (ms, 0 = no limit)"
+	default 0
+	range 0 250000
+	depends on DA1470X_TICKLESS
+	---help---
+		Wake the system at least this often even when nothing has asked
+		to be woken.  Zero lets it sleep until the next thing that is
+		actually due, which is what costs least.
+
+		A limit is worth setting when something outside the system time
+		has to be noticed -- a console with no wake-up pin behind it, or
+		a watchdog -- because it bounds how long the board can appear
+		unresponsive.
+
 config DA1470X_TICKLESS_TIMER
 	int "Timer instance carrying the system time"
 	default 2
@@ -238,13 +253,47 @@ config DA1470X_PM
 		STANDBY = clock-gated sleep with all RAM retained and PD_SYS
 		kept alive.
 
+config DA1470X_PM_DISABLE_DEBUGGER
+	bool "Close the debug port while the system sleeps"
+	default y
+	depends on DA1470X_PM
+	---help---
+		An enabled debug port keeps part of the clock tree alive whether
+		or not a probe is attached, which is current spent for nothing
+		once the system is asleep.  Close it on the way down and open it
+		again on the way back up.
+
+		While the part sleeps a probe cannot attach.  The way back in is
+		a reset through the reset pin, which restarts the boot ROM and
+		re-opens the port -- the same reset tools/da1470x_flash.sh
+		already performs, so flashing keeps working.
+
 config DA1470X_PM_EXTENDED_SLEEP
 	bool "Extended sleep (PD_SYS off) for PM_SLEEP"
 	default n
 	depends on DA1470X_PM
 	---help---
 		Save the core context and let the PMU switch PD_SYS off for the
-		PM_SLEEP state, resuming through the reset vector.  Experimental.
+		PM_SLEEP state, resuming through the reset vector.
+
+		INCOMPLETE -- do not enable.  The part does sleep and does wake,
+		but the resume is not recognised and every wake-up comes back as
+		a cold boot, so a board with this on boot-loops.
+
+		Two things are missing.  The reset status register cannot tell a
+		wake-up from a reset here: RESET_ON_WAKEUP sends the wake-up
+		through the boot ROM, which leaves the same bits set as the
+		reset pin does, and nothing clears them in between.  And the
+		power domain controller has a trigger pending as soon as the
+		system stops, so it wakes again immediately.
+
+		The way out is the one the vendor SDK takes: drop
+		RESET_ON_WAKEUP so the wake-up does not reset anything, put the
+		vector table and the resume path in retained RAM and point the
+		remap at it, so the processor comes back without the boot ROM
+		and without needing the flash controller before it has been set
+		up again.  That is a change to how this port boots, which is why
+		it is not done here.
 
 config DA1470X_PM_LOWER_V12
 	bool "Drop the core rail to 0.9 V while the clock is lowered"
@@ -260,6 +309,31 @@ config DA1470X_PM_LOWER_V12
 		programmed into the flash controller was chosen at 1.2 V, so a
 		part that reads its code over OQSPI should be measured at the
 		lower voltage before trusting it.
+
+config DA1470X_PM_WAKE_GPIO
+	bool "Let a pin wake the system from extended sleep"
+	default n
+	depends on DA1470X_PM
+	---help---
+		With PD_SYS switched off an interrupt no longer reaches the
+		processor; only the power domain controller can bring it back.
+		Register a pin with the controller so that an edge on it wakes
+		the system.
+
+		The console receive line is the usual choice, so that a board
+		asleep on the bench still answers a keystroke.
+
+config DA1470X_PM_WAKE_GPIO_PORT
+	int "Port of the wake-up pin"
+	default 2
+	range 0 2
+	depends on DA1470X_PM_WAKE_GPIO
+
+config DA1470X_PM_WAKE_GPIO_PIN
+	int "Pin number of the wake-up pin"
+	default 1
+	range 0 31
+	depends on DA1470X_PM_WAKE_GPIO
 
 config DA1470X_OQSPI_MTD
 	bool "OQSPI flash controller MTD driver"

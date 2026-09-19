@@ -155,9 +155,26 @@ void up_idle(void)
   BEGIN_IDLE();
   da1470x_idlepm();
 
-  /* Sleep until an interrupt arrives */
+  /* Sleep until an interrupt arrives.  When the state we just entered
+   * allows PD_SYS to go away, the processor loses its registers while it
+   * is stopped, so the context is written to retained RAM first and the
+   * reset path brings us back here.
+   */
 
-  asm("WFI");
+#ifdef CONFIG_DA1470X_PM_EXTENDED_SLEEP
+  if (da1470x_pm_deepsleep_armed())
+    {
+      if (goto_deepsleep())
+        {
+          da1470x_pm_resume();
+        }
+    }
+  else
+#endif
+    {
+      asm("WFI");
+    }
+
   END_IDLE();
 #endif
 }

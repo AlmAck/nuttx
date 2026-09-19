@@ -40,6 +40,7 @@
 #include "hardware/da1470x_sys_wdog.h"
 #include "da1470x_lowputc.h"
 #include "da1470x_start.h"
+#include "da1470x_pm.h"
 #include "da1470x_serial.h"
 #include "da1470x_clockconfig.h"
 #include "da1470x_pmu.h"
@@ -170,6 +171,21 @@ void __start(void)
 
   __asm__ __volatile__ ("dsb" : : : "memory");
   __asm__ __volatile__ ("isb" : : : "memory");
+
+#ifdef CONFIG_DA1470X_PM_EXTENDED_SLEEP
+  /* A wake-up from a sleep that switched PD_SYS off arrives here exactly
+   * as a reset does, because that is what the hardware does with the
+   * processor.  The one thing that tells the two apart is the reset
+   * status: nothing sets it on a wake-up, and goto_deepsleep() zeroed it
+   * on the way down, so a zero here means the RAM still holds a running
+   * system and must not be re-initialised.
+   */
+
+  if (getreg32(DA1470X_CRG_TOP_RESET_STAT) == 0)
+    {
+      wakeup_from_deepsleep();
+    }
+#endif
 
   /* Enable the FPU before any code that the compiler may have given
    * floating-point registers to use.

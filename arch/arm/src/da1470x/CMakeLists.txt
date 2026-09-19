@@ -27,6 +27,10 @@ set(SRCS
     da1470x_start.c
     da1470x_pmu.c)
 
+if(CONFIG_DA1470X_PM_EXTENDED_SLEEP)
+  list(APPEND SRCS da1470x_deepsleep.S)
+endif()
+
 if(CONFIG_DA1470X_TICKLESS)
   list(APPEND SRCS da1470x_tickless.c)
 else()

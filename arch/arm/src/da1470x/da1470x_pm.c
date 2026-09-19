@@ -70,6 +70,14 @@
 static enum da1470x_sysclk_e g_pm_saved_sysclk = DA1470X_SYSCLK_XTAL32M;
 static bool g_pm_clock_lowered;
 
+#ifdef CONFIG_DA1470X_PM_EXTENDED_SLEEP
+/* Set while PM_SLEEP is the current state, so that the idle loop knows to
+ * save its context before stopping.  Retained across the sleep itself.
+ */
+
+static bool g_pm_deepsleep_armed;
+#endif
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -93,6 +101,39 @@ static void pm_set_sleepdeep(bool enable)
 
   putreg32(regval, NVIC_SYSCON);
 }
+
+/****************************************************************************
+ * Name: pm_debugger
+ *
+ * Description:
+ *   Leave the debug port enabled or not.  An enabled debugger keeps parts
+ *   of the clock tree alive whether or not a probe is attached, which is
+ *   current spent for nothing once the system is asleep.
+ *
+ *   Turning it off means a probe cannot attach while the part sleeps.  The
+ *   way back in is a reset through the reset pin, which restarts the boot
+ *   ROM and re-enables the port -- the same reset the flashing script
+ *   already performs.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_DA1470X_PM_DISABLE_DEBUGGER
+static void pm_debugger(bool enable)
+{
+  if (enable)
+    {
+      modifyreg32(DA1470X_CRG_TOP_SYS_CTRL, 0,
+                  CRG_TOP_SYS_CTRL_DEBUGGER_ENABLE);
+    }
+  else
+    {
+      modifyreg32(DA1470X_CRG_TOP_SYS_CTRL,
+                  CRG_TOP_SYS_CTRL_DEBUGGER_ENABLE, 0);
+    }
+}
+#else
+#  define pm_debugger(enable)
+#endif
 
 /****************************************************************************
  * Name: pm_lower_clock
@@ -186,9 +227,13 @@ static void pm_restore_clock(void)
 void da1470x_pm_normal(void)
 {
   pm_set_sleepdeep(false);
+  pm_debugger(true);
 
 #ifdef CONFIG_DA1470X_PM_EXTENDED_SLEEP
-  modifyreg32(DA1470X_CRG_TOP_PMU_CTRL, CRG_TOP_PMU_CTRL_SYS_SLEEP, 0);
+  g_pm_deepsleep_armed = false;
+  modifyreg32(DA1470X_CRG_TOP_PMU_CTRL,
+              CRG_TOP_PMU_CTRL_SYS_SLEEP |
+              CRG_TOP_PMU_CTRL_RESET_ON_WAKEUP, 0);
 #endif
 
   /* The core's FPU access and context-control registers do not survive
@@ -216,6 +261,15 @@ void da1470x_pm_normal(void)
 void da1470x_pm_idle(void)
 {
   pm_set_sleepdeep(false);
+  pm_debugger(true);
+
+#ifdef CONFIG_DA1470X_PM_EXTENDED_SLEEP
+  g_pm_deepsleep_armed = false;
+  modifyreg32(DA1470X_CRG_TOP_PMU_CTRL,
+              CRG_TOP_PMU_CTRL_SYS_SLEEP |
+              CRG_TOP_PMU_CTRL_RESET_ON_WAKEUP, 0);
+#endif
+
   pm_restore_clock();
 }
 
@@ -226,7 +280,15 @@ void da1470x_pm_idle(void)
 void da1470x_pm_standby(void)
 {
   pm_lower_clock();
+  pm_debugger(false);
   pm_set_sleepdeep(true);
+
+#ifdef CONFIG_DA1470X_PM_EXTENDED_SLEEP
+  g_pm_deepsleep_armed = false;
+  modifyreg32(DA1470X_CRG_TOP_PMU_CTRL,
+              CRG_TOP_PMU_CTRL_SYS_SLEEP |
+              CRG_TOP_PMU_CTRL_RESET_ON_WAKEUP, 0);
+#endif
 }
 
 /****************************************************************************
@@ -236,19 +298,75 @@ void da1470x_pm_standby(void)
 void da1470x_pm_sleep(void)
 {
   pm_lower_clock();
+  pm_debugger(false);
   pm_set_sleepdeep(true);
 
 #ifdef CONFIG_DA1470X_PM_EXTENDED_SLEEP
-  /* Let the PMU switch PD_SYS off on the next WFI.  The core context is
-   * lost; the PDC brings PD_SYS back on a registered trigger and the
-   * reset handler resumes through the retained state.
+  /* Let the PMU switch PD_SYS off on the next stop.  The core context goes
+   * away with it, so the idle loop has to save it first -- which is what
+   * the armed flag tells it to do.
+   *
+   * RESET_ON_WAKEUP sends the wake-up through the boot ROM.  That costs a
+   * few milliseconds of latency, and buys a processor that comes back with
+   * its flash controller and clock tree already set up, which is the only
+   * way the resume path can be ordinary code executing in place from
+   * flash.
    */
 
-#  ifdef CONFIG_DA1470X_PDC
   da1470x_pdc_ack_all_cm33();
-#  endif
-  modifyreg32(DA1470X_CRG_TOP_PMU_CTRL, 0, CRG_TOP_PMU_CTRL_SYS_SLEEP);
+  modifyreg32(DA1470X_CRG_TOP_PMU_CTRL, 0,
+              CRG_TOP_PMU_CTRL_SYS_SLEEP |
+              CRG_TOP_PMU_CTRL_RESET_ON_WAKEUP);
+  g_pm_deepsleep_armed = true;
 #endif
 }
+
+#ifdef CONFIG_DA1470X_PM_EXTENDED_SLEEP
+
+/****************************************************************************
+ * Name: da1470x_pm_deepsleep_armed
+ ****************************************************************************/
+
+bool da1470x_pm_deepsleep_armed(void)
+{
+  return g_pm_deepsleep_armed;
+}
+
+/****************************************************************************
+ * Name: da1470x_pm_resume
+ ****************************************************************************/
+
+void da1470x_pm_resume(void)
+{
+  /* We came back through the reset vector, so the boot ROM left the system
+   * on its own clock and the core's coprocessor access as it found it.
+   */
+
+  modifyreg32(DA1470X_CRG_TOP_PMU_CTRL,
+              CRG_TOP_PMU_CTRL_SYS_SLEEP |
+              CRG_TOP_PMU_CTRL_RESET_ON_WAKEUP, 0);
+  g_pm_deepsleep_armed = false;
+
+#ifdef CONFIG_ARCH_FPU
+  arm_fpuconfig();
+#endif
+
+  pm_debugger(true);
+  pm_set_sleepdeep(false);
+
+  /* pm_restore_clock() compares against what the hardware says, so it puts
+   * back the source the application was using whatever the ROM chose.
+   */
+
+  pm_restore_clock();
+
+  /* Anything the PMU switched off with PD_SYS and that the drivers expect
+   * to find running again.
+   */
+
+  da1470x_pd_enable(DA1470X_PD_TIM);
+}
+
+#endif /* CONFIG_DA1470X_PM_EXTENDED_SLEEP */
 
 #endif /* CONFIG_PM */

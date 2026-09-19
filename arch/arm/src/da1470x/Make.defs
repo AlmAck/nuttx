@@ -21,6 +21,9 @@
 include armv8-m/Make.defs
 
 CHIP_ASRCS  =
+ifeq ($(CONFIG_DA1470X_PM_EXTENDED_SLEEP),y)
+CHIP_ASRCS += da1470x_deepsleep.S
+endif
 CHIP_CSRCS  = da1470x_allocateheap.c da1470x_clockconfig.c da1470x_gpio.c
 CHIP_CSRCS += da1470x_irq.c da1470x_lowputc.c da1470x_start.c
 CHIP_CSRCS += da1470x_pmu.c

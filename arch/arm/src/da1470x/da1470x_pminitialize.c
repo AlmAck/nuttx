@@ -29,6 +29,7 @@
 #include "arm_internal.h"
 #include "da1470x_pdc.h"
 #include "da1470x_pm.h"
+#include "da1470x_tickless.h"
 
 #ifdef CONFIG_PM
 
@@ -64,6 +65,28 @@ void arm_pminitialize(void)
 
   da1470x_pdc_add(DA1470X_PDC_TRIG_PERIPHERAL, DA1470X_PDC_PERIPH_COMBO,
                   DA1470X_PDC_MASTER_CM33, DA1470X_PDC_FLAG_EN_XTAL);
+
+#ifdef CONFIG_DA1470X_TICKLESS
+  /* Once PD_SYS can be switched off, an interrupt is no longer enough to
+   * bring the processor back: only the power domain controller can.  The
+   * timer carrying the system time therefore needs an entry of its own, or
+   * every sleep would last until something else happened.
+   */
+
+  da1470x_pdc_add(DA1470X_PDC_TRIG_PERIPHERAL, DA1470X_TICKLESS_PDC_TRIG,
+                  DA1470X_PDC_MASTER_CM33,
+                  DA1470X_PDC_FLAG_EN_XTAL | DA1470X_PDC_FLAG_EN_TMR);
+#endif
+
+#ifdef CONFIG_DA1470X_PM_WAKE_GPIO
+  /* A pin that should bring the system back -- conventionally the console
+   * receive line, so that a keystroke still reaches a sleeping board.
+   */
+
+  da1470x_pdc_add(DA1470X_PDC_TRIG_P0_GPIO + CONFIG_DA1470X_PM_WAKE_GPIO_PORT,
+                  CONFIG_DA1470X_PM_WAKE_GPIO_PIN,
+                  DA1470X_PDC_MASTER_CM33, DA1470X_PDC_FLAG_EN_XTAL);
+#endif
 #endif
 }
 
