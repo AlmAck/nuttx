@@ -214,6 +214,13 @@ Read back on the kit::
     WKUP_POL_P1      = 0x00C00008    falling, i.e. a press
     PDC_PENDING_CM33 = 0             nothing stuck on
 
+Both buttons were then confirmed on the kit end to end: with the handler
+printing which pin fired, K1 reported ``P1.22`` and K2 reported ``P1.23``
+on their presses.  Worth knowing for anyone repeating it -- the
+``gpio -w`` example waits only five seconds, which is too short to
+coordinate with a person at the bench, so an instrumented handler and a
+long window is the way to test this.
+
 What is still unproven is the other half of a press: that the event
 survives the resume and reaches the application.  The power domain
 controller brings the system back, and the press itself is then an
