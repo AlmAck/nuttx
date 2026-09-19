@@ -38,6 +38,7 @@
 #include "hardware/da1470x_wakeup.h"
 #include "hardware/da1470x_crg_top.h"
 #include "da1470x_gpio.h"
+#include "da1470x_pdc.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -484,6 +485,24 @@ void da1470x_gpioirq_enable(da1470x_pinset_t pinset)
   putreg32(1u << pin, DA1470X_WAKEUP_CLEAR_P(port));
   modifyreg32(DA1470X_WAKEUP_SEL_GPIO_P(port), 0, 1u << pin);
   leave_critical_section(flags);
+
+#ifdef CONFIG_DA1470X_PDC
+  /* Watching the pin is only half of a wake-up source.  An interrupt
+   * cannot reach a processor whose power domain has been switched off;
+   * only the power domain controller can bring it back.  Register the
+   * trigger here, next to the configuration it depends on, so that the
+   * two cannot drift apart -- which is exactly what happened while they
+   * were kept in separate places.
+   */
+
+  if (da1470x_pdc_add(DA1470X_PDC_TRIG_P0_GPIO + port, pin,
+                      DA1470X_PDC_MASTER_CM33,
+                      DA1470X_PDC_FLAG_EN_XTAL) < 0)
+    {
+      gpiowarn("P%u.%02u has no PDC entry and will not wake the system\n",
+               port, pin);
+    }
+#endif
 }
 
 /****************************************************************************
@@ -495,6 +514,9 @@ void da1470x_gpioirq_disable(da1470x_pinset_t pinset)
   unsigned int port;
   unsigned int pin;
   irqstate_t flags;
+#ifdef CONFIG_DA1470X_PDC
+  int index;
+#endif
 
   if (da1470x_gpio_decode(pinset, &port, &pin) < 0)
     {
@@ -504,6 +526,19 @@ void da1470x_gpioirq_disable(da1470x_pinset_t pinset)
   flags = enter_critical_section();
   modifyreg32(DA1470X_WAKEUP_SEL_GPIO_P(port), 1u << pin, 0);
   leave_critical_section(flags);
+
+#ifdef CONFIG_DA1470X_PDC
+  /* Give the lookup table entry back; it is a scarce resource shared with
+   * the other two processors.
+   */
+
+  index = da1470x_pdc_find(DA1470X_PDC_TRIG_P0_GPIO + port, pin,
+                           DA1470X_PDC_MASTER_CM33);
+  if (index != DA1470X_PDC_INVALID_ENTRY)
+    {
+      da1470x_pdc_remove(index);
+    }
+#endif
 }
 
 #endif /* CONFIG_DA1470X_GPIO_IRQ */

@@ -60,6 +60,32 @@
 #include "da14706-00hzdevkt-p.h"
 
 /****************************************************************************
+ * Name: da1470x_button_wakeup
+ *
+ * Description:
+ *   Arm a button so that pressing it wakes the system.  The handler does
+ *   nothing: the point of the interrupt is that arming it is what puts the
+ *   pin into the wake-up block and registers its power domain controller
+ *   entry.  Whoever cares about the press attaches over the top.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_DA1470X_PDC) && defined(CONFIG_DA1470X_GPIO_IRQ)
+static int da1470x_button_isr(int irq, void *context, void *arg)
+{
+  return OK;
+}
+
+static void da1470x_button_wakeup(da1470x_pinset_t pinset)
+{
+  da1470x_gpio_config(pinset);
+  da1470x_gpioirq_attach(pinset, DA1470X_GPIO_EDGE_FALLING,
+                         da1470x_button_isr, NULL);
+  da1470x_gpioirq_enable(pinset);
+}
+#endif
+
+/****************************************************************************
  * Private Functions
  ****************************************************************************/
 
@@ -189,12 +215,22 @@ int da1470x_bringup(void)
 #endif
 
 #ifdef CONFIG_DA1470X_PDC
-  /* Wake-up sources for the low-power states: RTC alarm and button K1 */
+  /* Wake-up sources for the low-power states.  The RTC alarm is a
+   * peripheral trigger and stands on its own; the buttons are pins, and a
+   * pin only becomes a wake-up source once its interrupt is armed, which
+   * is what registers the power domain controller entry alongside the
+   * wake-up block configuration.  Arming them here means a press wakes the
+   * board whether or not anything has opened /dev/gpio1; a driver that
+   * later attaches to the pin simply replaces the handler.
+   */
 
   da1470x_pdc_add(DA1470X_PDC_TRIG_PERIPHERAL, DA1470X_PDC_PERIPH_RTC_ALARM,
                   DA1470X_PDC_MASTER_CM33, DA1470X_PDC_FLAG_EN_XTAL);
-  da1470x_pdc_add(DA1470X_PDC_TRIG_P1_GPIO, GPIO_PIN_DECODE(GPIO_BUTTON1),
-                  DA1470X_PDC_MASTER_CM33, DA1470X_PDC_FLAG_EN_XTAL);
+
+#ifdef CONFIG_DA1470X_GPIO_IRQ
+  da1470x_button_wakeup(GPIO_BUTTON1);
+  da1470x_button_wakeup(GPIO_BUTTON2);
+#endif
 #endif
 
 #ifdef CONFIG_DA1470X_SPI

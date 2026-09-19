@@ -43,10 +43,12 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* /dev/gpio0 = LED1 (output), /dev/gpio1 = K1 button (interrupt input) */
+/* /dev/gpio0 = LED1 (output), /dev/gpio1 = K1 and /dev/gpio2 = K2, both
+ * interrupt inputs.
+ */
 
 #define BOARD_NGPIOOUT  1
-#define BOARD_NGPIOINT  1
+#define BOARD_NGPIOINT  2
 
 /****************************************************************************
  * Private Types
@@ -107,6 +109,7 @@ static const struct gpio_operations_s gpint_ops =
 static const uint32_t g_gpiointinputs[BOARD_NGPIOINT] =
 {
   GPIO_BUTTON1,
+  GPIO_BUTTON2,
 };
 
 static struct da1470x_gpint_dev_s g_gpint[BOARD_NGPIOINT];
