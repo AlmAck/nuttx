@@ -97,6 +97,10 @@
 
 #define AUDIO_SDADC_RESULT_NORMAL 2
 
+/* How long to wait for the converter's own regulator */
+
+#define AUDIO_SDADC_LDO_RETRIES   100000
+
 /* Byte offset added to a data register so that a narrow transfer lands on
  * the right lane of the 32 bit word.
  */
@@ -507,6 +511,7 @@ static int audio_adc_configure(struct da1470x_audio_dev_s *priv)
 {
   const struct da1470x_audio_config_s *cfg = priv->cfg;
   uint32_t branches;
+  int retries;
 
   if (cfg->direction != DA1470X_AUDIO_CAPTURE)
     {
@@ -541,11 +546,29 @@ static int audio_adc_configure(struct da1470x_audio_dev_s *priv)
 
   putreg32(0, DA1470X_SDADC_AUDIO_FILT);
 
-  /* Hand whole samples to the converter chain rather than to an
-   * interrupt, with the audio decimation filter in the path.
+  /* Power the converter up and wait for its own regulator, then put the
+   * decimation filter in the path.  The filter has to be enabled before
+   * the conversion is started, not with it.
    */
 
-  putreg32(SDADC_CTRL_RESULT_MODE(AUDIO_SDADC_RESULT_NORMAL) |
+  putreg32(SDADC_CTRL_EN, DA1470X_SDADC_CTRL);
+
+  for (retries = AUDIO_SDADC_LDO_RETRIES; retries > 0; retries--)
+    {
+      if ((getreg32(DA1470X_SDADC_CTRL) & SDADC_CTRL_LDO_OK) != 0)
+        {
+          break;
+        }
+    }
+
+  if (retries == 0)
+    {
+      auderr("ERROR: the converter regulator never came up\n");
+      return -ETIMEDOUT;
+    }
+
+  putreg32(SDADC_CTRL_EN |
+           SDADC_CTRL_RESULT_MODE(AUDIO_SDADC_RESULT_NORMAL) |
            SDADC_CTRL_AUDIO_FILTER_EN | SDADC_CTRL_DMA_EN |
            SDADC_CTRL_MINT, DA1470X_SDADC_CTRL);
 
@@ -560,7 +583,6 @@ static void audio_adc_enable(struct da1470x_audio_dev_s *priv, bool on)
 {
   if (on)
     {
-      modifyreg32(DA1470X_SDADC_CTRL, 0, SDADC_CTRL_EN);
       modifyreg32(DA1470X_SDADC_CTRL, 0, SDADC_CTRL_START);
     }
   else

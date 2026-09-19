@@ -31,6 +31,7 @@
 #include <arch/board/board.h>
 
 #include "da1470x_audio.h"
+#include "da1470x_gpio.h"
 #include "da1470x_vad.h"
 #include "da14706-00hzdevkt-p.h"
 
@@ -85,9 +86,15 @@ int da1470x_audio_setup(void)
   struct audio_lowerhalf_s *lower;
   int ret;
 
-  /* The analogue microphone needs no pin muxing: it lands on dedicated
-   * analogue balls, not on general purpose pins.
+  /* The amplifier inputs share their pads with two general purpose pins,
+   * which reset to digital with a pull resistor.  Put them in analogue
+   * mode first, then give the microphone its supply.
    */
+
+  da1470x_gpio_config(BOARD_PGA_P_PIN);
+  da1470x_gpio_config(BOARD_PGA_N_PIN);
+  da1470x_gpio_config(BOARD_MIC_PWR_PIN);
+  da1470x_gpio_write(BOARD_MIC_PWR_PIN, true);
 
   lower = da1470x_audio_initialize(&g_mic_config);
   if (lower == NULL)

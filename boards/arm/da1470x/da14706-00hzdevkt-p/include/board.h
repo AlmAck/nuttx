@@ -197,10 +197,23 @@
 #define BOARD_LCDC_IM1_PIN  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_FUNC_GPIO | \
                              GPIO_PORT1 | GPIO_PIN(0))
 
-/* Audio unit.  The development kit has no microphone and no codec fitted,
- * and the package documentation assigns no pins to either interface, so
- * these are free choices that have to be matched to whatever is actually
- * wired up.  They are only used when the audio driver is built in.
+/* Audio unit.  The kit carries an analogue microphone, a CMM-3729AT, fed
+ * from P0.29 through a zero ohm link and wired across the two amplifier
+ * inputs.  Those inputs share their pads with P1.05 and P1.06, which come
+ * out of reset as digital pins with a pull resistor, so both have to be
+ * put in analogue mode or they load the microphone signal away.
+ */
+
+#define BOARD_MIC_PWR_PIN   (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
+                             GPIO_PIN(29))
+#define BOARD_PGA_P_PIN     (GPIO_INPUT | GPIO_FLOAT | GPIO_FUNC_ADC | \
+                             GPIO_PORT1 | GPIO_PIN(5))
+#define BOARD_PGA_N_PIN     (GPIO_INPUT | GPIO_FLOAT | GPIO_FUNC_ADC | \
+                             GPIO_PORT1 | GPIO_PIN(6))
+
+/* Pins of the two serial audio interfaces.  Nothing on this kit uses
+ * them; they are a free choice that has to be matched to whatever gets
+ * wired up, and P1.05 and P1.06 must not be among them.
  */
 
 #define BOARD_PDM_DATA_PIN  (GPIO_INPUT | GPIO_FUNC_PDM_DATA | \
