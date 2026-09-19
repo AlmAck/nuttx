@@ -195,68 +195,52 @@ and the pin configuration are kept in two different places, by two
 different pieces of code, and they have already drifted apart in both
 directions.
 
-6. Register the wake sources
-----------------------------
+6. Register the wake sources -- done
+------------------------------------
 
-With PD_SYS off an interrupt no longer reaches the processor, so
-everything that has to wake the system needs an entry in the 16-slot PDC
-lookup table.  Some of this exists already: ``da1470x_bringup.c``
-registers the RTC alarm and button K1, and ``arm_pminitialize()``
-registers the system timer.
+Fixed, because the two halves are no longer kept apart:
+``da1470x_gpioirq_enable()`` adds the controller entry and
+``da1470x_gpioirq_disable()`` gives it back, so a pin that arms an
+interrupt is a wake-up source by construction and its polarity is right
+because the same call configured it.  Touch needed nothing else.  The
+buttons are armed by the board at bring-up, so a press wakes the system
+whether or not anything has opened ``/dev/gpio1``; K2 is now exposed as
+``/dev/gpio2`` as well.
 
-For a watch the set is:
+Read back on the kit::
 
-=========================  =====================  =========================
-Source                     Pin                    Entry
-=========================  =====================  =========================
-Button K1                  P1.22, active low      ``TRIG_P1_GPIO``, id 22
-Button K2                  P1.23, active low      ``TRIG_P1_GPIO``, id 23
-Touch interrupt (ZT2628)   P1.3, falling          ``TRIG_P1_GPIO``, id 3
-System timer               --                     ``PERIPH_TIMER2``
-RTC alarm                  --                     ``PERIPH_RTC_ALARM``
-Bluetooth event            --                     ``PERIPH_CMAC2SYS``
-=========================  =====================  =========================
+    PDC     P1.22, P1.23, P1.03 alongside TIMER2, RTC_ALARM, COMBO, MAC
+    WKUP_SEL_GPIO_P1 = 0x00C00008    bits 3, 22, 23
+    WKUP_POL_P1      = 0x00C00008    falling, i.e. a press
+    PDC_PENDING_CM33 = 0             nothing stuck on
 
-K2 and the touch interrupt are missing today.  Adding them to the board
-bring-up alongside K1 is the small version of the fix.
+What is still unproven is the other half of a press: that the event
+survives the resume and reaches the application.  The power domain
+controller brings the system back, and the press itself is then an
+ordinary GPIO interrupt latched in ``WKUP_STATUS_Px`` -- so the resume
+path must not clear that status before the button driver reads it, or the
+watch wakes and does nothing, which looks exactly like a dropped press.
+That can only be tested once the resume works.
 
-The better version, and the one the register dump above argues for, is to
-stop keeping a list at all.  Have
-``da1470x_gpioirq_enable()`` add the entry and ``da1470x_gpioirq_disable()``
-remove it whenever extended sleep is configured.  Then any pin a driver
-arms an interrupt on becomes a wake source by construction -- buttons,
-touch, an accelerometer on a spare pin -- the polarity is right because
-the same call configured it, and there is no second list to drift out of
-step with the drivers.  ``CONFIG_DA1470X_PM_WAKE_GPIO`` was a stopgap for
-bench testing and should go the same way.
+Two things to confirm with a register dump at the same time: whether the
+per-pin PDC GPIO trigger needs ``WKUP_SELECT_Px`` as well as
+``WKUP_SEL_GPIO_Px`` -- the driver zeroes the former and only uses the
+latter, and the entries fire correctly while PD_SYS is powered, which
+proves nothing about when it is not -- and whether the wake-up block's own
+configuration survives PD_SYS going away or has to be restored next to the
+pad latch.
 
-Three details that will not be obvious from the register descriptions:
+Mechanical buttons also want ``WKUP_CTRL.WKUP_DEB_VALUE`` (0-63 ms) set,
+which is still zero: undebounced, one press becomes a burst of wake-ups
+and each one costs a full context restore.
 
-**Debounce the mechanical ones.**  ``WKUP_CTRL.WKUP_DEB_VALUE`` gives
-0-63 ms.  Without it one press becomes a burst of wake-ups, and each one
-costs a full context restore, so an undebounced button can spend more
-energy than a minute of sleeping.
-
-**A press has to be seen as well as felt.**  The PDC brings the system
-back; the press itself is then a normal GPIO interrupt, latched in
-``WKUP_STATUS_Px``.  The resume path must not clear that status before
-the button driver reads it, or the watch wakes and does nothing -- which
-looks exactly like a dropped press.
-
-**Touch needs power to be able to interrupt.**  The ZT2628's supply is
-switched by a GPIO (``BOARD_TOUCH_PWR_PIN``, P0.28), and the I2C pull-ups
-hang off the same rail.  So either the controller stays powered in its
-own low-power mode, and touch-to-wake works at the cost of its idle
-current, or the rail goes away and the interrupt line floats -- spurious
-wake-ups, or none.  That is a product decision, not a detail: buttons and
-a wrist-raise interrupt can stay armed cheaply, touch usually cannot, so
-the usual arrangement is touch powered only while the screen is on.
-
-Two things to confirm with a register dump once the resume path is alive:
-whether the per-pin PDC GPIO trigger needs ``WKUP_SELECT_Px`` as well as
-``WKUP_SEL_GPIO_Px`` -- the driver currently zeroes the former and only
-uses the latter -- and whether the wake-up block's own configuration
-survives PD_SYS going away or has to be restored next to the pad latch.
+Touch remains a product decision rather than a code one.  The ZT2628's
+supply and its I2C pull-ups are on a rail the application switches
+(``BOARD_TOUCH_PWR_PIN``, P0.28), so either the controller stays powered
+in its own low-power mode and touch-to-wake costs its idle current, or the
+rail goes away and the interrupt line floats.  Buttons and a wrist-raise
+interrupt can stay armed cheaply; touch usually only while the screen is
+on.
 
 7. Retention
 ------------
