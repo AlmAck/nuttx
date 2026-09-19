@@ -87,6 +87,7 @@ struct da1470x_vad_dev_s
   uint8_t  overrun;                 /* Dropped since the last delivery */
 
   bool     opened;
+  bool     stalled;                 /* Left asleep because nobody read */
   struct pollfd *fds[CONFIG_DA1470X_VAD_NPOLLWAITERS];
 };
 
@@ -273,9 +274,22 @@ static int vad_interrupt(int irq, void *context, void *arg)
       priv->overrun++;
     }
 
-  /* The detection left the block asleep; listen again */
+  /* The detection left the block asleep.  Listen again, unless nothing
+   * has been read and there is no room left: a sound that stays above
+   * the threshold would otherwise retrigger without pause and spend the
+   * processor on detections nobody can collect.  A reader draining the
+   * ring starts it listening again.
+   */
 
-  vad_write_mode(priv, VAD_MODE_LISTENING);
+  if (priv->count < VAD_NEVENTS)
+    {
+      vad_write_mode(priv, VAD_MODE_LISTENING);
+    }
+  else
+    {
+      priv->stalled = true;
+    }
+
   vad_notify(priv);
   return OK;
 }
@@ -318,6 +332,7 @@ static int vad_close(struct file *filep)
   priv->tail    = 0;
   priv->count   = 0;
   priv->overrun = 0;
+  priv->stalled = false;
   leave_critical_section(flags);
 
   priv->opened  = false;
@@ -376,6 +391,14 @@ static ssize_t vad_read(struct file *filep, char *buffer, size_t buflen)
       priv->tail = (priv->tail + 1) % VAD_NEVENTS;
       priv->count--;
       nread += sizeof(struct vad_event_s);
+    }
+
+  /* Room again: start listening if a full ring had stopped it */
+
+  if (priv->stalled && priv->count < VAD_NEVENTS)
+    {
+      priv->stalled = false;
+      vad_write_mode(priv, VAD_MODE_LISTENING);
     }
 
   leave_critical_section(flags);
@@ -470,6 +493,13 @@ static int vad_ioctl(struct file *filep, int cmd, unsigned long arg)
           priv->tail    = 0;
           priv->count   = 0;
           priv->overrun = 0;
+
+          if (priv->stalled)
+            {
+              priv->stalled = false;
+              vad_write_mode(priv, VAD_MODE_LISTENING);
+            }
+
           leave_critical_section(flags);
         }
         break;

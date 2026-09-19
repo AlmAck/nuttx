@@ -60,7 +60,7 @@ static const struct da1470x_audio_config_s g_mic_config =
   .nchannels  = 1,
   .bits       = 16,
   .samplerate = 16000,
-  .pga_gain   = DA1470X_PGA_GAIN_18DB,
+  .pga_gain   = DA1470X_PGA_GAIN_30DB,
   .pga_mode   = DA1470X_PGA_MODE_DIFF,
   .pga_bias   = 4
 };
