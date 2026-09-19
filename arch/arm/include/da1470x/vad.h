@@ -39,9 +39,13 @@
  * something louder than the background noise it has been tracking.
  *
  * Reading /dev/vad0 returns one struct vad_event_s per detection and
- * blocks until there is one; poll() works as expected.  Every detection
- * puts the block back to sleep, and the driver re-arms it, so a reader
- * that falls behind loses events rather than the detector stalling.
+ * blocks until there is one; poll() works as expected.
+ *
+ * A detection puts the block to sleep and it stays there: listening
+ * again is a mode change the reader makes when it is ready.  A sound
+ * that stays above the threshold would otherwise be reported for as
+ * long as it lasts, which is no use to anything waiting for one sound
+ * to act on.
  */
 
 /* Operating mode */
