@@ -54,6 +54,7 @@
 #include "da1470x_dma.h"
 #include "da1470x_rtc.h"
 #include "da1470x_pdc.h"
+#include "da1470x_snc.h"
 #include "da1470x_oqspi.h"
 #include "da1470x_gpu.h"
 #include "da1470x_bt.h"
@@ -231,6 +232,14 @@ int da1470x_bringup(void)
   da1470x_button_wakeup(GPIO_BUTTON1);
   da1470x_button_wakeup(GPIO_BUTTON2);
 #endif
+#endif
+
+#ifdef CONFIG_DA1470X_SNC_SMOKETEST
+  ret = da1470x_snc_smoketest();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "The sensor node controller did not start: %d\n", ret);
+    }
 #endif
 
 #ifdef CONFIG_DA1470X_SPI

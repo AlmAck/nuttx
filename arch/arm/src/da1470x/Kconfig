@@ -335,6 +335,36 @@ config DA1470X_PM_WAKE_GPIO_PIN
 	range 0 31
 	depends on DA1470X_PM_WAKE_GPIO
 
+config DA1470X_SNC
+	bool "Sensor node controller (second Cortex-M0+)"
+	default n
+	---help---
+		Load firmware into the sensor node controller and run it.  It is
+		a Cortex-M0+ with the PD_SNC peripherals wired to it -- the
+		UARTs, SPI and I2C controllers, the DMA -- and two RAM cells of
+		its own, and it keeps running while the rest of the system
+		sleeps.
+
+		What it is for is the work that would otherwise wake the
+		application processor for nothing.  A wake of the M33 costs
+		about 39 uC on this board, so a sensor polled at a hundred
+		hertz costs milliamps before the sensor is even read; the same
+		poll here costs a fraction of it, and the M33 is told only when
+		something has happened.
+
+		The 64 KiB the controller uses is already kept out of NuttX's
+		way by the board's linker script.
+
+config DA1470X_SNC_SMOKETEST
+	bool "Prove the controller runs at bring-up"
+	default n
+	depends on DA1470X_SNC
+	---help---
+		Start a firmware that signs its own RAM and then counts, and
+		report whether the signature arrived and the count moved.  Worth
+		having the first time the second processor is brought up on a
+		board, and not worth the 36 bytes afterwards.
+
 config DA1470X_OQSPI_MTD
 	bool "OQSPI flash controller MTD driver"
 	default n
