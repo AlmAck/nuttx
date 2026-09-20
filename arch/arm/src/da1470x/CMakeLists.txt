@@ -105,6 +105,10 @@ if(CONFIG_DA1470X_GPADC)
   list(APPEND SRCS da1470x_gpadc.c)
 endif()
 
+if(CONFIG_DA1470X_PWM)
+  list(APPEND SRCS da1470x_pwm.c)
+endif()
+
 if(CONFIG_DA1470X_WDT)
   list(APPEND SRCS da1470x_wdt.c)
 endif()

@@ -138,10 +138,24 @@
 
 #define BOARD_TOUCH_PWR_PIN (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT0 | \
                              GPIO_PIN(28))
+
 #define BOARD_TOUCH_RST_PIN (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_FUNC_GPIO | \
                              GPIO_PORT1 | GPIO_PIN(1))
 #define BOARD_TOUCH_INT_PIN (GPIO_INPUT | GPIO_PULLUP | GPIO_FUNC_GPIO | \
                              GPIO_PORT1 | GPIO_PIN(3))
+
+/* Timer PWM ***************************************************************/
+
+/* A general purpose timer output, brought out on a pin that nothing else
+ * on this kit uses.  A vibration motor would go here; with nothing fitted
+ * it is also the one pin whose waveform can be checked, because the
+ * converter can read the same pin back as ADC0 and its average follows
+ * the duty cycle.
+ */
+
+#define BOARD_PWM_TIM3_PIN  (GPIO_OUTPUT | GPIO_FUNC_TIM3_PWM | \
+                             GPIO_PORT0 | GPIO_PIN(5))
+
 
 /* LCDC / E120A390QSR display pins ******************************************/
 

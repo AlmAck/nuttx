@@ -437,6 +437,24 @@ config DA1470X_CHARGER_NTC
 		unattended cell charging, and set this back to y for hardware
 		that has the thermistor.
 
+config DA1470X_PWM
+	bool "Timer PWM outputs"
+	default n
+	select PWM
+	---help---
+		Drive a pin from one of the general purpose timers as a pulse
+		width modulated output, registered as a NuttX PWM device.
+		TIMER3 to TIMER6 are available; each has one output, so each
+		is one device with one channel.
+
+		TIMER and TIMER2 are deliberately not offered: the tickless
+		clock is built on TIMER2.
+
+		A vibration motor is the reason this exists, but nothing in it
+		assumes one.  Note that the timer is clocked from the divided
+		system clock, so the output stops when that clock does; driving
+		something through a sleep state needs the system held awake.
+
 config DA1470X_GPADC
 	bool "General purpose ADC"
 	default n
