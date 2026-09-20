@@ -28,9 +28,23 @@
  *   0x20150000 192 KiB   RAM10    CMAC code (BLE)
  */
 
+/* The part has 8 MiB of flash, and the image may not have all of it.
+ * CONFIG_DA1470X_OQSPI_MTD_OFFSET carves a window out of the top for the
+ * filesystem, at 4 MiB by default, so the region below stops there.
+ *
+ * Claiming the whole device here instead, which is what this did, makes an
+ * image that outgrows its half link quietly and then be eaten by the first
+ * thing that writes to the filesystem.  Stopping at the boundary turns
+ * that into a link error, which is where it belongs.
+ *
+ * There is no way to read the configuration from here -- this script is
+ * not preprocessed -- so the two numbers are kept in step by hand.  Move
+ * CONFIG_DA1470X_OQSPI_MTD_OFFSET and this LENGTH has to follow.
+ */
+
 MEMORY
 {
-  flash (rx)  : ORIGIN = 0x00000000, LENGTH = 8M
+  flash (rx)  : ORIGIN = 0x00000000, LENGTH = 4M
   sram  (rwx) : ORIGIN = 0x20010000, LENGTH = 1M
   cmac  (rwx) : ORIGIN = 0x20150000, LENGTH = 192K
 }
