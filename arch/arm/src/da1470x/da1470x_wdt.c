@@ -207,13 +207,25 @@ static int wdt_start(struct watchdog_lowerhalf_s *lower)
 
   wdt_reload(priv);
 
-  /* Let go of both holds: the one this driver applies and the one the
-   * start-up code applies before any driver exists.
+  /* Let go of the hold, then arm it.
+   *
+   * The order is forced by the hardware.  A freeze or an unfreeze is only
+   * acted on while WDOG_FREEZE_EN is set and NMI_RST is clear; with
+   * NMI_RST set the write is accepted and ignored.  So unfreeze first,
+   * while the watchdog is still in its interrupt mode, and only then ask
+   * for a reset on expiry.
    */
 
   modifyreg32(DA1470X_SYS_WDOG_WATCHDOG_CTRL,
-              SYS_WDOG_WATCHDOG_CTRL_WDOG_FREEZE_EN, 0);
+              SYS_WDOG_WATCHDOG_CTRL_NMI_RST,
+              SYS_WDOG_WATCHDOG_CTRL_WDOG_FREEZE_EN);
   putreg32(GPREG_SET_FREEZE_FRZ_SYS_WDOG, DA1470X_GPREG_RESET_FREEZE);
+
+  if (priv->handler == NULL)
+    {
+      modifyreg32(DA1470X_SYS_WDOG_WATCHDOG_CTRL, 0,
+                  SYS_WDOG_WATCHDOG_CTRL_NMI_RST);
+    }
 
   priv->started = true;
   leave_critical_section(flags);
@@ -231,9 +243,19 @@ static int wdt_stop(struct watchdog_lowerhalf_s *lower)
   struct da1470x_wdt_lower_s *priv = (struct da1470x_wdt_lower_s *)lower;
   irqstate_t flags = enter_critical_section();
 
-  putreg32(GPREG_SET_FREEZE_FRZ_SYS_WDOG, DA1470X_GPREG_SET_FREEZE);
-  modifyreg32(DA1470X_SYS_WDOG_WATCHDOG_CTRL, 0,
+  /* Ask for an interrupt rather than a reset before asking it to stop.
+   *
+   * A watchdog armed to reset the part cannot be frozen: the hardware
+   * only acts on the freeze while WDOG_FREEZE_EN is set and NMI_RST is
+   * clear, and a write that does not meet that is accepted and thrown
+   * away.  Clearing NMI_RST first is what makes the freeze below real
+   * rather than a register that reads back the way it was asked to.
+   */
+
+  modifyreg32(DA1470X_SYS_WDOG_WATCHDOG_CTRL,
+              SYS_WDOG_WATCHDOG_CTRL_NMI_RST,
               SYS_WDOG_WATCHDOG_CTRL_WDOG_FREEZE_EN);
+  putreg32(GPREG_SET_FREEZE_FRZ_SYS_WDOG, DA1470X_GPREG_SET_FREEZE);
 
   priv->started = false;
   leave_critical_section(flags);
@@ -378,10 +400,19 @@ int da1470x_wdt_initialize(const char *devpath)
   struct da1470x_wdt_lower_s *priv = &g_wdt_lower;
   void *handle;
 
-  /* Reset on timeout until somebody asks for a handler */
+  /* Allow the freeze to be acted on at all.  Without WDOG_FREEZE_EN the
+   * hold applied below is accepted and ignored, and the watchdog carries
+   * on counting from whatever the boot left it at -- which is most of
+   * eighty seconds, long enough that the board looks like it works and
+   * then reboots in the middle of something unrelated.
+   *
+   * NMI_RST is deliberately left clear here.  wdt_start() sets it, once
+   * the watchdog is actually running and wanted.
+   */
 
-  modifyreg32(DA1470X_SYS_WDOG_WATCHDOG_CTRL, 0,
-              SYS_WDOG_WATCHDOG_CTRL_NMI_RST);
+  modifyreg32(DA1470X_SYS_WDOG_WATCHDOG_CTRL,
+              SYS_WDOG_WATCHDOG_CTRL_NMI_RST,
+              SYS_WDOG_WATCHDOG_CTRL_WDOG_FREEZE_EN);
 
   /* Register it stopped.  The watchdog is running out of reset and the
    * start-up code freezes it; leaving it that way until something opens
