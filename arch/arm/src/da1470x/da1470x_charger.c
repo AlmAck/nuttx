@@ -62,6 +62,7 @@
 #include "arm_internal.h"
 #include "hardware/da1470x_charger.h"
 #include "hardware/da1470x_crg_top.h"
+#include "hardware/da1470x_crg_sys.h"
 #include "da1470x_charger.h"
 
 #ifdef CONFIG_DA1470X_CHARGER
@@ -220,15 +221,21 @@ static void chg_enable(struct da1470x_charger_s *priv, bool enable)
 {
   irqstate_t flags = enter_critical_section();
 
+  /* Two separate things, and the order between them matters: ENABLE powers
+   * up the analogue circuitry, CHARGE_START lets the state machine run.
+   * Starting the machine before it has anything to measure leaves it
+   * sitting in its power-up state.
+   */
+
   if (enable)
     {
-      modifyreg32(DA1470X_CHARGER_CTRL, 0,
-                  CHARGER_CTRL_ENABLE | CHARGER_CTRL_CHARGE_START);
+      modifyreg32(DA1470X_CHARGER_CTRL, 0, CHARGER_CTRL_ENABLE);
+      modifyreg32(DA1470X_CHARGER_CTRL, 0, CHARGER_CTRL_CHARGE_START);
     }
   else
     {
       modifyreg32(DA1470X_CHARGER_CTRL,
-                  CHARGER_CTRL_ENABLE | CHARGER_CTRL_CHARGE_START, 0);
+                  CHARGER_CTRL_CHARGE_START | CHARGER_CTRL_ENABLE, 0);
     }
 
   priv->enabled = enable;
@@ -322,11 +329,20 @@ static int chg_health(struct battery_charger_dev_s *dev, int *health)
     {
       *health = BATTERY_HEALTH_OVERVOLTAGE;
     }
+#ifdef CONFIG_DA1470X_CHARGER_NTC
   else if ((status & CHARGER_STATUS_TBAT_HOT_COMP_OUT) != 0 ||
            chg_fsm_state() == CHG_FSM_TBAT_PROT)
     {
       *health = BATTERY_HEALTH_OVERHEAT;
     }
+#else
+  /* The battery temperature comparators are left out deliberately.  With
+   * no thermistor their inputs float, so they sit permanently tripped and
+   * would report every cell as too hot.  The state machine is already
+   * ignoring them; reporting them here would only be a lie with a
+   * plausible name.
+   */
+#endif
   else if ((status & CHARGER_STATUS_TDIE_COMP_OUT) != 0 ||
            chg_fsm_state() == CHG_FSM_TDIE_PROT)
     {
@@ -511,6 +527,22 @@ int da1470x_charger_initialize(const char *devpath)
   nxmutex_init(&priv->dev.batlock);
   list_initialize(&priv->dev.flist);
 
+  /* The charger needs a clock of its own before any of this means
+   * anything.  Without it the parameter registers still take what they are
+   * given -- they are plain storage on the peripheral bus -- but the state
+   * machine never advances, the status register reads as zero, and the two
+   * control bits that start a charge do not latch at all.  That failure is
+   * quiet and looks exactly like a charger that has decided not to charge,
+   * so turn the clock on first.
+   *
+   * It stays on.  What costs power here is the analogue circuitry behind
+   * CHARGER_CTRL_ENABLE, which chg_enable() leaves off until someone asks
+   * for a charge; keeping the clock lets the status register answer
+   * meanwhile.
+   */
+
+  putreg32(CRG_SYS_SET_CLK_SYS_CLK_CHG_EN, DA1470X_CRG_SYS_SET_CLK_SYS);
+
   /* Anything already running stops while the parameters are written */
 
   chg_enable(priv, false);
@@ -533,14 +565,41 @@ int da1470x_charger_initialize(const char *devpath)
               CHARGER_CURRENT_PARAM_I_PRECHARGE(
                 chg_ua_to_code(CONFIG_DA1470X_CHARGER_PRECHARGE_CURRENT)));
 
-  /* Both temperature protections on.  They are the difference between a
-   * charger and a hazard, and the state machine handles them itself.
+  /* Die temperature protection always.  It is the difference between a
+   * charger and a hazard, and the state machine handles it itself.
    */
 
   modifyreg32(DA1470X_CHARGER_CTRL, 0,
               CHARGER_CTRL_TDIE_PROT_ENABLE |
-              CHARGER_CTRL_TDIE_ERROR_RESUME |
+              CHARGER_CTRL_TDIE_ERROR_RESUME);
+
+#ifdef CONFIG_DA1470X_CHARGER_NTC
+  /* A thermistor is wired to the NTC pins, so the cell's own temperature
+   * can be watched, and JEITA can use it to pick the charging parameters
+   * for the temperature zone the battery is actually in.
+   */
+
+  modifyreg32(DA1470X_CHARGER_CTRL,
+              CHARGER_CTRL_JEITA_SUPPORT_DISABLED,
               CHARGER_CTRL_TBAT_PROT_ENABLE);
+#else
+  /* No thermistor.  The sense input then reads out of range and the
+   * charger calls the battery too hot, so it never leaves its power-up
+   * state -- the symptom is a charger that reports overheating and
+   * quietly refuses to start.  JEITA goes with it: the hardware has
+   * nothing to place the cell in a temperature zone with.
+   *
+   * Nothing now measures the battery's temperature.  Die temperature
+   * protection above still applies, but it watches this chip, and a cell
+   * can be in trouble while the die is cool.
+   */
+
+  modifyreg32(DA1470X_CHARGER_CTRL,
+              CHARGER_CTRL_TBAT_PROT_ENABLE,
+              CHARGER_CTRL_JEITA_SUPPORT_DISABLED);
+
+  _warn("no NTC thermistor: the battery's temperature is not measured\n");
+#endif
 
   /* Clear anything stale, then let both interrupts through */
 

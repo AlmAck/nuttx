@@ -389,6 +389,33 @@ config DA1470X_CHARGER_PRECHARGE_CURRENT
 	range 500 72000
 	depends on DA1470X_CHARGER
 
+config DA1470X_CHARGER_NTC
+	bool "Battery pack has an NTC thermistor"
+	default n
+	depends on DA1470X_CHARGER
+	---help---
+		Whether a thermistor is wired to the NTC supply and sense pins
+		(P0_11 and P0_29) so that the charger can measure the cell's
+		temperature.
+
+		Say y for a pack with a thermistor.  The charger then enforces
+		battery temperature protection and can use JEITA, which is what
+		a shipping product should do.
+
+		Say n for a bare two-wire cell, which is what the development
+		kit is usually given.  With no thermistor the sense input reads
+		out of range, the charger reports the battery as too hot and
+		refuses to start, so both battery temperature protection and
+		JEITA -- which the hardware cannot do without it -- are turned
+		off.
+
+		Turning them off means nothing measures the cell's temperature.
+		Die temperature protection still applies, but that watches this
+		chip rather than the battery, and a cell can be in trouble while
+		the die is cool.  Keep the charge current low, do not leave an
+		unattended cell charging, and set this back to y for hardware
+		that has the thermistor.
+
 config DA1470X_SNC
 	bool "Sensor node controller (second Cortex-M0+)"
 	default n
