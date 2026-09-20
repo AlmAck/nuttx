@@ -271,7 +271,46 @@ rail goes away and the interrupt line floats.  Buttons and a wrist-raise
 interrupt can stay armed cheaply; touch usually only while the screen is
 on.
 
-7. Retention
+7. Decouple the wake-up marker from the reset status
+----------------------------------------------------
+
+Deferred deliberately, and belongs here rather than with the watchdog,
+because it is only testable once the resume path runs.
+
+The resume test is ``RESET_STAT_REG == 0``.  That works because nothing
+clears the register and every real reset sets a bit in it, so zero is
+reachable only through a sleep.  The cost is that the bits accumulate:
+on a board that has been used it reads 0x7F, and
+``da1470x_wdt_reset_cause()`` can say only "all of these happened at some
+point", which is no use for asking why a watch rebooted in the field.
+
+The two are one problem.  What makes the diagnostics useless is what
+makes the marker safe, so clearing the register for diagnostics would
+arm a false resume -- a restart that reaches ``__start`` with the
+register zero without having slept, restoring a context that is not
+there.  A debugger forcing the program counter to the reset vector is the
+one path that can do this today.
+
+The fix is to stop overloading the register.  Require both a marker of
+our own and a zero reset status::
+
+    resume  iff  g_da1470x_resume_magic == MAGIC  &&  RESET_STAT == 0
+
+``goto_deepsleep()`` writes the magic next to the zero it already writes;
+``__start()`` tests both and clears the magic on every other path.  The
+magic wants to live beside the retained state block in
+``da1470x_deepsleep.S``, which is already ``.bss``: a cold boot clears it
+through the normal ``.bss`` initialisation, and a resume branches away
+before that happens, so the lifetime is right for free and no linker
+change is needed.
+
+It biases the right way.  Failing the magic gives a cold boot, which
+loses the session and is clean; failing the other way would restore a
+context that does not exist.  And once it is in,
+``da1470x_wdt_clear_reset_cause()`` can exist as a plain call, with no
+guard and no knowledge of the sleep path.
+
+8. Retention
 ------------
 
 ``RAM_PWR_CTRL`` (0x500000C0) is 0 out of reset, which retains every
