@@ -552,6 +552,36 @@ config DA1470X_VAD_NPOLLWAITERS
 	range 1 8
 	depends on DA1470X_VAD
 
+config DA1470X_WDT
+	bool "System watchdog"
+	default n
+	select WATCHDOG
+	---help---
+		Expose the system watchdog as a NuttX watchdog device, usually
+		/dev/watchdog0.  It counts down once every 10 ms from a 13-bit
+		reload, so the longest timeout it can be given is a little under
+		82 seconds.
+
+		It is registered stopped, so nothing resets the board until
+		something opens the device and starts it.
+
+		Two things about this watchdog are worth knowing before relying
+		on it.  Freezing it does not survive sleep: the datasheet says
+		that entering any sleep mode with PD_SYS switched off resumes it
+		regardless, so a system sleeping longer than the timeout is
+		reset while it sleeps.  And a capture handler does not prevent
+		the reset -- it arrives on the watchdog's NMI and has the 160 ms
+		before the hardware resets anyway.
+
+config DA1470X_WDT_DEFTIMEOUT
+	int "Default timeout (ms)"
+	default 20000
+	range 10 81910
+	depends on DA1470X_WDT
+	---help---
+		What the watchdog is loaded with until something sets a timeout
+		of its own.
+
 config DA1470X_WDOG_FREEZE
 	bool "Freeze the system watchdog at boot"
 	default y
@@ -559,6 +589,10 @@ config DA1470X_WDOG_FREEZE
 		The SYS watchdog is running out of reset and would reset the
 		chip after about 10 seconds.  Freeze it until a watchdog driver
 		takes over.
+
+		This is what DA1470X_WDT takes over from: it registers the
+		device stopped and lets go of this freeze only when something
+		starts it.
 
 config DA1470X_DMA_SMOKETEST
 	bool "Run a memory-to-memory DMA smoke test at bring-up"

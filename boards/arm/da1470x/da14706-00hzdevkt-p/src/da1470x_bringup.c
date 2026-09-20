@@ -55,6 +55,7 @@
 #include "da1470x_rtc.h"
 #include "da1470x_pdc.h"
 #include "da1470x_snc.h"
+#include "da1470x_wdt.h"
 #include "da1470x_oqspi.h"
 #include "da1470x_gpu.h"
 #include "da1470x_bt.h"
@@ -232,6 +233,14 @@ int da1470x_bringup(void)
   da1470x_button_wakeup(GPIO_BUTTON1);
   da1470x_button_wakeup(GPIO_BUTTON2);
 #endif
+#endif
+
+#ifdef CONFIG_DA1470X_WDT
+  ret = da1470x_wdt_initialize("/dev/watchdog0");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to register /dev/watchdog0: %d\n", ret);
+    }
 #endif
 
 #ifdef CONFIG_DA1470X_SNC_SMOKETEST
