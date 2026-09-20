@@ -194,6 +194,7 @@ Work in progress
    :maxdepth: 1
 
    extended_sleep
+   snc
 
 Supported Boards
 ================
