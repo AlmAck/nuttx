@@ -74,13 +74,33 @@ extern "C"
 #endif
 
 /****************************************************************************
-ACCURACY, honestly: the factory calibration this part keeps in
- * one-time programmable memory is NOT read or applied.  Chopping is
- * enabled, which cancels the converter's offset, but nothing here
- * corrects its gain.  Readings are stable and repeatable to a few
- * millivolts, and the rails that can be checked against a known value
- * come out close, but an absolute reading has not been verified against
- * a meter and should not yet be trusted to better than several percent.
+ * ACCURACY: read this before believing a number.
+ *
+ * Readings are stable and repeatable to a few millivolts, and they do
+ * track reality -- the battery channel follows the supply switch and
+ * rises the moment a charge starts.  RELATIVE changes can be trusted.
+ *
+ * ABSOLUTE values cannot, yet, and the error depends on the attenuator.
+ * Measured on a DA14706-00HZDEVKT-P against the one hard reference
+ * available, a charger regulating the battery in constant voltage at a
+ * programmed 4200 mV:
+ *
+ *   attenuator 0   the battery reads 3658 mV for a true 4200, 14.8% low
+ *   attenuator 1   the same battery reads 2505 mV,             40% low
+ *   attenuator 2   a 1.8 V rail reads 1772 mV,                 1.6% low
+ *
+ * The reported value ought not to depend on the attenuator at all,
+ * since the conversion divides it back out.  That it does means the
+ * part does not attenuate by the (attn + 1) the vendor's own driver
+ * assumes; working backwards from the two battery readings, the step
+ * from 0 to 1 is about 2.9 rather than 2.
+ *
+ * So the attenuator model here is wrong, and the factory calibration
+ * this part keeps in one-time programmable memory is not read or
+ * applied either.  Chopping is enabled, so the converter's offset
+ * cancels, but nothing corrects its gain.  Settling this needs a meter
+ * on the board rather than more reasoning: until then treat an absolute
+ * reading as indicative, and do not compute a state of charge from it.
  *
  * Name: da1470x_gpadc_initialize
  *
