@@ -55,6 +55,7 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
+#include <nuttx/wqueue.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/power/battery_charger.h>
 #include <nuttx/power/battery_ioctl.h>
@@ -95,12 +96,14 @@ struct da1470x_charger_s
   int      voltage;                  /* Charge voltage, mV */
   int      current;                  /* Charge current, uA */
   bool     enabled;
+  struct work_s work;                /* Re-arms the interrupts */
 };
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
+static void chg_work(void *arg);
 static int chg_state(struct battery_charger_dev_s *dev, int *status);
 static int chg_health(struct battery_charger_dev_s *dev, int *health);
 static int chg_online(struct battery_charger_dev_s *dev, bool *status);
@@ -243,6 +246,26 @@ static void chg_enable(struct da1470x_charger_s *priv, bool enable)
 }
 
 /****************************************************************************
+ * Name: chg_work
+ *
+ * Description:
+ *   Tell anyone waiting on the device that something changed, and let the
+ *   charger interrupt again.  Running here rather than in the handler is
+ *   what limits how often that can happen.
+ *
+ ****************************************************************************/
+
+static void chg_work(void *arg)
+{
+  struct da1470x_charger_s *priv = (struct da1470x_charger_s *)arg;
+
+  battery_charger_changed(&priv->dev, BATTERY_STATE_CHANGED);
+
+  up_enable_irq(DA1470X_IRQ_CHARGER_STATE);
+  up_enable_irq(DA1470X_IRQ_CHARGER_ERROR);
+}
+
+/****************************************************************************
  * Name: chg_interrupt
  *
  * Description:
@@ -271,7 +294,28 @@ static int chg_interrupt(int irq, void *context, void *arg)
              error, chg_fsm_state());
     }
 
-  battery_charger_changed(&priv->dev, BATTERY_STATE_CHANGED);
+  /* Go quiet and come back in a moment.
+   *
+   * Telling the upper half takes a mutex, which is not something to do
+   * from here, so the work of announcing a change belongs on the work
+   * queue whatever else is true.
+   *
+   * Masking the source until that work runs is worth doing as well.  A
+   * charge does not always settle: near the end of one the state machine
+   * sits on the boundary between constant current and constant voltage
+   * and can cross it repeatedly, and Renesas ship oscillation detection
+   * in their own charger service for that reason.  This puts a ceiling
+   * on how often the interrupt can be taken, and coalesces a burst of
+   * transitions into one report.  Nothing is lost by that: what is
+   * reported is the state read at the end, not a count of the
+   * transitions taken to reach it.
+   */
+
+  up_disable_irq(DA1470X_IRQ_CHARGER_STATE);
+  up_disable_irq(DA1470X_IRQ_CHARGER_ERROR);
+
+  work_queue(LPWORK, &priv->work, chg_work, priv,
+             MSEC2TICK(CONFIG_DA1470X_CHARGER_IRQ_HOLDOFF));
   return OK;
 }
 
@@ -601,10 +645,55 @@ int da1470x_charger_initialize(const char *devpath)
   _warn("no NTC thermistor: the battery's temperature is not measured\n");
 #endif
 
-  /* Clear anything stale, then let both interrupts through */
+  /* Clear anything stale, then let both interrupts through.
+   *
+   * Enabling them in the interrupt controller is not enough: each event
+   * has an enable of its own in these mask registers, and they come out
+   * of reset as zero.  Without them nothing ever reaches chg_interrupt,
+   * so nothing calls battery_charger_changed() and a poll() on the
+   * device waits for ever.
+   *
+   * The battery temperature events are the exception, and only when
+   * there is no thermistor to produce them.  The comparators are then
+   * tripped permanently -- a floating sense input reads as a cell far
+   * too hot -- so arming their interrupts arms a condition that is
+   * always true.  Acknowledging it does not make it go away, it
+   * re-asserts at once, and the result is an interrupt that never stops
+   * being taken.  Nothing else on the part gets to run, and with the
+   * error message compiled out of a release build it happens in
+   * complete silence; what is seen is a board that reboots a little
+   * while after a charge is enabled.
+   */
 
   putreg32(0xffffffff, DA1470X_CHARGER_STATE_IRQ_CLR);
   putreg32(0xffffffff, DA1470X_CHARGER_ERROR_IRQ_CLR);
+
+  putreg32(CHARGER_STATE_IRQ_MASK_DISABLED_TO_PRECHARGE_IRQ_EN |
+           CHARGER_STATE_IRQ_MASK_PRECHARGE_TO_CC_IRQ_EN |
+           CHARGER_STATE_IRQ_MASK_CC_TO_CV_IRQ_EN |
+           CHARGER_STATE_IRQ_MASK_CC_TO_EOC_IRQ_EN |
+           CHARGER_STATE_IRQ_MASK_CV_TO_EOC_IRQ_EN |
+           CHARGER_STATE_IRQ_MASK_EOC_TO_PRECHARGE_IRQ_EN |
+           CHARGER_STATE_IRQ_MASK_TDIE_PROT_TO_PRECHARGE_IRQ_EN |
+           CHARGER_STATE_IRQ_MASK_CV_TO_CC_IRQ_EN |
+           CHARGER_STATE_IRQ_MASK_CC_TO_PRECHARGE_IRQ_EN |
+           CHARGER_STATE_IRQ_MASK_CV_TO_PRECHARGE_IRQ_EN
+#ifdef CONFIG_DA1470X_CHARGER_NTC
+           | CHARGER_STATE_IRQ_MASK_TBAT_PROT_TO_PRECHARGE_IRQ_EN
+           | CHARGER_STATE_IRQ_MASK_TBAT_STATUS_UPDATE_IRQ_EN
+#endif
+           , DA1470X_CHARGER_STATE_IRQ_MASK);
+
+  putreg32(CHARGER_ERROR_IRQ_MASK_PRECHARGE_TIMEOUT_IRQ_EN |
+           CHARGER_ERROR_IRQ_MASK_CC_CHARGE_TIMEOUT_IRQ_EN |
+           CHARGER_ERROR_IRQ_MASK_CV_CHARGE_TIMEOUT_IRQ_EN |
+           CHARGER_ERROR_IRQ_MASK_TOTAL_CHARGE_TIMEOUT_IRQ_EN |
+           CHARGER_ERROR_IRQ_MASK_VBAT_OVP_ERROR_IRQ_EN |
+           CHARGER_ERROR_IRQ_MASK_TDIE_ERROR_IRQ_EN
+#ifdef CONFIG_DA1470X_CHARGER_NTC
+           | CHARGER_ERROR_IRQ_MASK_TBAT_ERROR_IRQ_EN
+#endif
+           , DA1470X_CHARGER_ERROR_IRQ_MASK);
 
   ret = irq_attach(DA1470X_IRQ_CHARGER_STATE, chg_interrupt, priv);
   if (ret == OK)

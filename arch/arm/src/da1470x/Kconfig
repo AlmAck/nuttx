@@ -389,6 +389,27 @@ config DA1470X_CHARGER_PRECHARGE_CURRENT
 	range 500 72000
 	depends on DA1470X_CHARGER
 
+config DA1470X_CHARGER_IRQ_HOLDOFF
+	int "Quiet time after a charger interrupt (ms)"
+	default 50
+	range 1 5000
+	depends on DA1470X_CHARGER
+	---help---
+		How long the charger's interrupts stay masked after one is
+		taken, before the driver arms them again.
+
+		A charge does not always settle.  Near the end of one the state
+		machine sits on the boundary between constant current and
+		constant voltage and can cross it repeatedly, and each crossing
+		is an interrupt; Renesas ship oscillation detection in their own
+		charger service for that reason.  This puts a ceiling on how
+		often the interrupt is taken, and coalesces a burst of
+		transitions into a single report.
+
+		It is also how late a change can be reported, so it trades one
+		against the other.  50 ms is far below what anyone watching a
+		battery would notice.
+
 config DA1470X_CHARGER_NTC
 	bool "Battery pack has an NTC thermistor"
 	default n
