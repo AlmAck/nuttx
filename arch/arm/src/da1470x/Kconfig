@@ -437,6 +437,25 @@ config DA1470X_CHARGER_NTC
 		unattended cell charging, and set this back to y for hardware
 		that has the thermistor.
 
+config DA1470X_GPADC
+	bool "General purpose ADC"
+	default n
+	select ADC
+	---help---
+		The general purpose converter, registered as a NuttX ADC
+		device, conventionally /dev/adc0.
+
+		Note that this is not the sigma-delta converter.  That one is
+		the audio input, with a programmable gain amplifier in front of
+		it and no route to any supply; DA1470X_AUDIO drives it.  This
+		is the converter with the battery, the system supply, the
+		charger input and the regulated rails wired to it internally.
+
+		It reports MILLIVOLTS rather than counts.  Every internal
+		channel sits behind a scaler of its own, so counts from two
+		channels are not the same quantity and are not much use on
+		their own.
+
 config DA1470X_SNC
 	bool "Sensor node controller (second Cortex-M0+)"
 	default n

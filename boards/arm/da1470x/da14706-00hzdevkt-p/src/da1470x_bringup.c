@@ -57,6 +57,7 @@
 #include "da1470x_snc.h"
 #include "da1470x_wdt.h"
 #include "da1470x_charger.h"
+#include "da1470x_gpadc.h"
 #include "da1470x_oqspi.h"
 #include "da1470x_gpu.h"
 #include "da1470x_bt.h"
@@ -161,6 +162,25 @@ static int da1470x_flash_initialize(void)
 #endif
 
 /****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+#ifdef CONFIG_DA1470X_GPADC
+static const uint8_t g_adc_channels[] =
+{
+  DA1470X_ADC_VBAT,
+  DA1470X_ADC_VSYS,
+  DA1470X_ADC_VBUS,
+  DA1470X_ADC_V30,
+  DA1470X_ADC_V18F,
+  DA1470X_ADC_V18P,
+  DA1470X_ADC_V18,
+  DA1470X_ADC_V14,
+  DA1470X_ADC_V12,
+};
+#endif
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -241,6 +261,20 @@ int da1470x_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "Failed to register /dev/charger0: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_DA1470X_GPADC
+  /* The rails worth watching on a board with a battery in it.  The four
+   * pins the converter can also reach are left out: putting a pin into its
+   * analogue mode is a decision about what is wired to it, and nothing is.
+   */
+
+  ret = da1470x_gpadc_initialize("/dev/adc0", g_adc_channels,
+                                 sizeof(g_adc_channels));
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to register /dev/adc0: %d\n", ret);
     }
 #endif
 
