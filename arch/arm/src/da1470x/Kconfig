@@ -335,6 +335,60 @@ config DA1470X_PM_WAKE_GPIO_PIN
 	range 0 31
 	depends on DA1470X_PM_WAKE_GPIO
 
+config DA1470X_CHARGER
+	bool "Battery charger"
+	default n
+	select BATTERY_CHARGER
+	---help---
+		The charger is a state machine in hardware: given the charge
+		voltage, the currents and the temperature limits it walks
+		pre-charge, constant current, constant voltage and end of charge
+		by itself, and interrupts when the state changes or something is
+		wrong.  This exposes it as a NuttX battery charger device,
+		conventionally /dev/charger0.
+
+		It is registered with charging disabled.  Enable it through
+		BATIOC_OPERATE once the application knows what is connected.
+
+		Measuring the cell is a separate matter: the charger has no
+		converter of its own, so a battery voltage needs DA1470X_SDADC.
+
+config DA1470X_CHARGER_VOLTAGE
+	int "Charge voltage (mV)"
+	default 4200
+	range 2800 4800
+	depends on DA1470X_CHARGER
+	---help---
+		4200 is the usual constant-voltage point of a single lithium
+		cell.  The hardware takes 50 mV steps below 3800 mV and 20 mV
+		steps above it, so a value between steps is rounded down.
+
+config DA1470X_CHARGER_CURRENT
+	int "Charge current (uA)"
+	default 30000
+	range 500 72000
+	depends on DA1470X_CHARGER
+	---help---
+		The constant-current charge rate, at most 72 mA.  A cell should
+		not be charged faster than its datasheet allows; for the small
+		cells this part is meant for that is usually well under the
+		maximum.
+
+config DA1470X_CHARGER_PRECHARGE_VOLTAGE
+	int "Pre-charge below this (mV)"
+	default 3000
+	range 2800 4800
+	depends on DA1470X_CHARGER
+	---help---
+		A deeply discharged cell is brought up gently to this voltage
+		before the full charge current is applied.
+
+config DA1470X_CHARGER_PRECHARGE_CURRENT
+	int "Pre-charge current (uA)"
+	default 3000
+	range 500 72000
+	depends on DA1470X_CHARGER
+
 config DA1470X_SNC
 	bool "Sensor node controller (second Cortex-M0+)"
 	default n
