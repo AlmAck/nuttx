@@ -79,6 +79,7 @@ struct da1470x_vad_dev_s
   struct vad_config_s cfg;          /* Current tuning */
   uint8_t  mode;                    /* VAD_MODE_* */
   int      pdc_entry;               /* Wake-up entry, or invalid */
+  bool     wakeup;                  /* Listening should wake the system */
 
   struct vad_event_s ring[VAD_NEVENTS];
   uint8_t  head;                    /* Where the next detection goes */
@@ -120,12 +121,60 @@ static const struct file_operations g_vad_fops =
 static struct da1470x_vad_dev_s g_vad =
 {
   .lock      = NXMUTEX_INITIALIZER,
-  .pdc_entry = -1
+  .pdc_entry = -1,
+  .wakeup    = true
 };
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: vad_update_wakeup
+ *
+ * Description:
+ *   Keep the power domain controller entry in step with what the detector
+ *   is actually doing.  A block that is listening should be able to bring
+ *   the system back, and one that is not should not be holding an entry:
+ *   the table has sixteen of them, shared with the other two processors.
+ *
+ *   Registering the wake-up next to the thing that arms it is deliberate.
+ *   The two halves of a wake-up source kept in separate places is exactly
+ *   how the buttons came to have an entry with nothing behind it and the
+ *   touch controller to have the reverse.
+ *
+ *   No crystal is asked for.  The detector runs from the low power clock,
+ *   so the wake-up does not need the 32 MHz oscillator started, and not
+ *   asking for it is what makes this a cheap way to be woken.
+ *
+ *   The lock must be held.
+ *
+ ****************************************************************************/
+
+static void vad_update_wakeup(struct da1470x_vad_dev_s *priv)
+{
+  bool want = priv->wakeup && priv->mode == VAD_MODE_LISTENING;
+
+  if (want && priv->pdc_entry < 0)
+    {
+      int entry = da1470x_pdc_add(DA1470X_PDC_TRIG_PERIPHERAL,
+                                  DA1470X_PDC_PERIPH_VAD,
+                                  DA1470X_PDC_MASTER_CM33, 0);
+      if (entry < 0)
+        {
+          awarn("no PDC entry: the detector will not wake the system\n");
+        }
+      else
+        {
+          priv->pdc_entry = entry;
+        }
+    }
+  else if (!want && priv->pdc_entry >= 0)
+    {
+      da1470x_pdc_remove(priv->pdc_entry);
+      priv->pdc_entry = -1;
+    }
+}
 
 /****************************************************************************
  * Name: vad_write_mode
@@ -160,6 +209,8 @@ static void vad_write_mode(struct da1470x_vad_dev_s *priv, uint8_t mode)
 
   putreg32(regval, DA1470X_VAD_CTRL3);
   priv->mode = mode;
+
+  vad_update_wakeup(priv);
 }
 
 /****************************************************************************
@@ -457,6 +508,21 @@ static int vad_ioctl(struct file *filep, int cmd, unsigned long arg)
         *(int *)arg = priv->mode;
         break;
 
+      case VADIOC_SETWAKEUP:
+        priv->wakeup = (arg != 0);
+        vad_update_wakeup(priv);
+        break;
+
+      case VADIOC_GETWAKEUP:
+        if (arg == 0)
+          {
+            ret = -EINVAL;
+            break;
+          }
+
+        *(int *)arg = priv->pdc_entry >= 0;
+        break;
+
       case VADIOC_GETNOISE:
         if (arg == 0)
           {
@@ -615,29 +681,14 @@ int da1470x_vad_register(const char *devpath,
 int da1470x_vad_wakeup_enable(bool enable)
 {
   struct da1470x_vad_dev_s *priv = &g_vad;
-  int ret = OK;
 
   nxmutex_lock(&priv->lock);
 
-  if (enable && priv->pdc_entry < 0)
-    {
-      ret = da1470x_pdc_add(DA1470X_PDC_TRIG_PERIPHERAL,
-                            DA1470X_PDC_PERIPH_VAD,
-                            DA1470X_PDC_MASTER_CM33, 0);
-      if (ret >= 0)
-        {
-          priv->pdc_entry = ret;
-          ret = OK;
-        }
-    }
-  else if (!enable && priv->pdc_entry >= 0)
-    {
-      da1470x_pdc_remove(priv->pdc_entry);
-      priv->pdc_entry = -1;
-    }
+  priv->wakeup = enable;
+  vad_update_wakeup(priv);
 
   nxmutex_unlock(&priv->lock);
-  return ret;
+  return OK;
 }
 
 #endif /* CONFIG_DA1470X_VAD */

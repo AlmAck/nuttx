@@ -109,6 +109,10 @@
 #define VADIOC_SETMODE    _DIOC(0x92)  /* IN:  int, VAD_MODE_* */
 #define VADIOC_GETMODE    _DIOC(0x93)  /* OUT: int, VAD_MODE_* */
 #define VADIOC_GETNOISE   _DIOC(0x94)  /* OUT: uint32_t, noise floor */
+#define VADIOC_SETWAKEUP  _DIOC(0x96)  /* IN:  int, non-zero to allow the
+                                        *      detector to wake the system
+                                        *      while it is listening */
+#define VADIOC_GETWAKEUP  _DIOC(0x97)  /* OUT: int, non-zero if it would */
 #define VADIOC_FLUSH      _DIOC(0x95)  /* Drop undelivered detections */
 
 /****************************************************************************
