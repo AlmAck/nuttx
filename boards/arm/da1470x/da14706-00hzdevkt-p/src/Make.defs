@@ -62,7 +62,19 @@ endif
 
 ifeq ($(CONFIG_DA1470X_BLE),y)
 ASRCS += da1470x_cmac_fw.S
-AFLAGS += -DDA1470X_CMAC_FW_PATH=\"$(TOPDIR)/$(CONFIG_DA1470X_CMAC_FW_PATH)\"
+
+# Where the controller firmware is.  A relative path is taken from the top
+# of the tree, which is what the default is written as; an absolute one is
+# used as it stands.  Prefixing an absolute path with the tree root, which
+# is what this did before, produces a doubled path and an .incbin that
+# cannot find its file.
+
+CMAC_FW_PATH := $(patsubst "%",%,$(CONFIG_DA1470X_CMAC_FW_PATH))
+ifneq ($(patsubst /%,,$(CMAC_FW_PATH)),)
+CMAC_FW_PATH := $(TOPDIR)/$(CMAC_FW_PATH)
+endif
+
+AFLAGS += -DDA1470X_CMAC_FW_PATH=\"$(CMAC_FW_PATH)\"
 endif
 
 DEPPATH += --dep-path board

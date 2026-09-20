@@ -60,9 +60,18 @@ endif()
 
 if(CONFIG_DA1470X_BLE)
   list(APPEND SRCS da1470x_cmac_fw.S)
+
+  # A relative path is taken from the top of the tree; an absolute one is
+  # used as it stands.  See the note in Make.defs.
+
+  set(CMAC_FW_PATH "${CONFIG_DA1470X_CMAC_FW_PATH}")
+  if(NOT IS_ABSOLUTE "${CMAC_FW_PATH}")
+    set(CMAC_FW_PATH "${NUTTX_DIR}/${CMAC_FW_PATH}")
+  endif()
+
   set_source_files_properties(
     da1470x_cmac_fw.S PROPERTIES COMPILE_DEFINITIONS
-    "DA1470X_CMAC_FW_PATH=\"${NUTTX_DIR}/${CONFIG_DA1470X_CMAC_FW_PATH}\"")
+    "DA1470X_CMAC_FW_PATH=\"${CMAC_FW_PATH}\"")
 endif()
 
 if(CONFIG_DA1470X_AUDIO OR CONFIG_DA1470X_VAD)
