@@ -185,12 +185,23 @@ config DA1470X_GPIO_IRQ
 config DA1470X_RTC
 	bool "RTC"
 	default n
+	depends on !RTC_ARCH
 	select RTC
 	select RTC_DATETIME
 	select RTC_ALARM
 	select RTC_DRIVER
 	---help---
 		Real-time clock with calendar and alarm, exposed as /dev/rtc0.
+
+		Note that this cannot be combined with RTC_ARCH.  That option
+		builds the arch RTC interface on top of the driver interface,
+		which is for parts that do not implement up_rtc_* themselves;
+		this one does.  Enabling both defines g_rtc_enabled twice, in
+		da1470x_rtc.c and in drivers/timers/arch_rtc.c, and the build
+		fails at the link with a duplicate symbol under -fno-common --
+		a long way from the option that caused it, and in a file
+		nobody merging a defconfig from another chip would think to
+		look at.
 
 config DA1470X_PDC
 	bool "Power Domain Controller (PDC)"
@@ -547,6 +558,15 @@ config DA1470X_LCDC_NBUFFERS
 		With two buffers the framebuffer reports twice the visible
 		height; clients draw into either half and pan to it, which
 		lets a renderer prepare one frame while the other is shown.
+
+		Weigh that against what it costs, because on a 1 MiB part it
+		is most of the memory.  Two buffers for the 390x390 panel at
+		16 bits is 608 KiB.  A system that is only driving the display
+		can afford it, which is why two is the default; a system that
+		is also running a graphics toolkit, a filesystem and a
+		Bluetooth host cannot.  Measured with one such: the libc heap
+		sat at 99% full, 712960 of 720008 bytes, with the largest free
+		block down to 7048 bytes.  One buffer fixed it outright.
 
 config DA1470X_LCDC_ASYNC
 	bool "Send frames from a driver thread"
