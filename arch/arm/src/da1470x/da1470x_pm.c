@@ -58,6 +58,9 @@
 #include "da1470x_pdc.h"
 #include "da1470x_pmu.h"
 #include "da1470x_pm.h"
+#ifdef CONFIG_DA1470X_PSRAM
+#  include "da1470x_psram.h"
+#endif
 
 #ifdef CONFIG_PM
 
@@ -178,6 +181,14 @@ static void pm_lower_clock(void)
   da1470x_rchs_disable();
   g_pm_clock_lowered = true;
 
+#ifdef CONFIG_DA1470X_PSRAM
+  /* After lowering, never before: the PSRAM controller must not run fast
+   * with the slow read sampling point.
+   */
+
+  da1470x_psram_clock_changed(false);
+#endif
+
 #ifdef CONFIG_DA1470X_PM_LOWER_V12
   /* 32 MHz does not need the full core voltage.  The flash read timing the
    * boot ROM left behind is the constraint here, which is why this is a
@@ -208,6 +219,12 @@ static void pm_restore_clock(void)
    */
 
   da1470x_pmu_set_v12(DA1470X_V12_LEVEL_1P20V);
+#endif
+
+#ifdef CONFIG_DA1470X_PSRAM
+  /* Before raising, for the same reason in the other direction */
+
+  da1470x_psram_clock_changed(g_pm_saved_sysclk != DA1470X_SYSCLK_XTAL32M);
 #endif
 
   if (g_pm_saved_sysclk != da1470x_get_sysclk_src())

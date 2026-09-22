@@ -448,6 +448,44 @@ config DA1470X_CHARGER_NTC
 		unattended cell charging, and set this back to y for hardware
 		that has the thermistor.
 
+config DA1470X_PSRAM
+	bool "Quad-SPI PSRAM on QSPIC2"
+	default n
+	---help---
+		Bring up an AP Memory APS6404 PSRAM on the second quad-SPI
+		controller and map it at 0x28000000, readable and writable like
+		any other memory.  The development kit has one on the
+		motherboard, U2, 8 MiB.
+
+		The memory is external: the SoC provides only the controller.
+		It is slower than internal RAM and the window is cacheable, so
+		it suits large buffers the processor works on; anything a DMA
+		engine reads from it -- a frame buffer, say -- has to be cleaned
+		from the cache first.
+
+		The part is identified and its address and data lines tested
+		before it is used, so a board without one simply reports it
+		missing.
+
+if DA1470X_PSRAM
+
+config DA1470X_PSRAM_SIZE
+	hex "PSRAM size"
+	default 0x800000
+	---help---
+		How much memory is behind the window.  The APS6404 is 8 MiB.
+
+config DA1470X_PSRAM_HEAP
+	bool "Give the PSRAM a heap of its own"
+	default y
+	---help---
+		Manage the PSRAM as a separate heap, reached through
+		da1470x_psram_malloc() and da1470x_psram_free().  It is kept
+		out of the system heap on purpose, so that nothing ordinary
+		lands in slow external memory without asking to.
+
+endif # DA1470X_PSRAM
+
 config DA1470X_PWM
 	bool "Timer PWM outputs"
 	default n

@@ -106,6 +106,10 @@ ifeq ($(CONFIG_DA1470X_PWM),y)
 CHIP_CSRCS += da1470x_pwm.c
 endif
 
+ifeq ($(CONFIG_DA1470X_PSRAM),y)
+CHIP_CSRCS += da1470x_psram.c
+endif
+
 ifeq ($(CONFIG_DA1470X_WDT),y)
 CHIP_CSRCS += da1470x_wdt.c
 endif

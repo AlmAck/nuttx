@@ -111,7 +111,13 @@
 /* SPI Pins *****************************************************************/
 
 /* SPI0 on the display connector's spare serial pins (P1.13/14/16/17),
- * free when the E120A390QSR board is fitted.
+ * free when the E120A390QSR board is fitted -- but NOT free if the PSRAM
+ * is in use.  P1.13 and P1.14 are also QSPIC2_D2 and QSPIC2_D1, which run
+ * across the board connector to the APS6404 PSRAM (U2) on the
+ * motherboard, so SPI0 here and the PSRAM cannot both be enabled.  The
+ * other four QSPIC2 signals are P1.15 (D0), P1.19 (CLK), P1.20 (D3) and
+ * P1.24 (CS).  Those pads are fixed at the 1.8 V V18P rail, which is what
+ * the PSRAM runs at.
  */
 
 #define BOARD_SPI0_SCLK_PIN (GPIO_OUTPUT | GPIO_FUNC_SPI_CLK | GPIO_PORT1 | \
@@ -143,6 +149,52 @@
                              GPIO_PORT1 | GPIO_PIN(1))
 #define BOARD_TOUCH_INT_PIN (GPIO_INPUT | GPIO_PULLUP | GPIO_FUNC_GPIO | \
                              GPIO_PORT1 | GPIO_PIN(3))
+
+/* QSPIC2 / PSRAM **********************************************************/
+
+/* The PSRAM controller's signals have a fixed assignment to these six
+ * pins (datasheet Table 188).  They are not reachable through the PID
+ * multiplexer at all -- there is no QSPIC2 PID -- so they are set up as
+ * plain GPIOs and the controller takes them over.  Clock and chip select
+ * are outputs; the four data lines are left as inputs without a pull,
+ * because the controller switches their direction itself between the
+ * command and data phases.  The reset state's pull-down is dropped so it
+ * does not fight the PSRAM's weak drive.
+ *
+ * Chip select is given an idle-high value, so that the part cannot be
+ * selected in the moment between configuring the pin and the controller
+ * taking it.
+ */
+
+/* The PSRAM's power AND its connection to the SoC are both switched by
+ * RAM_PWRON on the motherboard (user manual section 4.9): high powers U2
+ * through the load switch U3 and routes these six signals to the SoC; low
+ * leaves U2 unpowered and routes the signals to the monitoring header J4
+ * instead.  With J12 in its default 1-2 position RAM_PWRON is P1_00, which
+ * comes out of reset as a pulled-down input -- so until something raises
+ * it the PSRAM is both off and disconnected, and reads see a floating
+ * line.  (J12 2-3 ties it on permanently.)
+ *
+ * P1_00 is also the panel's IM1 interface-select line, which the display
+ * code drives high too.  Both want it high; it just has to be high before
+ * the PSRAM is touched, not only once the panel is set up.
+ */
+
+#define BOARD_RAM_PWRON_PIN  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_FUNC_GPIO | \
+                              GPIO_PORT1 | GPIO_PIN(0))
+
+#define BOARD_QSPIC2_CLK_PIN (GPIO_OUTPUT | GPIO_FUNC_GPIO | GPIO_PORT1 | \
+                              GPIO_PIN(19))
+#define BOARD_QSPIC2_CS_PIN  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_FUNC_GPIO | \
+                              GPIO_PORT1 | GPIO_PIN(24))
+#define BOARD_QSPIC2_D0_PIN  (GPIO_INPUT | GPIO_FLOAT | GPIO_FUNC_GPIO | \
+                              GPIO_PORT1 | GPIO_PIN(15))
+#define BOARD_QSPIC2_D1_PIN  (GPIO_INPUT | GPIO_FLOAT | GPIO_FUNC_GPIO | \
+                              GPIO_PORT1 | GPIO_PIN(14))
+#define BOARD_QSPIC2_D2_PIN  (GPIO_INPUT | GPIO_FLOAT | GPIO_FUNC_GPIO | \
+                              GPIO_PORT1 | GPIO_PIN(13))
+#define BOARD_QSPIC2_D3_PIN  (GPIO_INPUT | GPIO_FLOAT | GPIO_FUNC_GPIO | \
+                              GPIO_PORT1 | GPIO_PIN(20))
 
 /* Timer PWM ***************************************************************/
 

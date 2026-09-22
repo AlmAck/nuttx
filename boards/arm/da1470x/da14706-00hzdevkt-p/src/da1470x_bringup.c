@@ -28,6 +28,7 @@
 #include <debug.h>
 #include <errno.h>
 
+#include <nuttx/arch.h>
 #include <nuttx/board.h>
 #include <arch/board/board.h>
 #include <nuttx/fs/fs.h>
@@ -62,6 +63,7 @@
 #include "da1470x_charger.h"
 #include "da1470x_gpadc.h"
 #include "da1470x_pwm.h"
+#include "da1470x_psram.h"
 #include "da1470x_oqspi.h"
 #include "da1470x_gpu.h"
 #include "da1470x_bt.h"
@@ -165,6 +167,16 @@ static int da1470x_flash_initialize(void)
 }
 #endif
 
+/* On this kit SPI0 is wired to P1.13 and P1.14, which are also two of the
+ * PSRAM's data lines.  Both enabled would put two controllers on the same
+ * wires, and the PSRAM would fail its line test at best.  Refuse at build
+ * time rather than let it fail on the hardware.
+ */
+
+#if defined(CONFIG_DA1470X_PSRAM) && defined(CONFIG_DA1470X_SPI0)
+#  error "DA1470X_PSRAM and DA1470X_SPI0 share P1.13/P1.14 on this board"
+#endif
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -260,6 +272,33 @@ int da1470x_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "Failed to register /dev/charger0: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_DA1470X_PSRAM
+  /* Early, before anything might want to allocate from it.  A missing or
+   * faulty part is reported and skipped; the board is still usable.
+   */
+
+  /* Power the PSRAM and connect it: see BOARD_RAM_PWRON_PIN.  Then give
+   * the load switch time to turn on and the part the 150 us it needs after
+   * its supply is stable before the first command.
+   */
+
+  da1470x_gpio_config(BOARD_RAM_PWRON_PIN);
+  up_mdelay(2);
+
+  da1470x_gpio_config(BOARD_QSPIC2_CS_PIN);
+  da1470x_gpio_config(BOARD_QSPIC2_CLK_PIN);
+  da1470x_gpio_config(BOARD_QSPIC2_D0_PIN);
+  da1470x_gpio_config(BOARD_QSPIC2_D1_PIN);
+  da1470x_gpio_config(BOARD_QSPIC2_D2_PIN);
+  da1470x_gpio_config(BOARD_QSPIC2_D3_PIN);
+
+  ret = da1470x_psram_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_WARNING, "PSRAM not available: %d\n", ret);
     }
 #endif
 
