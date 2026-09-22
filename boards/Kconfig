@@ -728,6 +728,7 @@ config ARCH_BOARD_DA14706_00HZDEVKT_P
 	depends on ARCH_CHIP_DA1470X
 	select ARCH_HAVE_LEDS
 	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
 	---help---
 		This option selects the Renesas da1470x Development Kit (DA14706_00HZDEVKT_P)
 

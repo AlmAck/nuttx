@@ -54,6 +54,10 @@ if(CONFIG_DA14706_TOUCH_ZT2628)
   list(APPEND SRCS da1470x_zt2628.c)
 endif()
 
+if(CONFIG_ARCH_BUTTONS)
+  list(APPEND SRCS da1470x_buttons.c)
+endif()
+
 if(CONFIG_DA1470X_PWMLED)
   list(APPEND SRCS da1470x_pwmled.c)
 endif()

@@ -59,6 +59,7 @@
 #include "da1470x_snc.h"
 #include "da1470x_wdt.h"
 #include <nuttx/timers/pwm.h>
+#include <nuttx/input/buttons.h>
 
 #include "da1470x_charger.h"
 #include "da1470x_gpadc.h"
@@ -272,6 +273,19 @@ int da1470x_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "Failed to register /dev/charger0: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_INPUT_BUTTONS_LOWER
+  /* K1 and K2 as a button device.  The wake-up entries armed below are a
+   * separate matter: those let a press bring the system back, this lets
+   * something read the press once it is running.
+   */
+
+  ret = btn_lower_initialize("/dev/buttons");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to register /dev/buttons: %d\n", ret);
     }
 #endif
 

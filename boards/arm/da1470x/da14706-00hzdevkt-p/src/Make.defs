@@ -56,6 +56,10 @@ ifeq ($(CONFIG_DA14706_TOUCH_ZT2628),y)
 CSRCS += da1470x_zt2628.c
 endif
 
+ifeq ($(CONFIG_ARCH_BUTTONS),y)
+CSRCS += da1470x_buttons.c
+endif
+
 ifeq ($(CONFIG_DA1470X_PWMLED),y)
 CSRCS += da1470x_pwmled.c
 endif
