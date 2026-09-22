@@ -78,6 +78,7 @@
 #define TL_CTRL       (TL_BASE + DA1470X_TIMER_CTRL_OFFSET)
 #define TL_VAL        (TL_BASE + DA1470X_TIMER_TIMER_VAL_OFFSET)
 #define TL_SETTINGS   (TL_BASE + DA1470X_TIMER_SETTINGS_OFFSET)
+#define TL_STATUS     (TL_BASE + DA1470X_TIMER_STATUS_OFFSET)
 #define TL_CLEAR_IRQ  (TL_BASE + DA1470X_TIMER_CLEAR_IRQ_OFFSET)
 
 /* Width of the hardware counter */
@@ -104,12 +105,19 @@
 #endif
 
 /* The comparator value is resynchronised into the low power clock domain
- * and that takes up to two of its cycles, so a value less than three counts
+ * and that takes up to two of its cycles, so a value only a few counts
  * ahead may be missed altogether -- and a missed comparison costs a whole
- * 512 s period.
+ * 512 s period.  tl_arm() catches a miss anyway; this only keeps it rare.
  */
 
-#define TL_MIN_DELAY  3
+#define TL_MIN_DELAY  4
+
+/* Bound on the wait for a SETTINGS write to cross into the low power clock
+ * domain.  Two cycles of 32 kHz are about 61 us, far less than this even
+ * at the fastest system clock.
+ */
+
+#define TL_BUSY_LOOPS 100000
 
 /****************************************************************************
  * Private Types
@@ -183,6 +191,35 @@ static uint64_t tl_ts2count(const struct timespec *ts)
 }
 
 /****************************************************************************
+ * Name: tl_wait_busy
+ *
+ * Description:
+ *   Wait for the last SETTINGS write to reach the timer.  The register
+ *   reads back the new value at once, but the comparator only takes it a
+ *   couple of low power clock cycles later, and a second write made in
+ *   that window is dropped by the timer while the register still reads it
+ *   back.  The comparator then keeps waiting for the old value, which is
+ *   usually in the past, and the next interrupt comes at the wrap, 512 s
+ *   away -- the system sleeps until the watchdog resets it.  At 160 MHz
+ *   two tl_arm() calls land inside that window easily.  The SDK waits the
+ *   same way after every reload write.
+ *
+ ****************************************************************************/
+
+static void tl_wait_busy(void)
+{
+  int i;
+
+  for (i = 0; i < TL_BUSY_LOOPS; i++)
+    {
+      if ((getreg32(TL_STATUS) & TIMER_STATUS_TIM_TIMER_BUSY) == 0)
+        {
+          return;
+        }
+    }
+}
+
+/****************************************************************************
  * Name: tl_arm
  *
  * Description:
@@ -191,13 +228,26 @@ static uint64_t tl_ts2count(const struct timespec *ts)
  *   the comparison, and not so far that a wrap would pass unseen.  Must be
  *   called with interrupts disabled.
  *
+ *   The comparator only fires on equality, so if the counter gets to the
+ *   target before the new value has reached the timer, the event is lost
+ *   until the wrap.  The counter is read again once the write has landed,
+ *   and if it is already at or past the target the interrupt is raised by
+ *   hand; the handler sorts out whether anything is actually due.
+ *
  ****************************************************************************/
 
 static void tl_arm(void)
 {
-  uint64_t now = tl_getcount();
-  uint64_t target = now + TL_MAX_DELAY(g_tickless.freq);
+  uint64_t now;
+  uint64_t target;
   uint32_t regval;
+
+  /* Let any earlier write finish first, or this one may be dropped */
+
+  tl_wait_busy();
+
+  now    = tl_getcount();
+  target = now + TL_MAX_DELAY(g_tickless.freq);
 
   if (g_tickless.alarm_set && g_tickless.alarm < target)
     {
@@ -213,6 +263,13 @@ static void tl_arm(void)
   regval &= ~TIMER_SETTINGS_TIM_RELOAD_MASK;
   regval |= TIMER_SETTINGS_TIM_RELOAD((uint32_t)(target & TL_MASK));
   putreg32(regval, TL_SETTINGS);
+
+  tl_wait_busy();
+
+  if (tl_getcount() >= target)
+    {
+      up_trigger_irq(TL_IRQ, 0);
+    }
 }
 
 /****************************************************************************
