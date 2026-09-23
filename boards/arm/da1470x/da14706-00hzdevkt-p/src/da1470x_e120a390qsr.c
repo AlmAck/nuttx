@@ -80,6 +80,8 @@ static int  e120a390_init(const struct da1470x_lcdc_panel_s *panel);
 static int  e120a390_window(const struct da1470x_lcdc_panel_s *panel,
                             uint16_t x0, uint16_t y0, uint16_t x1,
                             uint16_t y1);
+static void e120a390_brightness(const struct da1470x_lcdc_panel_s *panel,
+                                uint8_t level);
 static void e120a390_power(const struct da1470x_lcdc_panel_s *panel,
                            bool on);
 
@@ -104,6 +106,7 @@ static const struct da1470x_lcdc_panel_s g_e120a390_panel =
   .init         = e120a390_init,
   .window       = e120a390_window,
   .power        = e120a390_power,
+  .brightness   = e120a390_brightness,
 };
 
 /****************************************************************************
@@ -131,6 +134,29 @@ static void e120a390_cmd1(uint8_t cmd, uint8_t param)
   da1470x_lcdc_dcs_cmd(cmd);
   da1470x_lcdc_dcs_data(param);
   da1470x_lcdc_dcs_hold(false);
+}
+
+/****************************************************************************
+ * Name: e120a390_brightness
+ *
+ * Description:
+ *   Panel brightness, 0-255, via DCS WRDISBV. Called by
+ *   da1470x_lcdc_set_brightness() with the driver lock held and the frame
+ *   engine idle, so it may issue DCS traffic directly.
+ *
+ *   The mapping from this byte to luminance goes through the RM69091's
+ *   DBV gamma table and is very unlikely to be perceptually linear, so a
+ *   linear host ramp may not look linear. That is a tuning question for
+ *   whoever is watching the panel.
+ *
+ ****************************************************************************/
+
+static void e120a390_brightness(const struct da1470x_lcdc_panel_s *panel,
+                                uint8_t level)
+{
+  UNUSED(panel);
+
+  e120a390_cmd1(DCS_WRDISBV, level);
 }
 
 /****************************************************************************
@@ -218,7 +244,15 @@ static int e120a390_init(const struct da1470x_lcdc_panel_s *panel)
   e120a390_cmd1(0xab, 0x00);            /* HBM ELVSS -2.4 V */
   e120a390_cmd1(0xfe, 0x00);            /* User command page */
   e120a390_cmd1(0xc4, 0x80);            /* SPI write to RAM */
-  e120a390_cmd1(DCS_WRCTRLD, 0x20);     /* Dimming on */
+  /* WRCTRLD 0x20 = BCTRL, the brightness control block. NOT dimming:
+   * the DCS smooth-transition bit is DD (0x08) and is not set, so the
+   * panel does not interpolate between levels and the host's own ramp
+   * is what produces the fade. (Read from the generic
+   * DCS spec, not the RM69091 datasheet -- worth confirming against the
+   * part if a fade ever looks stepped.)
+   */
+
+  e120a390_cmd1(DCS_WRCTRLD, 0x20);
   e120a390_cmd1(DCS_WRDISBV, 0xff);     /* Maximum brightness */
 
   e120a390_window(panel, 0, 0, E120A390_RESX - 1, E120A390_RESY - 1);

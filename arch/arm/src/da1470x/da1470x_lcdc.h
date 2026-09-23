@@ -81,6 +81,18 @@ struct da1470x_lcdc_panel_s
   int  (*window)(const struct da1470x_lcdc_panel_s *panel, uint16_t x0,
                  uint16_t y0, uint16_t x1, uint16_t y1);
   void (*power)(const struct da1470x_lcdc_panel_s *panel, bool on);
+
+  /* Set the panel's own brightness, 0-255. Optional: leave NULL on
+   * panels that have no such control (the JDI parallel part has none),
+   * and da1470x_lcdc_set_brightness() answers -ENOTSUP.
+   *
+   * Called with the driver lock held and, on an ASYNC build, with the
+   * frame engine idle -- see da1470x_lcdc_set_brightness(). A panel
+   * implementation may therefore issue DCS traffic directly.
+   */
+
+  void (*brightness)(const struct da1470x_lcdc_panel_s *panel,
+                     uint8_t level);
 };
 
 /****************************************************************************
@@ -115,6 +127,29 @@ int da1470x_lcdc_register(const struct da1470x_lcdc_panel_s *panel);
  *   byte into the DBI command FIFO.  For use by panel init sequences.
  *
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: da1470x_lcdc_set_brightness
+ *
+ * Description:
+ *   Set the panel's brightness, 0 (darkest) to 255 (brightest).
+ *
+ *   This is the ONLY safe way to reach the panel while the driver is
+ *   running: it serialises against the frame engine. Issuing DCS traffic
+ *   directly from outside corrupts the frame -- lcdc_send_region() holds
+ *   CS low for the whole transfer and sets CMD_DATA_AS_HEADER, so an
+ *   injected command's prefix and bytes land inside the pixel stream.
+ *   The driver mutex alone is not sufficient either: with
+ *   CONFIG_DA1470X_LCDC_ASYNC, updatearea() hands the frame to the driver
+ *   thread and releases the lock while it is still on the wire.
+ *
+ * Returned Value:
+ *   OK, -ENODEV if the driver is not up, -ENOTSUP if the panel has no
+ *   brightness control, or a negated errno from the lock.
+ *
+ ****************************************************************************/
+
+int da1470x_lcdc_set_brightness(uint8_t level);
 
 void da1470x_lcdc_dcs_cmd(uint8_t cmd);
 void da1470x_lcdc_dcs_data(uint8_t data);

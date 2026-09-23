@@ -107,6 +107,13 @@ struct da1470x_lcdc_s
   bool     initialized;
   bool     poweron;                            /* Panel is lit and holding
                                                * the system at PM_NORMAL */
+  uint8_t  brightness;                        /* Last level asked for.  Kept
+                                               * across power transitions:
+                                               * panel->init resets the panel
+                                               * to full, so setpower() puts
+                                               * this back afterwards and a
+                                               * level set while the panel is
+                                               * dark is not lost. */
 };
 
 /****************************************************************************
@@ -141,6 +148,12 @@ static struct da1470x_lcdc_s g_lcdc =
   },
   .lock  = NXMUTEX_INITIALIZER,
   .frame = SEM_INITIALIZER(0),
+
+  /* Full brightness until someone asks for less: the panel's own reset
+   * state, so the first power-on reapplies what init already did.
+   */
+
+  .brightness = 0xff,
 #ifdef CONFIG_DA1470X_LCDC_ASYNC
   .request = SEM_INITIALIZER(0),
   .idle    = SEM_INITIALIZER(1),
@@ -1006,6 +1019,16 @@ static int lcdc_setpower(struct fb_vtable_s *vtable, int power)
           ret = panel->init(panel);
         }
 
+      /* init leaves the panel at full brightness, so restore the level the
+       * caller last asked for -- otherwise powering on flashes full bright
+       * before the next fade step brings it down.
+       */
+
+      if (panel->brightness != NULL)
+        {
+          panel->brightness(panel, priv->brightness);
+        }
+
       priv->poweron = true;
     }
   else if (power == 0 && priv->poweron)
@@ -1039,6 +1062,80 @@ static int lcdc_setpower(struct fb_vtable_s *vtable, int power)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: da1470x_lcdc_set_brightness
+ *
+ * Description:
+ *   Set the panel's brightness, serialised against the frame engine.
+ *
+ *   Raw DCS traffic from outside the driver is not safe while frames are
+ *   moving: lcdc_send_region() holds CS low across the whole transfer and
+ *   sets CMD_DATA_AS_HEADER, so an injected command's prefix and bytes
+ *   land inside the pixel stream -- a corrupt frame at best, a wedged
+ *   interface at worst.
+ *
+ *   The mutex alone does not make it safe either. With
+ *   CONFIG_DA1470X_LCDC_ASYNC, updatearea() queues the frame to the
+ *   driver thread and releases the lock while it is still on the wire, so
+ *   we must also wait for the frame engine to go idle. Worst case this
+ *   blocks for one frame.
+ *
+ *   Note brightness 0 does NOT power the panel down: it stays on and the
+ *   LCDC keeps its pm_stay, so the system will not sleep. Use
+ *   FBIOSET_POWER 0 for that. Coming back, setpower(1) re-runs the panel
+ *   init, which restores full brightness -- so a fade-in has to write its
+ *   level after powering on, not before.
+ *
+ ****************************************************************************/
+
+int da1470x_lcdc_set_brightness(uint8_t level)
+{
+  struct da1470x_lcdc_s *priv = &g_lcdc;
+  const struct da1470x_lcdc_panel_s *panel;
+  int ret;
+
+  if (!priv->initialized)
+    {
+      return -ENODEV;
+    }
+
+  if (priv->panel->brightness == NULL)
+    {
+      return -ENOTSUP;
+    }
+
+  ret = nxmutex_lock(&priv->lock);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  if (!priv->poweron)
+    {
+      /* A dark panel takes no commands, and the init on the way back up
+       * sets the brightness anyway.
+       */
+
+      nxmutex_unlock(&priv->lock);
+      return OK;
+    }
+
+  panel = priv->panel;
+
+#ifdef CONFIG_DA1470X_LCDC_ASYNC
+  nxsem_wait_uninterruptible(&priv->idle);
+#endif
+
+  panel->brightness(panel, level);
+
+#ifdef CONFIG_DA1470X_LCDC_ASYNC
+  nxsem_post(&priv->idle);
+#endif
+
+  nxmutex_unlock(&priv->lock);
+  return OK;
+}
 
 /****************************************************************************
  * Name: da1470x_lcdc_dcs_cmd
