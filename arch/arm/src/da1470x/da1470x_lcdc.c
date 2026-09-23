@@ -573,6 +573,15 @@ static int lcdc_send_region(struct da1470x_lcdc_s *priv, int buf,
       return ret;
     }
 
+  /* The power manager lowers the system clock in its sleep states and
+   * puts it back on the way out, so the interface divider chosen at power
+   * on may no longer suit it: too slow once the fast clock is back, or,
+   * fed from the system clock, too fast for the panel.  Choose again for
+   * each frame; it is a few register writes.
+   */
+
+  lcdc_clock_select(panel);
+
 #ifdef CONFIG_DA1470X_LCDC_TE
   if (panel->te)
     {
