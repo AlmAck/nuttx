@@ -1,0 +1,680 @@
+/****************************************************************************
+ * arch/arm/src/da1470x/hardware/da1470x_crg_top.h
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/* Generated from the Renesas CMSIS device header DA1470x-00.h (SDK
+ * 10.2.6.49).  Do not edit by hand; regenerate with tools/genhdr.py.
+ */
+
+#ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_TOP_H
+#define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_TOP_H
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/config.h>
+#include "da1470x_memorymap.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/* Register Offsets *********************************************************/
+
+#define DA1470X_CRG_TOP_CLK_AMBA_OFFSET 0x0000           /* HCLK, PCLK, divider and clock gates */
+#define DA1470X_CRG_TOP_CLK_CMAC_SWITCH_OFFSET 0x0004    /* Clock switching register for CMAC clock */
+#define DA1470X_CRG_TOP_RST_CTRL_OFFSET 0x000c           /* Reset control register */
+#define DA1470X_CRG_TOP_CLK_RADIO_OFFSET 0x0010          /* Radio PLL control register */
+#define DA1470X_CRG_TOP_CLK_CTRL_OFFSET 0x0014           /* Clock control register */
+#define DA1470X_CRG_TOP_CLK_TMR_OFFSET 0x0018            /* Clock control for the timers */
+#define DA1470X_CRG_TOP_CLK_SWITCH2XTAL_OFFSET 0x001c    /* Switches clock from RC32M to XTAL32M */
+#define DA1470X_CRG_TOP_PMU_CTRL_OFFSET 0x0020           /* Power Management Unit control register */
+#define DA1470X_CRG_TOP_SYS_CTRL_OFFSET 0x0024           /* System Control register */
+#define DA1470X_CRG_TOP_SYS_STAT_OFFSET 0x0028           /* System status register */
+#define DA1470X_CRG_TOP_CLK_SNC_CTRL_OFFSET 0x002c       /* CLK_SNC_CTRL_REG */
+#define DA1470X_CRG_TOP_SLP_MAP_OFFSET 0x0030            /* Map signals on GPIOs during sleep */
+#define DA1470X_CRG_TOP_LCD_EXT_CTRL_OFFSET 0x0034       /* LCD_EXT_CTRL_REG */
+#define DA1470X_CRG_TOP_CLK_RCLP_OFFSET 0x003c           /* 32/512 kHz RC oscillator register */
+#define DA1470X_CRG_TOP_CLK_XTAL32K_OFFSET 0x0040        /* 32 kHz XTAL oscillator register */
+#define DA1470X_CRG_TOP_CLK_RCHS_OFFSET 0x0044           /* Fast RC control register */
+#define DA1470X_CRG_TOP_CLK_RCX_OFFSET 0x0048            /* RCX-oscillator control register */
+#define DA1470X_CRG_TOP_CLK_RTCDIV_OFFSET 0x004c         /* Divisor for RTC 100Hz clock */
+#define DA1470X_CRG_TOP_BANDGAP_OFFSET 0x0050            /* bandgap trimming */
+#define DA1470X_CRG_TOP_VBUS_IRQ_MASK_OFFSET 0x0054      /* IRQ masking */
+#define DA1470X_CRG_TOP_VBUS_IRQ_CLEAR_OFFSET 0x0058     /* Clear pending IRQ register */
+#define DA1470X_CRG_TOP_BOD_CTRL_OFFSET 0x0060           /* Brown Out Detection control register */
+#define DA1470X_CRG_TOP_BOD_STATUS_OFFSET 0x0064         /* BOD_STATUS_REG */
+#define DA1470X_CRG_TOP_P0_PAD_LATCH_OFFSET 0x0070       /* Control the state retention of the GPIO */
+#define DA1470X_CRG_TOP_P0_SET_PAD_LATCH_OFFSET 0x0074   /* Control the state retention of the GPIO */
+#define DA1470X_CRG_TOP_P0_RESET_PAD_LATCH_OFFSET 0x0078 /* Control the state retention of the GPIO */
+#define DA1470X_CRG_TOP_P1_PAD_LATCH_OFFSET 0x007c       /* Control the state retention of the GPIO */
+#define DA1470X_CRG_TOP_P1_SET_PAD_LATCH_OFFSET 0x0080   /* Control the state retention of the GPIO */
+#define DA1470X_CRG_TOP_P1_RESET_PAD_LATCH_OFFSET 0x0084 /* Control the state retention of the GPIO */
+#define DA1470X_CRG_TOP_P2_PAD_LATCH_OFFSET 0x0088       /* Control the state retention of the GPIO */
+#define DA1470X_CRG_TOP_P2_SET_PAD_LATCH_OFFSET 0x008c   /* Control the state retention of the GPIO */
+#define DA1470X_CRG_TOP_P2_RESET_PAD_LATCH_OFFSET 0x0090 /* Control the state retention of the GPIO */
+#define DA1470X_CRG_TOP_POR_CTRL_OFFSET 0x0094           /* Controls the POR on VBAT */
+#define DA1470X_CRG_TOP_POR_PIN_OFFSET 0x0098            /* Selects a GPIO pin for POR generation */
+#define DA1470X_CRG_TOP_POR_TIMER_OFFSET 0x009c          /* Time for POR to happen */
+#define DA1470X_CRG_TOP_RESET_STAT_OFFSET 0x00bc         /* Reset status register */
+#define DA1470X_CRG_TOP_RAM_PWR_CTRL_OFFSET 0x00c0       /* Control power state of System RAMS */
+#define DA1470X_CRG_TOP_SECURE_BOOT_OFFSET 0x00cc        /* Controls secure booting */
+#define DA1470X_CRG_TOP_DISCHARGE_RAIL_OFFSET 0x00d4     /* Immediate rail resetting. There is no LD */
+#define DA1470X_CRG_TOP_WAKEUP_HIBERN_OFFSET 0x00e0      /* WAKEUP_HIBERN_REG */
+#define DA1470X_CRG_TOP_SW_V18F_OFFSET 0x00e4            /* SW_V18F_REG */
+#define DA1470X_CRG_TOP_BIAS_VREF_SEL_OFFSET 0x00e8      /* BIAS_VREF_SEL_REG */
+#define DA1470X_CRG_TOP_ANA_STATUS_OFFSET 0x00ec         /* Analog Signals Status Register */
+#define DA1470X_CRG_TOP_POWER_CTRL_OFFSET 0x00f0         /* Power control register */
+#define DA1470X_CRG_TOP_PMU_SLEEP_OFFSET 0x00f4          /* Configures the sleep/wakeup strategy */
+#define DA1470X_CRG_TOP_POWER_LVL_OFFSET 0x00f8          /* POWER_LVL_REG */
+
+/* Register Addresses *******************************************************/
+
+#define DA1470X_CRG_TOP_CLK_AMBA (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_CLK_AMBA_OFFSET)
+#define DA1470X_CRG_TOP_CLK_CMAC_SWITCH (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_CLK_CMAC_SWITCH_OFFSET)
+#define DA1470X_CRG_TOP_RST_CTRL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_RST_CTRL_OFFSET)
+#define DA1470X_CRG_TOP_CLK_RADIO (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_CLK_RADIO_OFFSET)
+#define DA1470X_CRG_TOP_CLK_CTRL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_CLK_CTRL_OFFSET)
+#define DA1470X_CRG_TOP_CLK_TMR (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_CLK_TMR_OFFSET)
+#define DA1470X_CRG_TOP_CLK_SWITCH2XTAL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_CLK_SWITCH2XTAL_OFFSET)
+#define DA1470X_CRG_TOP_PMU_CTRL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_PMU_CTRL_OFFSET)
+#define DA1470X_CRG_TOP_SYS_CTRL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_SYS_CTRL_OFFSET)
+#define DA1470X_CRG_TOP_SYS_STAT (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_SYS_STAT_OFFSET)
+#define DA1470X_CRG_TOP_CLK_SNC_CTRL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_CLK_SNC_CTRL_OFFSET)
+#define DA1470X_CRG_TOP_SLP_MAP (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_SLP_MAP_OFFSET)
+#define DA1470X_CRG_TOP_LCD_EXT_CTRL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_LCD_EXT_CTRL_OFFSET)
+#define DA1470X_CRG_TOP_CLK_RCLP (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_CLK_RCLP_OFFSET)
+#define DA1470X_CRG_TOP_CLK_XTAL32K (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_CLK_XTAL32K_OFFSET)
+#define DA1470X_CRG_TOP_CLK_RCHS (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_CLK_RCHS_OFFSET)
+#define DA1470X_CRG_TOP_CLK_RCX (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_CLK_RCX_OFFSET)
+#define DA1470X_CRG_TOP_CLK_RTCDIV (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_CLK_RTCDIV_OFFSET)
+#define DA1470X_CRG_TOP_BANDGAP (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_BANDGAP_OFFSET)
+#define DA1470X_CRG_TOP_VBUS_IRQ_MASK (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_VBUS_IRQ_MASK_OFFSET)
+#define DA1470X_CRG_TOP_VBUS_IRQ_CLEAR (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_VBUS_IRQ_CLEAR_OFFSET)
+#define DA1470X_CRG_TOP_BOD_CTRL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_BOD_CTRL_OFFSET)
+#define DA1470X_CRG_TOP_BOD_STATUS (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_BOD_STATUS_OFFSET)
+#define DA1470X_CRG_TOP_P0_PAD_LATCH (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_P0_PAD_LATCH_OFFSET)
+#define DA1470X_CRG_TOP_P0_SET_PAD_LATCH (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_P0_SET_PAD_LATCH_OFFSET)
+#define DA1470X_CRG_TOP_P0_RESET_PAD_LATCH (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_P0_RESET_PAD_LATCH_OFFSET)
+#define DA1470X_CRG_TOP_P1_PAD_LATCH (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_P1_PAD_LATCH_OFFSET)
+#define DA1470X_CRG_TOP_P1_SET_PAD_LATCH (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_P1_SET_PAD_LATCH_OFFSET)
+#define DA1470X_CRG_TOP_P1_RESET_PAD_LATCH (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_P1_RESET_PAD_LATCH_OFFSET)
+#define DA1470X_CRG_TOP_P2_PAD_LATCH (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_P2_PAD_LATCH_OFFSET)
+#define DA1470X_CRG_TOP_P2_SET_PAD_LATCH (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_P2_SET_PAD_LATCH_OFFSET)
+#define DA1470X_CRG_TOP_P2_RESET_PAD_LATCH (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_P2_RESET_PAD_LATCH_OFFSET)
+#define DA1470X_CRG_TOP_POR_CTRL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_POR_CTRL_OFFSET)
+#define DA1470X_CRG_TOP_POR_PIN (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_POR_PIN_OFFSET)
+#define DA1470X_CRG_TOP_POR_TIMER (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_POR_TIMER_OFFSET)
+#define DA1470X_CRG_TOP_RESET_STAT (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_RESET_STAT_OFFSET)
+#define DA1470X_CRG_TOP_RAM_PWR_CTRL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_RAM_PWR_CTRL_OFFSET)
+#define DA1470X_CRG_TOP_SECURE_BOOT (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_SECURE_BOOT_OFFSET)
+#define DA1470X_CRG_TOP_DISCHARGE_RAIL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_DISCHARGE_RAIL_OFFSET)
+#define DA1470X_CRG_TOP_WAKEUP_HIBERN (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_WAKEUP_HIBERN_OFFSET)
+#define DA1470X_CRG_TOP_SW_V18F (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_SW_V18F_OFFSET)
+#define DA1470X_CRG_TOP_BIAS_VREF_SEL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_BIAS_VREF_SEL_OFFSET)
+#define DA1470X_CRG_TOP_ANA_STATUS (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_ANA_STATUS_OFFSET)
+#define DA1470X_CRG_TOP_POWER_CTRL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_POWER_CTRL_OFFSET)
+#define DA1470X_CRG_TOP_PMU_SLEEP (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_PMU_SLEEP_OFFSET)
+#define DA1470X_CRG_TOP_POWER_LVL (DA1470X_CRG_TOP_BASE + DA1470X_CRG_TOP_POWER_LVL_OFFSET)
+
+/* Register Bit-field Definitions *******************************************/
+
+/* CLK_AMBA register */
+
+#define CRG_TOP_CLK_AMBA_HCLK_DIV_SHIFT (0)            /* Bits 0-2 */
+#define CRG_TOP_CLK_AMBA_HCLK_DIV_MASK (0x7 << CRG_TOP_CLK_AMBA_HCLK_DIV_SHIFT)
+#  define CRG_TOP_CLK_AMBA_HCLK_DIV(n) ((uint32_t)(n) << CRG_TOP_CLK_AMBA_HCLK_DIV_SHIFT)
+#define CRG_TOP_CLK_AMBA_PCLK_DIV_SHIFT (3)            /* Bits 3-4 */
+#define CRG_TOP_CLK_AMBA_PCLK_DIV_MASK (0x3 << CRG_TOP_CLK_AMBA_PCLK_DIV_SHIFT)
+#  define CRG_TOP_CLK_AMBA_PCLK_DIV(n) ((uint32_t)(n) << CRG_TOP_CLK_AMBA_PCLK_DIV_SHIFT)
+#define CRG_TOP_CLK_AMBA_SLOW_PCLK_DIV_SHIFT (5)       /* Bits 5-7 */
+#define CRG_TOP_CLK_AMBA_SLOW_PCLK_DIV_MASK (0x7 << CRG_TOP_CLK_AMBA_SLOW_PCLK_DIV_SHIFT)
+#  define CRG_TOP_CLK_AMBA_SLOW_PCLK_DIV(n) ((uint32_t)(n) << CRG_TOP_CLK_AMBA_SLOW_PCLK_DIV_SHIFT)
+#define CRG_TOP_CLK_AMBA_AES_CLK_ENABLE (1 << 8)       /* Bit 8 */
+#define CRG_TOP_CLK_AMBA_OTP_ENABLE (1 << 9)           /* Bit 9 */
+#define CRG_TOP_CLK_AMBA_OQSPIF_DIV_SHIFT (10)         /* Bits 10-11 */
+#define CRG_TOP_CLK_AMBA_OQSPIF_DIV_MASK (0x3 << CRG_TOP_CLK_AMBA_OQSPIF_DIV_SHIFT)
+#  define CRG_TOP_CLK_AMBA_OQSPIF_DIV(n) ((uint32_t)(n) << CRG_TOP_CLK_AMBA_OQSPIF_DIV_SHIFT)
+#define CRG_TOP_CLK_AMBA_OQSPIF_ENABLE (1 << 12)       /* Bit 12 */
+#define CRG_TOP_CLK_AMBA_QSPIC_DIV_SHIFT (13)          /* Bits 13-14 */
+#define CRG_TOP_CLK_AMBA_QSPIC_DIV_MASK (0x3 << CRG_TOP_CLK_AMBA_QSPIC_DIV_SHIFT)
+#  define CRG_TOP_CLK_AMBA_QSPIC_DIV(n) ((uint32_t)(n) << CRG_TOP_CLK_AMBA_QSPIC_DIV_SHIFT)
+#define CRG_TOP_CLK_AMBA_QSPIC_ENABLE (1 << 15)        /* Bit 15 */
+#define CRG_TOP_CLK_AMBA_QSPIC2_DIV_SHIFT (16)         /* Bits 16-17 */
+#define CRG_TOP_CLK_AMBA_QSPIC2_DIV_MASK (0x3 << CRG_TOP_CLK_AMBA_QSPIC2_DIV_SHIFT)
+#  define CRG_TOP_CLK_AMBA_QSPIC2_DIV(n) ((uint32_t)(n) << CRG_TOP_CLK_AMBA_QSPIC2_DIV_SHIFT)
+#define CRG_TOP_CLK_AMBA_QSPIC2_ENABLE (1 << 18)       /* Bit 18 */
+#define CRG_TOP_CLK_AMBA_OQSPI_GPIO_MODE (1 << 19)     /* Bit 19 */
+#define CRG_TOP_CLK_AMBA_OQSPI_PULLUP_ENABLE (1 << 20) /* Bit 20 */
+
+/* CLK_CMAC_SWITCH register */
+
+#define CRG_TOP_CLK_CMAC_SWITCH_CMAC_CLK_SEL (1 << 0)         /* Bit 0 */
+#define CRG_TOP_CLK_CMAC_SWITCH_CMAC_RUNNING_ON_DIVN (1 << 1) /* Bit 1 */
+#define CRG_TOP_CLK_CMAC_SWITCH_CMAC_RUNNING_ON_XTAL (1 << 2) /* Bit 2 */
+
+/* RST_CTRL register */
+
+#define CRG_TOP_RST_CTRL_SYS_CACHE_FLUSH_WITH_SW_RESET (1 << 0) /* Bit 0 */
+
+/* CLK_RADIO register */
+
+#define CRG_TOP_CLK_RADIO_CMAC_CLK_ENABLE (1 << 2)   /* Bit 2 */
+#define CRG_TOP_CLK_RADIO_CMAC_SYNCH_RESET (1 << 4)  /* Bit 4 */
+#define CRG_TOP_CLK_RADIO_RFCU_ENABLE (1 << 5)       /* Bit 5 */
+#define CRG_TOP_CLK_RADIO_RAD_REG_RESET_REQ (1 << 6) /* Bit 6 */
+
+/* CLK_CTRL register */
+
+#define CRG_TOP_CLK_CTRL_SYS_CLK_SEL_SHIFT (0)        /* Bits 0-1 */
+#define CRG_TOP_CLK_CTRL_SYS_CLK_SEL_MASK (0x3 << CRG_TOP_CLK_CTRL_SYS_CLK_SEL_SHIFT)
+#  define CRG_TOP_CLK_CTRL_SYS_CLK_SEL(n) ((uint32_t)(n) << CRG_TOP_CLK_CTRL_SYS_CLK_SEL_SHIFT)
+#define CRG_TOP_CLK_CTRL_LP_CLK_SEL_SHIFT (2)         /* Bits 2-3 */
+#define CRG_TOP_CLK_CTRL_LP_CLK_SEL_MASK (0x3 << CRG_TOP_CLK_CTRL_LP_CLK_SEL_SHIFT)
+#  define CRG_TOP_CLK_CTRL_LP_CLK_SEL(n) ((uint32_t)(n) << CRG_TOP_CLK_CTRL_LP_CLK_SEL_SHIFT)
+#define CRG_TOP_CLK_CTRL_USB_CLK_SRC (1 << 4)         /* Bit 4 */
+#define CRG_TOP_CLK_CTRL_VAD_CLK_SEL (1 << 6)         /* Bit 6 */
+#define CRG_TOP_CLK_CTRL_RUNNING_AT_RCLP (1 << 12)    /* Bit 12 */
+#define CRG_TOP_CLK_CTRL_RUNNING_AT_RCHS (1 << 13)    /* Bit 13 */
+#define CRG_TOP_CLK_CTRL_RUNNING_AT_XTAL32M (1 << 14) /* Bit 14 */
+#define CRG_TOP_CLK_CTRL_RUNNING_AT_PLL (1 << 15)     /* Bit 15 */
+
+/* CLK_TMR register */
+
+#define CRG_TOP_CLK_TMR_WAKEUPCT_ENABLE (1 << 0) /* Bit 0 */
+
+/* CLK_SWITCH2XTAL register */
+
+#define CRG_TOP_CLK_SWITCH2XTAL_SWITCH2XTAL (1 << 0) /* Bit 0 */
+
+/* PMU_CTRL register */
+
+#define CRG_TOP_PMU_CTRL_AUD_SLEEP (1 << 0)        /* Bit 0 */
+#define CRG_TOP_PMU_CTRL_RADIO_SLEEP (1 << 1)      /* Bit 1 */
+#define CRG_TOP_PMU_CTRL_TIM_SLEEP (1 << 2)        /* Bit 2 */
+#define CRG_TOP_PMU_CTRL_SNC_SLEEP (1 << 3)        /* Bit 3 */
+#define CRG_TOP_PMU_CTRL_RESET_ON_WAKEUP (1 << 5)  /* Bit 5 */
+#define CRG_TOP_PMU_CTRL_SYS_SLEEP (1 << 6)        /* Bit 6 */
+#define CRG_TOP_PMU_CTRL_RETAIN_CACHE (1 << 7)     /* Bit 7 */
+#define CRG_TOP_PMU_CTRL_CTRL_SLEEP (1 << 9)       /* Bit 9 */
+#define CRG_TOP_PMU_CTRL_GPU_SLEEP (1 << 10)       /* Bit 10 */
+#define CRG_TOP_PMU_CTRL_RETAIN_DCACHE (1 << 11)   /* Bit 11 */
+#define CRG_TOP_PMU_CTRL_RETAIN_GPU_CLUT (1 << 12) /* Bit 12 */
+#define CRG_TOP_PMU_CTRL_RETAIN_RGP_RAM (1 << 13)  /* Bit 13 */
+
+/* SYS_CTRL register */
+
+#define CRG_TOP_SYS_CTRL_REMAP_ADR0_SHIFT (0)         /* Bits 0-2 */
+#define CRG_TOP_SYS_CTRL_REMAP_ADR0_MASK (0x7 << CRG_TOP_SYS_CTRL_REMAP_ADR0_SHIFT)
+#  define CRG_TOP_SYS_CTRL_REMAP_ADR0(n) ((uint32_t)(n) << CRG_TOP_SYS_CTRL_REMAP_ADR0_SHIFT)
+#define CRG_TOP_SYS_CTRL_REMAP_INTVECT (1 << 3)       /* Bit 3 */
+#define CRG_TOP_SYS_CTRL_SNC_DEBUGGER_ENABLE (1 << 5) /* Bit 5 */
+#define CRG_TOP_SYS_CTRL_DEBUGGER_ENABLE (1 << 7)     /* Bit 7 */
+#define CRG_TOP_SYS_CTRL_TIMEOUT_DISABLE (1 << 9)     /* Bit 9 */
+#define CRG_TOP_SYS_CTRL_CACHERAM_MUX (1 << 10)       /* Bit 10 */
+#define CRG_TOP_SYS_CTRL_SW_RESET (1 << 15)           /* Bit 15 */
+
+/* SYS_STAT register */
+
+#define CRG_TOP_SYS_STAT_RAD_IS_DOWN (1 << 0)    /* Bit 0 */
+#define CRG_TOP_SYS_STAT_RAD_IS_UP (1 << 1)      /* Bit 1 */
+#define CRG_TOP_SYS_STAT_AUD_IS_DOWN (1 << 2)    /* Bit 2 */
+#define CRG_TOP_SYS_STAT_AUD_IS_UP (1 << 3)      /* Bit 3 */
+#define CRG_TOP_SYS_STAT_SYS_IS_DOWN (1 << 4)    /* Bit 4 */
+#define CRG_TOP_SYS_STAT_SYS_IS_UP (1 << 5)      /* Bit 5 */
+#define CRG_TOP_SYS_STAT_MEM_IS_DOWN (1 << 6)    /* Bit 6 */
+#define CRG_TOP_SYS_STAT_MEM_IS_UP (1 << 7)      /* Bit 7 */
+#define CRG_TOP_SYS_STAT_TIM_IS_DOWN (1 << 8)    /* Bit 8 */
+#define CRG_TOP_SYS_STAT_TIM_IS_UP (1 << 9)      /* Bit 9 */
+#define CRG_TOP_SYS_STAT_SNC_IS_DOWN (1 << 10)   /* Bit 10 */
+#define CRG_TOP_SYS_STAT_SNC_IS_UP (1 << 11)     /* Bit 11 */
+#define CRG_TOP_SYS_STAT_DBG_IS_ACTIVE (1 << 12) /* Bit 12 */
+#define CRG_TOP_SYS_STAT_POWER_IS_UP (1 << 13)   /* Bit 13 */
+#define CRG_TOP_SYS_STAT_CTRL_IS_DOWN (1 << 14)  /* Bit 14 */
+#define CRG_TOP_SYS_STAT_CTRL_IS_UP (1 << 15)    /* Bit 15 */
+#define CRG_TOP_SYS_STAT_GPU_IS_DOWN (1 << 16)   /* Bit 16 */
+#define CRG_TOP_SYS_STAT_GPU_IS_UP (1 << 17)     /* Bit 17 */
+
+/* CLK_SNC_CTRL register */
+
+#define CRG_TOP_CLK_SNC_CTRL_SNC_RESET_REQ (1 << 0)      /* Bit 0 */
+#define CRG_TOP_CLK_SNC_CTRL_SNC_CLK_ENABLE (1 << 1)     /* Bit 1 */
+#define CRG_TOP_CLK_SNC_CTRL_SNC_STATE_RETAINED (1 << 2) /* Bit 2 */
+
+/* SLP_MAP register */
+
+#define CRG_TOP_SLP_MAP_TMR_PWM_SLP_MAP (1 << 0)         /* Bit 0 */
+#define CRG_TOP_SLP_MAP_TMR3_PWM_SLP_MAP (1 << 1)        /* Bit 1 */
+#define CRG_TOP_SLP_MAP_TMR4_PWM_SLP_MAP (1 << 2)        /* Bit 2 */
+#define CRG_TOP_SLP_MAP_RCX_SLP_MAP (1 << 3)             /* Bit 3 */
+#define CRG_TOP_SLP_MAP_XTAL32K_SLP_MAP (1 << 4)         /* Bit 4 */
+#define CRG_TOP_SLP_MAP_RCLP_SLP_MAP (1 << 5)            /* Bit 5 */
+#define CRG_TOP_SLP_MAP_BANDGAP_SLP_MAP (1 << 6)         /* Bit 6 */
+#define CRG_TOP_SLP_MAP_LCD_EXT_CLK_SLP_MAP (1 << 7)     /* Bit 7 */
+#define CRG_TOP_SLP_MAP_LCD_INV_EXT_CLK_SLP_MAP (1 << 8) /* Bit 8 */
+
+/* LCD_EXT_CTRL register */
+
+#define CRG_TOP_LCD_EXT_CTRL_LCD_EXT_CNT_RELOAD_SHIFT (0) /* Bits 0-9 */
+#define CRG_TOP_LCD_EXT_CTRL_LCD_EXT_CNT_RELOAD_MASK (0x3ff << CRG_TOP_LCD_EXT_CTRL_LCD_EXT_CNT_RELOAD_SHIFT)
+#  define CRG_TOP_LCD_EXT_CTRL_LCD_EXT_CNT_RELOAD(n) ((uint32_t)(n) << CRG_TOP_LCD_EXT_CTRL_LCD_EXT_CNT_RELOAD_SHIFT)
+#define CRG_TOP_LCD_EXT_CTRL_LCD_EXT_CLK_EN (1 << 10)     /* Bit 10 */
+
+/* CLK_RCLP register */
+
+#define CRG_TOP_CLK_RCLP_RCLP_ENABLE (1 << 0)          /* Bit 0 */
+#define CRG_TOP_CLK_RCLP_RCLP_TRIM_SHIFT (1)           /* Bits 1-4 */
+#define CRG_TOP_CLK_RCLP_RCLP_TRIM_MASK (0xf << CRG_TOP_CLK_RCLP_RCLP_TRIM_SHIFT)
+#  define CRG_TOP_CLK_RCLP_RCLP_TRIM(n) ((uint32_t)(n) << CRG_TOP_CLK_RCLP_RCLP_TRIM_SHIFT)
+#define CRG_TOP_CLK_RCLP_RCLP_LOW_SPEED_FORCE (1 << 5) /* Bit 5 */
+
+/* CLK_XTAL32K register */
+
+#define CRG_TOP_CLK_XTAL32K_XTAL32K_ENABLE (1 << 0)         /* Bit 0 */
+#define CRG_TOP_CLK_XTAL32K_XTAL32K_RBIAS_SHIFT (1)         /* Bits 1-2 */
+#define CRG_TOP_CLK_XTAL32K_XTAL32K_RBIAS_MASK (0x3 << CRG_TOP_CLK_XTAL32K_XTAL32K_RBIAS_SHIFT)
+#  define CRG_TOP_CLK_XTAL32K_XTAL32K_RBIAS(n) ((uint32_t)(n) << CRG_TOP_CLK_XTAL32K_XTAL32K_RBIAS_SHIFT)
+#define CRG_TOP_CLK_XTAL32K_XTAL32K_CUR_SHIFT (3)           /* Bits 3-6 */
+#define CRG_TOP_CLK_XTAL32K_XTAL32K_CUR_MASK (0xf << CRG_TOP_CLK_XTAL32K_XTAL32K_CUR_SHIFT)
+#  define CRG_TOP_CLK_XTAL32K_XTAL32K_CUR(n) ((uint32_t)(n) << CRG_TOP_CLK_XTAL32K_XTAL32K_CUR_SHIFT)
+#define CRG_TOP_CLK_XTAL32K_XTAL32K_DISABLE_AMPREG (1 << 7) /* Bit 7 */
+#define CRG_TOP_CLK_XTAL32K_XTAL32K_DISABLE_OUTPUT (1 << 9) /* Bit 9 */
+
+/* CLK_RCHS register */
+
+#define CRG_TOP_CLK_RCHS_RCHS_ENABLE (1 << 0)       /* Bit 0 */
+#define CRG_TOP_CLK_RCHS_RCHS_BIAS_SHIFT (1)        /* Bits 1-4 */
+#define CRG_TOP_CLK_RCHS_RCHS_BIAS_MASK (0xf << CRG_TOP_CLK_RCHS_RCHS_BIAS_SHIFT)
+#  define CRG_TOP_CLK_RCHS_RCHS_BIAS(n) ((uint32_t)(n) << CRG_TOP_CLK_RCHS_RCHS_BIAS_SHIFT)
+#define CRG_TOP_CLK_RCHS_RCHS_INIT_DTC_SHIFT (5)    /* Bits 5-8 */
+#define CRG_TOP_CLK_RCHS_RCHS_INIT_DTC_MASK (0xf << CRG_TOP_CLK_RCHS_RCHS_INIT_DTC_SHIFT)
+#  define CRG_TOP_CLK_RCHS_RCHS_INIT_DTC(n) ((uint32_t)(n) << CRG_TOP_CLK_RCHS_RCHS_INIT_DTC_SHIFT)
+#define CRG_TOP_CLK_RCHS_RCHS_INIT_DTCF_SHIFT (9)   /* Bits 9-11 */
+#define CRG_TOP_CLK_RCHS_RCHS_INIT_DTCF_MASK (0x7 << CRG_TOP_CLK_RCHS_RCHS_INIT_DTCF_SHIFT)
+#  define CRG_TOP_CLK_RCHS_RCHS_INIT_DTCF(n) ((uint32_t)(n) << CRG_TOP_CLK_RCHS_RCHS_INIT_DTCF_SHIFT)
+#define CRG_TOP_CLK_RCHS_RCHS_INIT_DEL_SHIFT (12)   /* Bits 12-19 */
+#define CRG_TOP_CLK_RCHS_RCHS_INIT_DEL_MASK (0xff << CRG_TOP_CLK_RCHS_RCHS_INIT_DEL_SHIFT)
+#  define CRG_TOP_CLK_RCHS_RCHS_INIT_DEL(n) ((uint32_t)(n) << CRG_TOP_CLK_RCHS_RCHS_INIT_DEL_SHIFT)
+#define CRG_TOP_CLK_RCHS_RCHS_INIT_RANGE_SHIFT (20) /* Bits 20-21 */
+#define CRG_TOP_CLK_RCHS_RCHS_INIT_RANGE_MASK (0x3 << CRG_TOP_CLK_RCHS_RCHS_INIT_RANGE_SHIFT)
+#  define CRG_TOP_CLK_RCHS_RCHS_INIT_RANGE(n) ((uint32_t)(n) << CRG_TOP_CLK_RCHS_RCHS_INIT_RANGE_SHIFT)
+#define CRG_TOP_CLK_RCHS_RCHS_SPEED_SHIFT (22)      /* Bits 22-23 */
+#define CRG_TOP_CLK_RCHS_RCHS_SPEED_MASK (0x3 << CRG_TOP_CLK_RCHS_RCHS_SPEED_SHIFT)
+#  define CRG_TOP_CLK_RCHS_RCHS_SPEED(n) ((uint32_t)(n) << CRG_TOP_CLK_RCHS_RCHS_SPEED_SHIFT)
+
+/* CLK_RCX register */
+
+#define CRG_TOP_CLK_RCX_RCX_ENABLE (1 << 0)   /* Bit 0 */
+#define CRG_TOP_CLK_RCX_RCX_CADJUST_SHIFT (2) /* Bits 2-6 */
+#define CRG_TOP_CLK_RCX_RCX_CADJUST_MASK (0x1f << CRG_TOP_CLK_RCX_RCX_CADJUST_SHIFT)
+#  define CRG_TOP_CLK_RCX_RCX_CADJUST(n) ((uint32_t)(n) << CRG_TOP_CLK_RCX_RCX_CADJUST_SHIFT)
+#define CRG_TOP_CLK_RCX_RCX_C0 (1 << 7)       /* Bit 7 */
+#define CRG_TOP_CLK_RCX_RCX_BIAS_SHIFT (8)    /* Bits 8-11 */
+#define CRG_TOP_CLK_RCX_RCX_BIAS_MASK (0xf << CRG_TOP_CLK_RCX_RCX_BIAS_SHIFT)
+#  define CRG_TOP_CLK_RCX_RCX_BIAS(n) ((uint32_t)(n) << CRG_TOP_CLK_RCX_RCX_BIAS_SHIFT)
+
+/* CLK_RTCDIV register */
+
+#define CRG_TOP_CLK_RTCDIV_RTC_DIV_FRAC_SHIFT (0)   /* Bits 0-9 */
+#define CRG_TOP_CLK_RTCDIV_RTC_DIV_FRAC_MASK (0x3ff << CRG_TOP_CLK_RTCDIV_RTC_DIV_FRAC_SHIFT)
+#  define CRG_TOP_CLK_RTCDIV_RTC_DIV_FRAC(n) ((uint32_t)(n) << CRG_TOP_CLK_RTCDIV_RTC_DIV_FRAC_SHIFT)
+#define CRG_TOP_CLK_RTCDIV_RTC_DIV_INT_SHIFT (10)   /* Bits 10-18 */
+#define CRG_TOP_CLK_RTCDIV_RTC_DIV_INT_MASK (0x1ff << CRG_TOP_CLK_RTCDIV_RTC_DIV_INT_SHIFT)
+#  define CRG_TOP_CLK_RTCDIV_RTC_DIV_INT(n) ((uint32_t)(n) << CRG_TOP_CLK_RTCDIV_RTC_DIV_INT_SHIFT)
+#define CRG_TOP_CLK_RTCDIV_RTC_DIV_DENOM (1 << 19)  /* Bit 19 */
+#define CRG_TOP_CLK_RTCDIV_RTC_DIV_ENABLE (1 << 20) /* Bit 20 */
+#define CRG_TOP_CLK_RTCDIV_RTC_RESET_REQ (1 << 21)  /* Bit 21 */
+
+/* BANDGAP register */
+
+#define CRG_TOP_BANDGAP_BGR_ITRIM_SHIFT (0)            /* Bits 0-4 */
+#define CRG_TOP_BANDGAP_BGR_ITRIM_MASK (0x1f << CRG_TOP_BANDGAP_BGR_ITRIM_SHIFT)
+#  define CRG_TOP_BANDGAP_BGR_ITRIM(n) ((uint32_t)(n) << CRG_TOP_BANDGAP_BGR_ITRIM_SHIFT)
+#define CRG_TOP_BANDGAP_SYSRAM_LPMX (1 << 5)           /* Bit 5 */
+#define CRG_TOP_BANDGAP_BGR_TRIM_SHIFT (6)             /* Bits 6-11 */
+#define CRG_TOP_BANDGAP_BGR_TRIM_MASK (0x3f << CRG_TOP_BANDGAP_BGR_TRIM_SHIFT)
+#  define CRG_TOP_BANDGAP_BGR_TRIM(n) ((uint32_t)(n) << CRG_TOP_BANDGAP_BGR_TRIM_SHIFT)
+#define CRG_TOP_BANDGAP_BANDGAP_ENABLE_CLAMP (1 << 12) /* Bit 12 */
+#define CRG_TOP_BANDGAP_EN_BGR_TCCOMP (1 << 15)        /* Bit 15 */
+
+/* VBUS_IRQ_MASK register */
+
+#define CRG_TOP_VBUS_IRQ_MASK_VBUS_IRQ_EN_FALL (1 << 0) /* Bit 0 */
+#define CRG_TOP_VBUS_IRQ_MASK_VBUS_IRQ_EN_RISE (1 << 1) /* Bit 1 */
+
+/* VBUS_IRQ_CLEAR register */
+
+#define CRG_TOP_VBUS_IRQ_CLEAR_VBUS_IRQ_CLEAR_SHIFT (0) /* Bits 0-15 */
+#define CRG_TOP_VBUS_IRQ_CLEAR_VBUS_IRQ_CLEAR_MASK (0xffff << CRG_TOP_VBUS_IRQ_CLEAR_VBUS_IRQ_CLEAR_SHIFT)
+#  define CRG_TOP_VBUS_IRQ_CLEAR_VBUS_IRQ_CLEAR(n) ((uint32_t)(n) << CRG_TOP_VBUS_IRQ_CLEAR_VBUS_IRQ_CLEAR_SHIFT)
+
+/* BOD_CTRL register */
+
+#define CRG_TOP_BOD_CTRL_BOD_STATUS_CLEAR (1 << 0) /* Bit 0 */
+#define CRG_TOP_BOD_CTRL_BOD_V12_EN (1 << 1)       /* Bit 1 */
+#define CRG_TOP_BOD_CTRL_BOD_V14_EN (1 << 2)       /* Bit 2 */
+#define CRG_TOP_BOD_CTRL_BOD_V18_EN (1 << 3)       /* Bit 3 */
+#define CRG_TOP_BOD_CTRL_BOD_V18P_EN (1 << 4)      /* Bit 4 */
+#define CRG_TOP_BOD_CTRL_BOD_V18F_EN (1 << 5)      /* Bit 5 */
+#define CRG_TOP_BOD_CTRL_BOD_VSYS_EN (1 << 6)      /* Bit 6 */
+#define CRG_TOP_BOD_CTRL_BOD_VBAT_EN (1 << 8)      /* Bit 8 */
+#define CRG_TOP_BOD_CTRL_BOD_VBUS_EN (1 << 9)      /* Bit 9 */
+#define CRG_TOP_BOD_CTRL_BOD_V12_RST_EN (1 << 10)  /* Bit 10 */
+#define CRG_TOP_BOD_CTRL_BOD_V14_RST_EN (1 << 11)  /* Bit 11 */
+#define CRG_TOP_BOD_CTRL_BOD_V18_RST_EN (1 << 12)  /* Bit 12 */
+#define CRG_TOP_BOD_CTRL_BOD_V18P_RST_EN (1 << 13) /* Bit 13 */
+#define CRG_TOP_BOD_CTRL_BOD_V18F_RST_EN (1 << 14) /* Bit 14 */
+#define CRG_TOP_BOD_CTRL_BOD_VSYS_RST_EN (1 << 15) /* Bit 15 */
+#define CRG_TOP_BOD_CTRL_BOD_VBAT_RST_EN (1 << 17) /* Bit 17 */
+#define CRG_TOP_BOD_CTRL_BOD_VBUS_RST_EN (1 << 18) /* Bit 18 */
+
+/* BOD_STATUS register */
+
+#define CRG_TOP_BOD_STATUS_BOD_V12 (1 << 0)  /* Bit 0 */
+#define CRG_TOP_BOD_STATUS_BOD_V14 (1 << 1)  /* Bit 1 */
+#define CRG_TOP_BOD_STATUS_BOD_V18 (1 << 2)  /* Bit 2 */
+#define CRG_TOP_BOD_STATUS_BOD_V18P (1 << 3) /* Bit 3 */
+#define CRG_TOP_BOD_STATUS_BOD_V18F (1 << 4) /* Bit 4 */
+#define CRG_TOP_BOD_STATUS_BOD_VSYS (1 << 5) /* Bit 5 */
+#define CRG_TOP_BOD_STATUS_BOD_VBAT (1 << 7) /* Bit 7 */
+#define CRG_TOP_BOD_STATUS_BOD_VBUS (1 << 8) /* Bit 8 */
+
+/* P0_PAD_LATCH register */
+
+#define CRG_TOP_P0_PAD_LATCH_P0_LATCH_EN_SHIFT (0) /* Bits 0-31 */
+#define CRG_TOP_P0_PAD_LATCH_P0_LATCH_EN_MASK (0xffffffff << CRG_TOP_P0_PAD_LATCH_P0_LATCH_EN_SHIFT)
+#  define CRG_TOP_P0_PAD_LATCH_P0_LATCH_EN(n) ((uint32_t)(n) << CRG_TOP_P0_PAD_LATCH_P0_LATCH_EN_SHIFT)
+
+/* P0_SET_PAD_LATCH register */
+
+#define CRG_TOP_P0_SET_PAD_LATCH_P0_SET_LATCH_EN_SHIFT (0) /* Bits 0-31 */
+#define CRG_TOP_P0_SET_PAD_LATCH_P0_SET_LATCH_EN_MASK (0xffffffff << CRG_TOP_P0_SET_PAD_LATCH_P0_SET_LATCH_EN_SHIFT)
+#  define CRG_TOP_P0_SET_PAD_LATCH_P0_SET_LATCH_EN(n) ((uint32_t)(n) << CRG_TOP_P0_SET_PAD_LATCH_P0_SET_LATCH_EN_SHIFT)
+
+/* P0_RESET_PAD_LATCH register */
+
+#define CRG_TOP_P0_RESET_PAD_LATCH_P0_RESET_LATCH_EN_SHIFT (0) /* Bits 0-31 */
+#define CRG_TOP_P0_RESET_PAD_LATCH_P0_RESET_LATCH_EN_MASK (0xffffffff << CRG_TOP_P0_RESET_PAD_LATCH_P0_RESET_LATCH_EN_SHIFT)
+#  define CRG_TOP_P0_RESET_PAD_LATCH_P0_RESET_LATCH_EN(n) ((uint32_t)(n) << CRG_TOP_P0_RESET_PAD_LATCH_P0_RESET_LATCH_EN_SHIFT)
+
+/* P1_PAD_LATCH register */
+
+#define CRG_TOP_P1_PAD_LATCH_P1_LATCH_EN_SHIFT (0) /* Bits 0-31 */
+#define CRG_TOP_P1_PAD_LATCH_P1_LATCH_EN_MASK (0xffffffff << CRG_TOP_P1_PAD_LATCH_P1_LATCH_EN_SHIFT)
+#  define CRG_TOP_P1_PAD_LATCH_P1_LATCH_EN(n) ((uint32_t)(n) << CRG_TOP_P1_PAD_LATCH_P1_LATCH_EN_SHIFT)
+
+/* P1_SET_PAD_LATCH register */
+
+#define CRG_TOP_P1_SET_PAD_LATCH_P1_SET_LATCH_EN_SHIFT (0) /* Bits 0-31 */
+#define CRG_TOP_P1_SET_PAD_LATCH_P1_SET_LATCH_EN_MASK (0xffffffff << CRG_TOP_P1_SET_PAD_LATCH_P1_SET_LATCH_EN_SHIFT)
+#  define CRG_TOP_P1_SET_PAD_LATCH_P1_SET_LATCH_EN(n) ((uint32_t)(n) << CRG_TOP_P1_SET_PAD_LATCH_P1_SET_LATCH_EN_SHIFT)
+
+/* P1_RESET_PAD_LATCH register */
+
+#define CRG_TOP_P1_RESET_PAD_LATCH_P1_RESET_LATCH_EN_SHIFT (0) /* Bits 0-31 */
+#define CRG_TOP_P1_RESET_PAD_LATCH_P1_RESET_LATCH_EN_MASK (0xffffffff << CRG_TOP_P1_RESET_PAD_LATCH_P1_RESET_LATCH_EN_SHIFT)
+#  define CRG_TOP_P1_RESET_PAD_LATCH_P1_RESET_LATCH_EN(n) ((uint32_t)(n) << CRG_TOP_P1_RESET_PAD_LATCH_P1_RESET_LATCH_EN_SHIFT)
+
+/* P2_PAD_LATCH register */
+
+#define CRG_TOP_P2_PAD_LATCH_P2_LATCH_EN_SHIFT (0) /* Bits 0-14 */
+#define CRG_TOP_P2_PAD_LATCH_P2_LATCH_EN_MASK (0x7fff << CRG_TOP_P2_PAD_LATCH_P2_LATCH_EN_SHIFT)
+#  define CRG_TOP_P2_PAD_LATCH_P2_LATCH_EN(n) ((uint32_t)(n) << CRG_TOP_P2_PAD_LATCH_P2_LATCH_EN_SHIFT)
+
+/* P2_SET_PAD_LATCH register */
+
+#define CRG_TOP_P2_SET_PAD_LATCH_P2_SET_LATCH_EN_SHIFT (0) /* Bits 0-14 */
+#define CRG_TOP_P2_SET_PAD_LATCH_P2_SET_LATCH_EN_MASK (0x7fff << CRG_TOP_P2_SET_PAD_LATCH_P2_SET_LATCH_EN_SHIFT)
+#  define CRG_TOP_P2_SET_PAD_LATCH_P2_SET_LATCH_EN(n) ((uint32_t)(n) << CRG_TOP_P2_SET_PAD_LATCH_P2_SET_LATCH_EN_SHIFT)
+
+/* P2_RESET_PAD_LATCH register */
+
+#define CRG_TOP_P2_RESET_PAD_LATCH_P2_RESET_LATCH_EN_SHIFT (0) /* Bits 0-14 */
+#define CRG_TOP_P2_RESET_PAD_LATCH_P2_RESET_LATCH_EN_MASK (0x7fff << CRG_TOP_P2_RESET_PAD_LATCH_P2_RESET_LATCH_EN_SHIFT)
+#  define CRG_TOP_P2_RESET_PAD_LATCH_P2_RESET_LATCH_EN(n) ((uint32_t)(n) << CRG_TOP_P2_RESET_PAD_LATCH_P2_RESET_LATCH_EN_SHIFT)
+
+/* POR_CTRL register */
+
+#define CRG_TOP_POR_CTRL_POR_V30_DISABLE (1 << 0)          /* Bit 0 */
+#define CRG_TOP_POR_CTRL_POR_V30_MASK (1 << 1)             /* Bit 1 */
+#define CRG_TOP_POR_CTRL_POR_V30_FORCE_ON (1 << 2)         /* Bit 2 */
+#define CRG_TOP_POR_CTRL_POR_V30_HYST_DISABLE (1 << 3)     /* Bit 3 */
+#define CRG_TOP_POR_CTRL_POR_V30_HYST_SEL (1 << 4)         /* Bit 4 */
+#define CRG_TOP_POR_CTRL_POR_V30_SLEEP_CYCLE_EN (1 << 5)   /* Bit 5 */
+#define CRG_TOP_POR_CTRL_POR_VSYS_DISABLE (1 << 6)         /* Bit 6 */
+#define CRG_TOP_POR_CTRL_POR_VSYS_MASK (1 << 7)            /* Bit 7 */
+#define CRG_TOP_POR_CTRL_POR_VSYS_FORCE_ON (1 << 8)        /* Bit 8 */
+#define CRG_TOP_POR_CTRL_POR_VSYS_HYST_DISABLE (1 << 9)    /* Bit 9 */
+#define CRG_TOP_POR_CTRL_POR_VSYS_HYST_SEL (1 << 10)       /* Bit 10 */
+#define CRG_TOP_POR_CTRL_POR_VSYS_SLEEP_CYCLE_EN (1 << 11) /* Bit 11 */
+
+/* POR_PIN register */
+
+#define CRG_TOP_POR_PIN_POR_PIN_SELECT_SHIFT (0)  /* Bits 0-6 */
+#define CRG_TOP_POR_PIN_POR_PIN_SELECT_MASK (0x7f << CRG_TOP_POR_PIN_POR_PIN_SELECT_SHIFT)
+#  define CRG_TOP_POR_PIN_POR_PIN_SELECT(n) ((uint32_t)(n) << CRG_TOP_POR_PIN_POR_PIN_SELECT_SHIFT)
+#define CRG_TOP_POR_PIN_POR_PIN_POLARITY (1 << 7) /* Bit 7 */
+
+/* POR_TIMER register */
+
+#define CRG_TOP_POR_TIMER_POR_TIME_SHIFT (0) /* Bits 0-6 */
+#define CRG_TOP_POR_TIMER_POR_TIME_MASK (0x7f << CRG_TOP_POR_TIMER_POR_TIME_SHIFT)
+#  define CRG_TOP_POR_TIMER_POR_TIME(n) ((uint32_t)(n) << CRG_TOP_POR_TIMER_POR_TIME_SHIFT)
+
+/* RESET_STAT register */
+
+#define CRG_TOP_RESET_STAT_PORESET_STAT (1 << 0)        /* Bit 0 */
+#define CRG_TOP_RESET_STAT_HWRESET_STAT (1 << 1)        /* Bit 1 */
+#define CRG_TOP_RESET_STAT_SWRESET_STAT (1 << 2)        /* Bit 2 */
+#define CRG_TOP_RESET_STAT_WDOGRESET_STAT (1 << 3)      /* Bit 3 */
+#define CRG_TOP_RESET_STAT_SWD_HWRESET_STAT (1 << 4)    /* Bit 4 */
+#define CRG_TOP_RESET_STAT_CMAC_WDOGRESET_STAT (1 << 5) /* Bit 5 */
+#define CRG_TOP_RESET_STAT_SNC_WDOGRESET_STAT (1 << 6)  /* Bit 6 */
+
+/* RAM_PWR_CTRL register */
+
+#define CRG_TOP_RAM_PWR_CTRL_RAM0_PWR_CTRL_SHIFT (0)   /* Bits 0-1 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM0_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM0_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM0_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM0_PWR_CTRL_SHIFT)
+#define CRG_TOP_RAM_PWR_CTRL_RAM1_PWR_CTRL_SHIFT (2)   /* Bits 2-3 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM1_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM1_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM1_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM1_PWR_CTRL_SHIFT)
+#define CRG_TOP_RAM_PWR_CTRL_RAM2_PWR_CTRL_SHIFT (4)   /* Bits 4-5 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM2_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM2_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM2_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM2_PWR_CTRL_SHIFT)
+#define CRG_TOP_RAM_PWR_CTRL_RAM3_PWR_CTRL_SHIFT (6)   /* Bits 6-7 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM3_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM3_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM3_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM3_PWR_CTRL_SHIFT)
+#define CRG_TOP_RAM_PWR_CTRL_RAM4_PWR_CTRL_SHIFT (8)   /* Bits 8-9 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM4_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM4_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM4_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM4_PWR_CTRL_SHIFT)
+#define CRG_TOP_RAM_PWR_CTRL_RAM5_PWR_CTRL_SHIFT (10)  /* Bits 10-11 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM5_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM5_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM5_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM5_PWR_CTRL_SHIFT)
+#define CRG_TOP_RAM_PWR_CTRL_RAM6_PWR_CTRL_SHIFT (12)  /* Bits 12-13 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM6_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM6_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM6_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM6_PWR_CTRL_SHIFT)
+#define CRG_TOP_RAM_PWR_CTRL_RAM7_PWR_CTRL_SHIFT (14)  /* Bits 14-15 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM7_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM7_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM7_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM7_PWR_CTRL_SHIFT)
+#define CRG_TOP_RAM_PWR_CTRL_RAM8_PWR_CTRL_SHIFT (16)  /* Bits 16-17 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM8_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM8_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM8_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM8_PWR_CTRL_SHIFT)
+#define CRG_TOP_RAM_PWR_CTRL_RAM9_PWR_CTRL_SHIFT (18)  /* Bits 18-19 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM9_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM9_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM9_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM9_PWR_CTRL_SHIFT)
+#define CRG_TOP_RAM_PWR_CTRL_RAM10_PWR_CTRL_SHIFT (20) /* Bits 20-21 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM10_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM10_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM10_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM10_PWR_CTRL_SHIFT)
+#define CRG_TOP_RAM_PWR_CTRL_RAM11_PWR_CTRL_SHIFT (22) /* Bits 22-23 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM11_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM11_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM11_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM11_PWR_CTRL_SHIFT)
+#define CRG_TOP_RAM_PWR_CTRL_RAM12_PWR_CTRL_SHIFT (24) /* Bits 24-25 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM12_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM12_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM12_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM12_PWR_CTRL_SHIFT)
+#define CRG_TOP_RAM_PWR_CTRL_RAM13_PWR_CTRL_SHIFT (26) /* Bits 26-27 */
+#define CRG_TOP_RAM_PWR_CTRL_RAM13_PWR_CTRL_MASK (0x3 << CRG_TOP_RAM_PWR_CTRL_RAM13_PWR_CTRL_SHIFT)
+#  define CRG_TOP_RAM_PWR_CTRL_RAM13_PWR_CTRL(n) ((uint32_t)(n) << CRG_TOP_RAM_PWR_CTRL_RAM13_PWR_CTRL_SHIFT)
+
+/* SECURE_BOOT register */
+
+#define CRG_TOP_SECURE_BOOT_SECURE_BOOT (1 << 0)             /* Bit 0 */
+#define CRG_TOP_SECURE_BOOT_FORCE_DEBUGGER_OFF (1 << 1)      /* Bit 1 */
+#define CRG_TOP_SECURE_BOOT_FORCE_CMAC_DEBUGGER_OFF (1 << 2) /* Bit 2 */
+#define CRG_TOP_SECURE_BOOT_PROT_SIG_KEY_WRITE (1 << 3)      /* Bit 3 */
+#define CRG_TOP_SECURE_BOOT_PROT_AES_KEY_WRITE (1 << 4)      /* Bit 4 */
+#define CRG_TOP_SECURE_BOOT_PROT_AES_KEY_READ (1 << 5)       /* Bit 5 */
+#define CRG_TOP_SECURE_BOOT_PROT_OQSPIF_KEY_WRITE (1 << 6)   /* Bit 6 */
+#define CRG_TOP_SECURE_BOOT_PROT_OQSPIF_KEY_READ (1 << 7)    /* Bit 7 */
+#define CRG_TOP_SECURE_BOOT_FORCE_SNC_DEBUGGER_OFF (1 << 8)  /* Bit 8 */
+#define CRG_TOP_SECURE_BOOT_PROT_OTP_CS_WRITE (1 << 9)       /* Bit 9 */
+
+/* DISCHARGE_RAIL register */
+
+#define CRG_TOP_DISCHARGE_RAIL_RESET_V14 (1 << 0)  /* Bit 0 */
+#define CRG_TOP_DISCHARGE_RAIL_RESET_V18 (1 << 1)  /* Bit 1 */
+#define CRG_TOP_DISCHARGE_RAIL_RESET_V18P (1 << 2) /* Bit 2 */
+#define CRG_TOP_DISCHARGE_RAIL_RESET_V30 (1 << 3)  /* Bit 3 */
+#define CRG_TOP_DISCHARGE_RAIL_RESET_V18F (1 << 5) /* Bit 5 */
+
+/* WAKEUP_HIBERN register */
+
+#define CRG_TOP_WAKEUP_HIBERN_WAKEUP_EN_SHIFT (0)          /* Bits 0-3 */
+#define CRG_TOP_WAKEUP_HIBERN_WAKEUP_EN_MASK (0xf << CRG_TOP_WAKEUP_HIBERN_WAKEUP_EN_SHIFT)
+#  define CRG_TOP_WAKEUP_HIBERN_WAKEUP_EN(n) ((uint32_t)(n) << CRG_TOP_WAKEUP_HIBERN_WAKEUP_EN_SHIFT)
+#define CRG_TOP_WAKEUP_HIBERN_WAKEUP_PD_EN_SHIFT (6)       /* Bits 6-9 */
+#define CRG_TOP_WAKEUP_HIBERN_WAKEUP_PD_EN_MASK (0xf << CRG_TOP_WAKEUP_HIBERN_WAKEUP_PD_EN_SHIFT)
+#  define CRG_TOP_WAKEUP_HIBERN_WAKEUP_PD_EN(n) ((uint32_t)(n) << CRG_TOP_WAKEUP_HIBERN_WAKEUP_PD_EN_SHIFT)
+#define CRG_TOP_WAKEUP_HIBERN_HIBERNATION_ENABLE (1 << 12) /* Bit 12 */
+
+/* SW_V18F register */
+
+#define CRG_TOP_SW_V18F_FORCE_SW_ON (1 << 0)     /* Bit 0 */
+#define CRG_TOP_SW_V18F_SKIP_SOFT_START (1 << 1) /* Bit 1 */
+#define CRG_TOP_SW_V18F_DELAY_TRIM_SHIFT (2)     /* Bits 2-3 */
+#define CRG_TOP_SW_V18F_DELAY_TRIM_MASK (0x3 << CRG_TOP_SW_V18F_DELAY_TRIM_SHIFT)
+#  define CRG_TOP_SW_V18F_DELAY_TRIM(n) ((uint32_t)(n) << CRG_TOP_SW_V18F_DELAY_TRIM_SHIFT)
+
+/* BIAS_VREF_SEL register */
+
+#define CRG_TOP_BIAS_VREF_SEL_BIAS_VREF_RF1_SEL_SHIFT (0) /* Bits 0-3 */
+#define CRG_TOP_BIAS_VREF_SEL_BIAS_VREF_RF1_SEL_MASK (0xf << CRG_TOP_BIAS_VREF_SEL_BIAS_VREF_RF1_SEL_SHIFT)
+#  define CRG_TOP_BIAS_VREF_SEL_BIAS_VREF_RF1_SEL(n) ((uint32_t)(n) << CRG_TOP_BIAS_VREF_SEL_BIAS_VREF_RF1_SEL_SHIFT)
+#define CRG_TOP_BIAS_VREF_SEL_BIAS_VREF_RF2_SEL_SHIFT (4) /* Bits 4-7 */
+#define CRG_TOP_BIAS_VREF_SEL_BIAS_VREF_RF2_SEL_MASK (0xf << CRG_TOP_BIAS_VREF_SEL_BIAS_VREF_RF2_SEL_SHIFT)
+#  define CRG_TOP_BIAS_VREF_SEL_BIAS_VREF_RF2_SEL(n) ((uint32_t)(n) << CRG_TOP_BIAS_VREF_SEL_BIAS_VREF_RF2_SEL_SHIFT)
+
+/* ANA_STATUS register */
+
+#define CRG_TOP_ANA_STATUS_POR_V30_OK (1 << 0)                /* Bit 0 */
+#define CRG_TOP_ANA_STATUS_POR_VSYS_OK (1 << 1)               /* Bit 1 */
+#define CRG_TOP_ANA_STATUS_COMP_VBUS_OK (1 << 2)              /* Bit 2 */
+#define CRG_TOP_ANA_STATUS_COMP_VBAT_OK (1 << 3)              /* Bit 3 */
+#define CRG_TOP_ANA_STATUS_COMP_VSYS_OK (1 << 4)              /* Bit 4 */
+#define CRG_TOP_ANA_STATUS_COMP_VBUS_ABOVE_VSYS (1 << 5)      /* Bit 5 */
+#define CRG_TOP_ANA_STATUS_COMP_VSYS_NEAR_VLED (1 << 6)       /* Bit 6 */
+#define CRG_TOP_ANA_STATUS_COMP_VBUS_PLUGIN (1 << 7)          /* Bit 7 */
+#define CRG_TOP_ANA_STATUS_BUCK_DCDC_V12_OK (1 << 8)          /* Bit 8 */
+#define CRG_TOP_ANA_STATUS_BUCK_DCDC_V14_OK (1 << 9)          /* Bit 9 */
+#define CRG_TOP_ANA_STATUS_BUCK_DCDC_V18_OK (1 << 10)         /* Bit 10 */
+#define CRG_TOP_ANA_STATUS_BUCK_DCDC_V18P_OK (1 << 11)        /* Bit 11 */
+#define CRG_TOP_ANA_STATUS_SWITCH_V18F_OK (1 << 12)           /* Bit 12 */
+#define CRG_TOP_ANA_STATUS_LDO_V30_OK (1 << 13)               /* Bit 13 */
+#define CRG_TOP_ANA_STATUS_LDO_VSYS_OK (1 << 15)              /* Bit 15 */
+#define CRG_TOP_ANA_STATUS_LDO_VSYS_LIM (1 << 16)             /* Bit 16 */
+#define CRG_TOP_ANA_STATUS_LDO_VSYS_CURR_LIM (1 << 17)        /* Bit 17 */
+#define CRG_TOP_ANA_STATUS_LDO_VSYS_HEAD_LIM (1 << 18)        /* Bit 18 */
+#define CRG_TOP_ANA_STATUS_VBAT_VSYS_STATE_SHIFT (19)         /* Bits 19-20 */
+#define CRG_TOP_ANA_STATUS_VBAT_VSYS_STATE_MASK (0x3 << CRG_TOP_ANA_STATUS_VBAT_VSYS_STATE_SHIFT)
+#  define CRG_TOP_ANA_STATUS_VBAT_VSYS_STATE(n) ((uint32_t)(n) << CRG_TOP_ANA_STATUS_VBAT_VSYS_STATE_SHIFT)
+#define CRG_TOP_ANA_STATUS_LDO_VSYS_HIGH_TEMP (1 << 21)       /* Bit 21 */
+#define CRG_TOP_ANA_STATUS_BOOST_DCDC_VLED_OK (1 << 22)       /* Bit 22 */
+#define CRG_TOP_ANA_STATUS_BG_OK (1 << 23)                    /* Bit 23 */
+#define CRG_TOP_ANA_STATUS_BOD_VIN_NOK (1 << 24)              /* Bit 24 */
+#define CRG_TOP_ANA_STATUS_FLAG_IBIAS_TRIM (1 << 25)          /* Bit 25 */
+#define CRG_TOP_ANA_STATUS_FLAG_ADC_LDO_OK (1 << 26)          /* Bit 26 */
+#define CRG_TOP_ANA_STATUS_VBUS_AVAILABLE (1 << 27)           /* Bit 27 */
+#define CRG_TOP_ANA_STATUS_XOR_DOUT_WAKEUP_PADS (1 << 28)     /* Bit 28 */
+#define CRG_TOP_ANA_STATUS_FLAG_LDO_V30_COMBINED_OK (1 << 29) /* Bit 29 */
+
+/* POWER_CTRL register */
+
+#define CRG_TOP_POWER_CTRL_LDO_START_DISABLE (1 << 0)    /* Bit 0 */
+#define CRG_TOP_POWER_CTRL_LDO_V30_EN (1 << 1)           /* Bit 1 */
+#define CRG_TOP_POWER_CTRL_LDO_V30_SLEEP_EN (1 << 2)     /* Bit 2 */
+#define CRG_TOP_POWER_CTRL_LDO_RET_V30_EN (1 << 3)       /* Bit 3 */
+#define CRG_TOP_POWER_CTRL_LDO_RET_V30_SLEEP_EN (1 << 4) /* Bit 4 */
+#define CRG_TOP_POWER_CTRL_CLAMP_V30_EN (1 << 6)         /* Bit 6 */
+#define CRG_TOP_POWER_CTRL_CLAMP_V12_DIS (1 << 7)        /* Bit 7 */
+#define CRG_TOP_POWER_CTRL_DCDC_V12_EN (1 << 8)          /* Bit 8 */
+#define CRG_TOP_POWER_CTRL_DCDC_V12_SLEEP_EN (1 << 9)    /* Bit 9 */
+#define CRG_TOP_POWER_CTRL_DCDC_V14_EN (1 << 10)         /* Bit 10 */
+#define CRG_TOP_POWER_CTRL_DCDC_V14_SLEEP_EN (1 << 11)   /* Bit 11 */
+#define CRG_TOP_POWER_CTRL_DCDC_V18_EN (1 << 12)         /* Bit 12 */
+#define CRG_TOP_POWER_CTRL_DCDC_V18_SLEEP_EN (1 << 13)   /* Bit 13 */
+#define CRG_TOP_POWER_CTRL_DCDC_V18P_EN (1 << 14)        /* Bit 14 */
+#define CRG_TOP_POWER_CTRL_DCDC_V18P_SLEEP_EN (1 << 15)  /* Bit 15 */
+#define CRG_TOP_POWER_CTRL_DCDC_VLED_EN (1 << 16)        /* Bit 16 */
+#define CRG_TOP_POWER_CTRL_DCDC_VLED_SLEEP_EN (1 << 17)  /* Bit 17 */
+#define CRG_TOP_POWER_CTRL_SW_V18F_ON (1 << 18)          /* Bit 18 */
+#define CRG_TOP_POWER_CTRL_SW_V18F_SLEEP_ON (1 << 19)    /* Bit 19 */
+#define CRG_TOP_POWER_CTRL_DCDC_BOOST_CLAMP_EN (1 << 24) /* Bit 24 */
+#define CRG_TOP_POWER_CTRL_EN_RCX_SUPPLY_BIAS (1 << 27)  /* Bit 27 */
+
+/* PMU_SLEEP register */
+
+#define CRG_TOP_PMU_SLEEP_BASE_REFRESH_INTERVAL_SHIFT (0)     /* Bits 0-4 */
+#define CRG_TOP_PMU_SLEEP_BASE_REFRESH_INTERVAL_MASK (0x1f << CRG_TOP_PMU_SLEEP_BASE_REFRESH_INTERVAL_SHIFT)
+#  define CRG_TOP_PMU_SLEEP_BASE_REFRESH_INTERVAL(n) ((uint32_t)(n) << CRG_TOP_PMU_SLEEP_BASE_REFRESH_INTERVAL_SHIFT)
+#define CRG_TOP_PMU_SLEEP_RAILS_REFRESH_INTERVAL_SHIFT (5)    /* Bits 5-18 */
+#define CRG_TOP_PMU_SLEEP_RAILS_REFRESH_INTERVAL_MASK (0x3fff << CRG_TOP_PMU_SLEEP_RAILS_REFRESH_INTERVAL_SHIFT)
+#  define CRG_TOP_PMU_SLEEP_RAILS_REFRESH_INTERVAL(n) ((uint32_t)(n) << CRG_TOP_PMU_SLEEP_RAILS_REFRESH_INTERVAL_SHIFT)
+#define CRG_TOP_PMU_SLEEP_BOD_SLEEP_INTERVAL_SHIFT (19)       /* Bits 19-22 */
+#define CRG_TOP_PMU_SLEEP_BOD_SLEEP_INTERVAL_MASK (0xf << CRG_TOP_PMU_SLEEP_BOD_SLEEP_INTERVAL_SHIFT)
+#  define CRG_TOP_PMU_SLEEP_BOD_SLEEP_INTERVAL(n) ((uint32_t)(n) << CRG_TOP_PMU_SLEEP_BOD_SLEEP_INTERVAL_SHIFT)
+#define CRG_TOP_PMU_SLEEP_VLED_BYPASS_REFRESH_TIME_SHIFT (23) /* Bits 23-29 */
+#define CRG_TOP_PMU_SLEEP_VLED_BYPASS_REFRESH_TIME_MASK (0x7f << CRG_TOP_PMU_SLEEP_VLED_BYPASS_REFRESH_TIME_SHIFT)
+#  define CRG_TOP_PMU_SLEEP_VLED_BYPASS_REFRESH_TIME(n) ((uint32_t)(n) << CRG_TOP_PMU_SLEEP_VLED_BYPASS_REFRESH_TIME_SHIFT)
+#define CRG_TOP_PMU_SLEEP_ENABLE_FAST_SWITCH (1 << 30)        /* Bit 30 */
+#define CRG_TOP_PMU_SLEEP_ULTRA_FAST_WAKEUP (1 << 31)         /* Bit 31 */
+
+/* POWER_LVL register */
+
+#define CRG_TOP_POWER_LVL_V30_LEVEL_SHIFT (6)        /* Bits 6-7 */
+#define CRG_TOP_POWER_LVL_V30_LEVEL_MASK (0x3 << CRG_TOP_POWER_LVL_V30_LEVEL_SHIFT)
+#  define CRG_TOP_POWER_LVL_V30_LEVEL(n) ((uint32_t)(n) << CRG_TOP_POWER_LVL_V30_LEVEL_SHIFT)
+#define CRG_TOP_POWER_LVL_V30_SLEEP_LEVEL_SHIFT (8)  /* Bits 8-9 */
+#define CRG_TOP_POWER_LVL_V30_SLEEP_LEVEL_MASK (0x3 << CRG_TOP_POWER_LVL_V30_SLEEP_LEVEL_SHIFT)
+#  define CRG_TOP_POWER_LVL_V30_SLEEP_LEVEL(n) ((uint32_t)(n) << CRG_TOP_POWER_LVL_V30_SLEEP_LEVEL_SHIFT)
+#define CRG_TOP_POWER_LVL_V12_LEVEL_SHIFT (10)       /* Bits 10-11 */
+#define CRG_TOP_POWER_LVL_V12_LEVEL_MASK (0x3 << CRG_TOP_POWER_LVL_V12_LEVEL_SHIFT)
+#  define CRG_TOP_POWER_LVL_V12_LEVEL(n) ((uint32_t)(n) << CRG_TOP_POWER_LVL_V12_LEVEL_SHIFT)
+#define CRG_TOP_POWER_LVL_V12_SLEEP_LEVEL_SHIFT (12) /* Bits 12-13 */
+#define CRG_TOP_POWER_LVL_V12_SLEEP_LEVEL_MASK (0x3 << CRG_TOP_POWER_LVL_V12_SLEEP_LEVEL_SHIFT)
+#  define CRG_TOP_POWER_LVL_V12_SLEEP_LEVEL(n) ((uint32_t)(n) << CRG_TOP_POWER_LVL_V12_SLEEP_LEVEL_SHIFT)
+#define CRG_TOP_POWER_LVL_V14_LEVEL_SHIFT (14)       /* Bits 14-15 */
+#define CRG_TOP_POWER_LVL_V14_LEVEL_MASK (0x3 << CRG_TOP_POWER_LVL_V14_LEVEL_SHIFT)
+#  define CRG_TOP_POWER_LVL_V14_LEVEL(n) ((uint32_t)(n) << CRG_TOP_POWER_LVL_V14_LEVEL_SHIFT)
+#define CRG_TOP_POWER_LVL_V18_LEVEL (1 << 16)        /* Bit 16 */
+#define CRG_TOP_POWER_LVL_VSYS_LEVEL_SHIFT (17)      /* Bits 17-18 */
+#define CRG_TOP_POWER_LVL_VSYS_LEVEL_MASK (0x3 << CRG_TOP_POWER_LVL_VSYS_LEVEL_SHIFT)
+#  define CRG_TOP_POWER_LVL_VSYS_LEVEL(n) ((uint32_t)(n) << CRG_TOP_POWER_LVL_VSYS_LEVEL_SHIFT)
+
+#endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_CRG_TOP_H */
