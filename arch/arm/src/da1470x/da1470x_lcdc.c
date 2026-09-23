@@ -1111,11 +1111,15 @@ int da1470x_lcdc_set_brightness(uint8_t level)
       return ret;
     }
 
+  /* Remember it first, so that a level set while the panel is dark is
+   * what setpower() applies after the init on the way back up.
+   */
+
+  priv->brightness = level;
+
   if (!priv->poweron)
     {
-      /* A dark panel takes no commands, and the init on the way back up
-       * sets the brightness anyway.
-       */
+      /* A dark panel takes no commands; setpower() applies the level */
 
       nxmutex_unlock(&priv->lock);
       return OK;
