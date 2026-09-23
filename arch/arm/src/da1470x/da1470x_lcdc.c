@@ -40,6 +40,7 @@
 #include <string.h>
 #include <errno.h>
 #include <debug.h>
+#include <time.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
@@ -50,6 +51,9 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/wqueue.h>
 #include <nuttx/video/fb.h>
+#include <nuttx/clock.h>
+
+#include <arch/chip/lcdc.h>
 
 #include "arm_internal.h"
 #include "hardware/da1470x_crg_sys.h"
@@ -58,6 +62,10 @@
 #include "da1470x_lcdc.h"
 #include "da1470x_pmu.h"
 #include "da1470x_clockconfig.h"
+
+#ifdef CONFIG_DA1470X_LCDC_AOD
+#  include "da1470x_aodface.h"
+#endif
 
 #ifdef CONFIG_DA1470X_LCDC
 
@@ -107,6 +115,21 @@ struct da1470x_lcdc_s
   bool     initialized;
   bool     poweron;                            /* Panel is lit and holding
                                                * the system at PM_NORMAL */
+#ifdef CONFIG_DA1470X_LCDC_AOD
+  bool     aod;                               /* Parked in always-on mode;
+                                               * the PM_NORMAL hold is
+                                               * released meanwhile */
+  bool     uploading;                         /* A face upload is open */
+  struct work_s aodwork;                      /* Minute redraw */
+  struct timespec aodbase;                    /* Monotonic time of ... */
+  uint32_t aodbase_sec;                       /* ... this second of day */
+  FAR uint8_t *face;                          /* Installed face, or NULL
+                                               * for the built-in one */
+  uint16_t face_seq;                          /* Its caller's tag */
+  FAR uint8_t *stage;                         /* Face being uploaded */
+  uint16_t stage_len;
+  uint16_t stage_seq;
+#endif
   uint8_t  brightness;                        /* Last level asked for.  Kept
                                                * across power transitions:
                                                * panel->init resets the panel
@@ -130,6 +153,11 @@ static int lcdc_pandisplay(struct fb_vtable_s *vtable,
                            struct fb_planeinfo_s *pinfo);
 static int lcdc_getpower(struct fb_vtable_s *vtable);
 static int lcdc_setpower(struct fb_vtable_s *vtable, int power);
+#ifdef CONFIG_DA1470X_LCDC_AOD
+static int lcdc_ioctl(struct fb_vtable_s *vtable, int cmd,
+                      unsigned long arg);
+static void lcdc_aod_exit(struct da1470x_lcdc_s *priv);
+#endif
 
 /****************************************************************************
  * Private Data
@@ -145,6 +173,9 @@ static struct da1470x_lcdc_s g_lcdc =
     .pandisplay   = lcdc_pandisplay,
     .getpower     = lcdc_getpower,
     .setpower     = lcdc_setpower,
+#ifdef CONFIG_DA1470X_LCDC_AOD
+    .ioctl        = lcdc_ioctl,
+#endif
   },
   .lock  = NXMUTEX_INITIALIZER,
   .frame = SEM_INITIALIZER(0),
@@ -741,6 +772,563 @@ static void lcdc_panwork(void *arg)
   while (fb_remove_paninfo(&priv->vtable, FB_NO_OVERLAY) == OK);
 }
 
+#ifdef CONFIG_DA1470X_LCDC_AOD
+
+/****************************************************************************
+ * Name: lcdc_engine_hold / lcdc_engine_release
+ *
+ * Description:
+ *   Own the frame engine: with the asynchronous driver thread a frame may
+ *   still be on the wire after the lock was taken, and nothing else --
+ *   a frame or a DCS command -- may go out until it has finished.  The
+ *   lock must be held.
+ *
+ ****************************************************************************/
+
+static void lcdc_engine_hold(struct da1470x_lcdc_s *priv)
+{
+#ifdef CONFIG_DA1470X_LCDC_ASYNC
+  nxsem_wait_uninterruptible(&priv->idle);
+#else
+  UNUSED(priv);
+#endif
+}
+
+static void lcdc_engine_release(struct da1470x_lcdc_s *priv)
+{
+#ifdef CONFIG_DA1470X_LCDC_ASYNC
+  nxsem_post(&priv->idle);
+#else
+  UNUSED(priv);
+#endif
+}
+
+/****************************************************************************
+ * Name: lcdc_aod_face
+ ****************************************************************************/
+
+static FAR const struct aodface_hdr_s *
+lcdc_aod_face(struct da1470x_lcdc_s *priv)
+{
+  if (priv->face != NULL)
+    {
+      return (FAR const struct aodface_hdr_s *)priv->face;
+    }
+
+  return aodface_builtin();
+}
+
+/****************************************************************************
+ * Name: lcdc_aod_seed / lcdc_aod_now
+ *
+ * Description:
+ *   The caller hands over wall clock time the way the MIP bridge takes it,
+ *   and the driver counts on from there with the monotonic clock, so it
+ *   needs neither a time zone nor an RTC.  lcdc_aod_now() returns the
+ *   millisecond of the day.
+ *
+ ****************************************************************************/
+
+static void lcdc_aod_seed(struct da1470x_lcdc_s *priv,
+                          FAR const struct da1470x_lcdc_aod_time_s *t)
+{
+  clock_gettime(CLOCK_MONOTONIC, &priv->aodbase);
+  priv->aodbase_sec = (t->hh % 24) * 3600 + (t->mm % 60) * 60 +
+                      (t->ss % 60);
+}
+
+static uint32_t lcdc_aod_now(struct da1470x_lcdc_s *priv)
+{
+  struct timespec now;
+  int64_t ms;
+
+  clock_gettime(CLOCK_MONOTONIC, &now);
+
+  ms = (int64_t)(now.tv_sec - priv->aodbase.tv_sec) * 1000 +
+       (now.tv_nsec - priv->aodbase.tv_nsec) / 1000000 +
+       (int64_t)priv->aodbase_sec * 1000;
+
+  return (uint32_t)(ms % (24 * 3600 * 1000));
+}
+
+/****************************************************************************
+ * Name: lcdc_aod_draw
+ *
+ * Description:
+ *   Render the face for the current minute into the shown buffer and send
+ *   it: the whole screen, which clears whatever the client left there, or
+ *   only the face's band.  After the one full frame everything outside the
+ *   band is background and stays so, and each minute costs only the rows
+ *   the digits occupy.  The lock and the frame engine must be held.
+ *
+ ****************************************************************************/
+
+static int lcdc_aod_draw(struct da1470x_lcdc_s *priv, bool full)
+{
+  const struct da1470x_lcdc_panel_s *panel = priv->panel;
+  FAR const struct aodface_hdr_s *face = lcdc_aod_face(priv);
+  struct aodface_fb_s fb;
+  uint32_t ms;
+  uint16_t y0;
+  uint16_t y1;
+
+  if (face == NULL)
+    {
+      return -ENOENT;
+    }
+
+  fb.mem    = priv->fbmem + (size_t)priv->shown * priv->buflen;
+  fb.stride = priv->stride;
+  fb.xres   = panel->xres;
+  fb.yres   = panel->yres;
+  fb.ox     = (panel->xres - AODFACE_SIZE) / 2;
+  fb.oy     = (panel->yres - AODFACE_SIZE) / 2;
+
+  ms = lcdc_aod_now(priv);
+
+  if (full)
+    {
+      aodface_clear_all(face, &fb);
+    }
+
+  aodface_render(face, &fb, ms / 3600000, (ms / 60000) % 60);
+
+  if (full)
+    {
+      y0 = 0;
+      y1 = panel->yres;
+    }
+  else
+    {
+      /* The controller wants even window edges */
+
+      aodface_band(face, &fb, &y0, &y1);
+      y0 &= ~1;
+      y1  = (y1 + 1) & ~1;
+      if (y1 > panel->yres)
+        {
+          y1 = panel->yres;
+        }
+    }
+
+  return lcdc_send_region(priv, priv->shown, 0, y0, panel->xres, y1 - y0);
+}
+
+/****************************************************************************
+ * Name: lcdc_aod_schedule
+ *
+ * Description:
+ *   Queue the next redraw just after the coming minute boundary.
+ *
+ ****************************************************************************/
+
+static void lcdc_aod_worker(FAR void *arg);
+
+static void lcdc_aod_schedule(struct da1470x_lcdc_s *priv)
+{
+  uint32_t delay = 60000 - lcdc_aod_now(priv) % 60000 + 50;
+
+  work_queue(LPWORK, &priv->aodwork, lcdc_aod_worker, priv,
+             MSEC2TICK(delay));
+}
+
+/****************************************************************************
+ * Name: lcdc_aod_worker
+ ****************************************************************************/
+
+static void lcdc_aod_worker(FAR void *arg)
+{
+  struct da1470x_lcdc_s *priv = (struct da1470x_lcdc_s *)arg;
+  int ret;
+
+  nxmutex_lock(&priv->lock);
+
+  /* Left always-on mode while this was waiting for the lock */
+
+  if (priv->aod)
+    {
+      lcdc_engine_hold(priv);
+      ret = lcdc_aod_draw(priv, false);
+      lcdc_engine_release(priv);
+
+      if (ret < 0)
+        {
+          lcderr("Always-on redraw failed: %d\n", ret);
+        }
+
+      lcdc_aod_schedule(priv);
+    }
+
+  nxmutex_unlock(&priv->lock);
+}
+
+/****************************************************************************
+ * Name: lcdc_aod_enter
+ *
+ * Description:
+ *   Draw the face on the whole screen, switch the panel to idle mode and
+ *   release the PM_NORMAL hold the lit panel keeps.  Called again while
+ *   parked, it only resets the clock and redraws.  The lock must be held.
+ *
+ ****************************************************************************/
+
+static int lcdc_aod_enter(struct da1470x_lcdc_s *priv,
+                          FAR const struct da1470x_lcdc_aod_time_s *t)
+{
+  const struct da1470x_lcdc_panel_s *panel = priv->panel;
+  int ret;
+
+  if (t == NULL)
+    {
+      return -EINVAL;
+    }
+
+  if (panel->idle == NULL || panel->xres < AODFACE_SIZE ||
+      panel->yres < AODFACE_SIZE)
+    {
+      return -ENOTSUP;
+    }
+
+  if (!priv->poweron)
+    {
+      return -ENODEV;
+    }
+
+  /* An open upload would be committed to a face that is being drawn */
+
+  if (priv->uploading)
+    {
+      return -EBUSY;
+    }
+
+  if (lcdc_aod_face(priv) == NULL)
+    {
+      return -ENOENT;
+    }
+
+  lcdc_aod_seed(priv, t);
+
+  lcdc_engine_hold(priv);
+  ret = lcdc_aod_draw(priv, !priv->aod);
+  if (ret >= 0 && !priv->aod)
+    {
+      panel->idle(panel, true);
+    }
+
+  lcdc_engine_release(priv);
+
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  if (!priv->aod)
+    {
+      /* What the client last sent is gone from the shown buffer, so a pan
+       * must not re-send that area from it.
+       */
+
+      priv->pending.w = 0;
+      priv->aod       = true;
+#ifdef CONFIG_PM
+      pm_relax(PM_IDLE_DOMAIN, PM_NORMAL);
+#endif
+    }
+
+  lcdc_aod_schedule(priv);
+  return OK;
+}
+
+/****************************************************************************
+ * Name: lcdc_aod_exit
+ *
+ * Description:
+ *   Take the panel out of idle mode and the PM_NORMAL hold back.  Nothing
+ *   is repainted: the client owns that.  The lock must be held.
+ *
+ ****************************************************************************/
+
+static void lcdc_aod_exit(struct da1470x_lcdc_s *priv)
+{
+  if (!priv->aod)
+    {
+      return;
+    }
+
+  /* A redraw already waiting for the lock sees aod clear and stops */
+
+  work_cancel(LPWORK, &priv->aodwork);
+
+#ifdef CONFIG_PM
+  pm_stay(PM_IDLE_DOMAIN, PM_NORMAL);
+#endif
+
+  lcdc_engine_hold(priv);
+  priv->panel->idle(priv->panel, false);
+  lcdc_engine_release(priv);
+
+  priv->aod = false;
+}
+
+/****************************************************************************
+ * Name: lcdc_aod_rendertime
+ ****************************************************************************/
+
+static int lcdc_aod_rendertime(struct da1470x_lcdc_s *priv,
+                               FAR const struct da1470x_lcdc_aod_time_s *t)
+{
+  int ret = OK;
+
+  if (t == NULL)
+    {
+      return -EINVAL;
+    }
+
+  lcdc_aod_seed(priv, t);
+
+  if (priv->aod)
+    {
+      lcdc_engine_hold(priv);
+      ret = lcdc_aod_draw(priv, false);
+      lcdc_engine_release(priv);
+      lcdc_aod_schedule(priv);
+    }
+
+  return ret;
+}
+
+/****************************************************************************
+ * Name: lcdc_face_*
+ *
+ * Description:
+ *   The face upload: staged in a heap buffer of the announced size, and
+ *   validated in full before it replaces the face in use.
+ *
+ ****************************************************************************/
+
+static void lcdc_face_drop_stage(struct da1470x_lcdc_s *priv)
+{
+  kmm_free(priv->stage);
+  priv->stage     = NULL;
+  priv->stage_len = 0;
+  priv->uploading = false;
+}
+
+static int lcdc_face_begin(struct da1470x_lcdc_s *priv,
+                           FAR const struct da1470x_lcdc_face_begin_s *b)
+{
+  if (b == NULL || b->total_len < AODFACE_BLOB_OFF ||
+      b->total_len > AODFACE_MAX_LEN)
+    {
+      return -EINVAL;
+    }
+
+  lcdc_face_drop_stage(priv);
+
+  priv->stage = kmm_malloc(b->total_len);
+  if (priv->stage == NULL)
+    {
+      return -ENOMEM;
+    }
+
+  priv->stage_len = b->total_len;
+  priv->stage_seq = b->seq;
+  priv->uploading = true;
+  return OK;
+}
+
+static int lcdc_face_data(struct da1470x_lcdc_s *priv,
+                          FAR const struct da1470x_lcdc_face_data_s *d)
+{
+  if (!priv->uploading)
+    {
+      return -EPERM;
+    }
+
+  if (d == NULL || d->data == NULL ||
+      (uint32_t)d->off + d->len > priv->stage_len)
+    {
+      return -EINVAL;
+    }
+
+  memcpy(priv->stage + d->off, d->data, d->len);
+  return OK;
+}
+
+/* A new face while parked is drawn at once, in full: its band may differ
+ * from the old one's, and the old digits must not stay behind.
+ */
+
+static int lcdc_face_changed(struct da1470x_lcdc_s *priv)
+{
+  int ret = OK;
+
+  if (priv->aod)
+    {
+      if (lcdc_aod_face(priv) == NULL)
+        {
+          lcdc_aod_exit(priv);
+          return OK;
+        }
+
+      lcdc_engine_hold(priv);
+      ret = lcdc_aod_draw(priv, true);
+      lcdc_engine_release(priv);
+    }
+
+  return ret;
+}
+
+static int lcdc_face_commit(struct da1470x_lcdc_s *priv, bool dry)
+{
+  FAR const struct aodface_hdr_s *staged;
+  FAR const struct aodface_hdr_s *active;
+  int ret;
+
+  if (!priv->uploading)
+    {
+      return -EPERM;
+    }
+
+  ret = aodface_validate(priv->stage, priv->stage_len);
+  if (ret != AODFACE_E_OK)
+    {
+      lcdwarn("Face rejected, code %d\n", ret);
+      return -EINVAL;
+    }
+
+  if (dry)
+    {
+      return OK;
+    }
+
+  /* The same bytes as the face in use: nothing to change */
+
+  staged = (FAR const struct aodface_hdr_s *)priv->stage;
+  active = (FAR const struct aodface_hdr_s *)priv->face;
+  if (active != NULL && active->total_len == staged->total_len &&
+      active->crc32 == staged->crc32)
+    {
+      priv->face_seq = priv->stage_seq;
+      lcdc_face_drop_stage(priv);
+      return OK;
+    }
+
+  kmm_free(priv->face);
+  priv->face      = priv->stage;
+  priv->face_seq  = priv->stage_seq;
+  priv->stage     = NULL;
+  priv->stage_len = 0;
+  priv->uploading = false;
+
+  return lcdc_face_changed(priv);
+}
+
+static int lcdc_face_clear(struct da1470x_lcdc_s *priv)
+{
+  if (priv->face == NULL)
+    {
+      return OK;
+    }
+
+  kmm_free(priv->face);
+  priv->face     = NULL;
+  priv->face_seq = 0;
+
+  return lcdc_face_changed(priv);
+}
+
+/****************************************************************************
+ * Name: lcdc_ioctl
+ ****************************************************************************/
+
+static int lcdc_ioctl(struct fb_vtable_s *vtable, int cmd,
+                      unsigned long arg)
+{
+  struct da1470x_lcdc_s *priv = (struct da1470x_lcdc_s *)vtable;
+  int ret;
+
+  if (!priv->initialized)
+    {
+      return -ENODEV;
+    }
+
+  ret = nxmutex_lock(&priv->lock);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  switch (cmd)
+    {
+      case DA1470X_FBIOC_AOD_IDLE:
+        ret = lcdc_aod_enter(priv,
+          (FAR const struct da1470x_lcdc_aod_time_s *)(uintptr_t)arg);
+        break;
+
+      case DA1470X_FBIOC_AOD_RESUME:
+        lcdc_aod_exit(priv);
+        ret = OK;
+        break;
+
+      case DA1470X_FBIOC_AOD_RENDERTIME:
+        ret = lcdc_aod_rendertime(priv,
+          (FAR const struct da1470x_lcdc_aod_time_s *)(uintptr_t)arg);
+        break;
+
+      case DA1470X_FBIOC_AOD_FACE_BEGIN:
+        ret = lcdc_face_begin(priv,
+          (FAR const struct da1470x_lcdc_face_begin_s *)(uintptr_t)arg);
+        break;
+
+      case DA1470X_FBIOC_AOD_FACE_DATA:
+        ret = lcdc_face_data(priv,
+          (FAR const struct da1470x_lcdc_face_data_s *)(uintptr_t)arg);
+        break;
+
+      case DA1470X_FBIOC_AOD_FACE_COMMIT:
+        ret = lcdc_face_commit(priv,
+                               arg == DA1470X_LCDC_FACE_COMMIT_DRY);
+        break;
+
+      case DA1470X_FBIOC_AOD_FACE_CLEAR:
+        ret = lcdc_face_clear(priv);
+        break;
+
+      case DA1470X_FBIOC_AOD_FACE_ABORT:
+        lcdc_face_drop_stage(priv);
+        ret = OK;
+        break;
+
+      case DA1470X_FBIOC_AOD_FACE_STATUS:
+        {
+          FAR struct da1470x_lcdc_face_status_s *st =
+            (FAR struct da1470x_lcdc_face_status_s *)(uintptr_t)arg;
+
+          if (st == NULL)
+            {
+              ret = -EINVAL;
+              break;
+            }
+
+          st->uploading  = priv->uploading;
+          st->parked     = priv->aod;
+          st->active_seq = priv->face != NULL ? priv->face_seq : 0;
+          ret = OK;
+        }
+        break;
+
+      default:
+        ret = -ENOTTY;
+        break;
+    }
+
+  nxmutex_unlock(&priv->lock);
+  return ret;
+}
+
+#endif /* CONFIG_DA1470X_LCDC_AOD */
+
 /****************************************************************************
  * Name: lcdc_getvideoinfo
  ****************************************************************************/
@@ -881,6 +1469,14 @@ static int lcdc_updatearea(struct fb_vtable_s *vtable,
       return ret;
     }
 
+#ifdef CONFIG_DA1470X_LCDC_AOD
+  /* A frame from the client takes the panel back, as it would from the
+   * MIP bridge.
+   */
+
+  lcdc_aod_exit(priv);
+#endif
+
   /* A client that hands over another buffer than last time is double
    * buffering: it will not touch this one until the next swap, so the
    * frame can go out while it draws.  Anybody else may redraw the same
@@ -930,6 +1526,10 @@ static int lcdc_pandisplay(struct fb_vtable_s *vtable,
     {
       return ret;
     }
+
+#ifdef CONFIG_DA1470X_LCDC_AOD
+  lcdc_aod_exit(priv);
+#endif
 
   /* The last update was taken from another buffer than the one now
    * selected: the client drew into the new buffer before panning, so
@@ -1042,6 +1642,14 @@ static int lcdc_setpower(struct fb_vtable_s *vtable, int power)
     }
   else if (power == 0 && priv->poweron)
     {
+#ifdef CONFIG_DA1470X_LCDC_AOD
+      /* Leaving always-on mode first takes the PM_NORMAL hold back, so
+       * the release below stays balanced.
+       */
+
+      lcdc_aod_exit(priv);
+#endif
+
       /* Nothing may be on the wire when the panel loses its supply */
 
 #ifdef CONFIG_DA1470X_LCDC_ASYNC

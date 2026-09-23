@@ -62,6 +62,8 @@
 #define DCS_RASET                0x2b
 #define DCS_RAMWR                0x2c
 #define DCS_TEOFF                0x34
+#define DCS_IDMOFF               0x38
+#define DCS_IDMON                0x39
 #define DCS_TEON                 0x35
 #define DCS_COLMOD               0x3a
 #define DCS_WRCTRLD              0x53
@@ -82,6 +84,8 @@ static int  e120a390_window(const struct da1470x_lcdc_panel_s *panel,
                             uint16_t y1);
 static void e120a390_brightness(const struct da1470x_lcdc_panel_s *panel,
                                 uint8_t level);
+static void e120a390_idle(const struct da1470x_lcdc_panel_s *panel,
+                          bool on);
 static void e120a390_power(const struct da1470x_lcdc_panel_s *panel,
                            bool on);
 
@@ -107,6 +111,7 @@ static const struct da1470x_lcdc_panel_s g_e120a390_panel =
   .window       = e120a390_window,
   .power        = e120a390_power,
   .brightness   = e120a390_brightness,
+  .idle         = e120a390_idle,
 };
 
 /****************************************************************************
@@ -157,6 +162,26 @@ static void e120a390_brightness(const struct da1470x_lcdc_panel_s *panel,
   UNUSED(panel);
 
   e120a390_cmd1(DCS_WRDISBV, level);
+}
+
+/****************************************************************************
+ * Name: e120a390_idle
+ *
+ * Description:
+ *   DCS idle mode, the controller's always-on state: it keeps refreshing
+ *   the glass from its own frame memory in a reduced colour depth and at
+ *   lower power, so the host can stop sending frames.  The RM69091's own
+ *   data sheet is not public; the RM69090 and RM69092 ones describe idle
+ *   mode as eight colours by default.
+ *
+ ****************************************************************************/
+
+static void e120a390_idle(const struct da1470x_lcdc_panel_s *panel,
+                          bool on)
+{
+  UNUSED(panel);
+
+  e120a390_cmd(on ? DCS_IDMON : DCS_IDMOFF);
 }
 
 /****************************************************************************

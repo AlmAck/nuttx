@@ -72,6 +72,9 @@ endif
 
 ifeq ($(CONFIG_DA1470X_LCDC),y)
 CHIP_CSRCS += da1470x_lcdc.c
+ifeq ($(CONFIG_DA1470X_LCDC_AOD),y)
+CHIP_CSRCS += da1470x_aodface.c
+endif
 endif
 
 ifeq ($(CONFIG_DA1470X_GPU),y)

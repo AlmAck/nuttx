@@ -622,6 +622,30 @@ config DA1470X_LCDC_ASYNC_PRIORITY
 	default 180
 	depends on DA1470X_LCDC_ASYNC
 
+config DA1470X_LCDC_AOD
+	bool "Always-on display"
+	default n
+	depends on DA1470X_LCDC && SCHED_LPWORK
+	---help---
+		Let the display driver keep a clock on the panel by itself
+		while everything above it sleeps: the panel is put in its
+		low power idle mode and the driver redraws the time once a
+		minute from a low priority work item, sending only the rows
+		the digits occupy.  What it draws is a face record in the
+		AODF v1 format of the stm32_stream_bridge, installed through
+		/dev/fb0 ioctls; see arch/arm/include/da1470x/lcdc.h.
+
+if DA1470X_LCDC_AOD
+
+config DA1470X_LCDC_AOD_BUILTIN_FACE
+	bool "Built-in face"
+	default y
+	---help---
+		Compile in the bridge's shipped face (13.6 KiB of flash), used
+		until another is installed.  Without it, entering always-on
+		mode fails until a face has been installed.
+
+endif # DA1470X_LCDC_AOD
 
 config DA1470X_GPU
 	bool "GPU (D/AVE 2D) driver"

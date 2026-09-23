@@ -93,6 +93,14 @@ struct da1470x_lcdc_panel_s
 
   void (*brightness)(const struct da1470x_lcdc_panel_s *panel,
                      uint8_t level);
+
+  /* Enter or leave the panel's low power idle mode, in which it keeps
+   * showing its own frame memory with fewer colours.  Optional: without
+   * it, always-on mode is refused.  Called under the same conditions as
+   * brightness.
+   */
+
+  void (*idle)(const struct da1470x_lcdc_panel_s *panel, bool on);
 };
 
 /****************************************************************************

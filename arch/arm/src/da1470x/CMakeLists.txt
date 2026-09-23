@@ -75,6 +75,9 @@ endif()
 
 if(CONFIG_DA1470X_LCDC)
   list(APPEND SRCS da1470x_lcdc.c)
+  if(CONFIG_DA1470X_LCDC_AOD)
+    list(APPEND SRCS da1470x_aodface.c)
+  endif()
 endif()
 
 if(CONFIG_DA1470X_GPU)
