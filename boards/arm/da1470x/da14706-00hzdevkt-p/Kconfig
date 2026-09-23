@@ -1,0 +1,31 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+if ARCH_BOARD_DA14706_00HZDEVKT_P
+
+config DA14706_LCD_E120A390QSR
+	bool "E120A390QSR 390x390 AMOLED daughterboard"
+	default n
+	depends on DA1470X_LCDC
+	---help---
+		Register the EverDisplay E120A390QSR (Raydium RM69091) panel
+		attached to the LCDC in quad-SPI mode as the framebuffer.
+
+config DA14706_LCD_LPM012M134B
+	bool "JDI LPM012M134B 240x240 memory-in-pixel panel (parallel)"
+	default n
+	depends on DA1470X_LCDC && !DA14706_LCD_E120A390QSR
+	---help---
+		Register a JDI LPM012M134B panel on the JDI parallel interface
+		as the framebuffer (RGB332, eight colours on the panel).  The
+		devkit does not carry this panel: the JDI pads are the chip's
+		fixed ones, the enable pin is BOARD_JDI_PEN_PIN.
+
+config DA14706_OQSPI_MOUNTPOINT
+	string "Mount point of the flash data partition"
+	default "/mnt/flash"
+	depends on DA1470X_OQSPI_MTD
+
+endif
