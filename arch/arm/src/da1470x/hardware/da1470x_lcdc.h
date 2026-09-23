@@ -1,0 +1,576 @@
+/****************************************************************************
+ * arch/arm/src/da1470x/hardware/da1470x_lcdc.h
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+/* Generated from the Renesas CMSIS device header DA1470x-00.h (SDK
+ * 10.2.6.49).  Do not edit by hand; regenerate with tools/genhdr.py.
+ */
+
+#ifndef __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_LCDC_H
+#define __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_LCDC_H
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/config.h>
+#include "da1470x_memorymap.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/* Register Offsets *********************************************************/
+
+#define DA1470X_LCDC_MODE_OFFSET 0x0000            /* Display Mode */
+#define DA1470X_LCDC_CLKCTRL_OFFSET 0x0004         /* Clock Divider */
+#define DA1470X_LCDC_BGCOLOR_OFFSET 0x0008         /* Background Color */
+#define DA1470X_LCDC_RESXY_OFFSET 0x000c           /* Resolution X,Y */
+#define DA1470X_LCDC_FRONTPORCHXY_OFFSET 0x0014    /* Front Porch X and Y */
+#define DA1470X_LCDC_BLANKINGXY_OFFSET 0x0018      /* Blanking X and Y */
+#define DA1470X_LCDC_BACKPORCHXY_OFFSET 0x001c     /* Back Porch X and Y */
+#define DA1470X_LCDC_STARTXY_OFFSET 0x0024         /* Specifies the start position of the very */
+#define DA1470X_LCDC_DBIB_CFG_OFFSET 0x0028        /* MIPI DBIB Config Register */
+#define DA1470X_LCDC_GPIO_OFFSET 0x002c            /* General Purpose IO (8-bits) */
+#define DA1470X_LCDC_LAYER0_MODE_OFFSET 0x0030     /* Layer0 Mode */
+#define DA1470X_LCDC_LAYER0_STARTXY_OFFSET 0x0034  /* Layer0 Start XY */
+#define DA1470X_LCDC_LAYER0_SIZEXY_OFFSET 0x0038   /* Layer0 Size XY */
+#define DA1470X_LCDC_LAYER0_BASEADDR_OFFSET 0x003c /* Layer0 Base Addr */
+#define DA1470X_LCDC_LAYER0_STRIDE_OFFSET 0x0040   /* Layer0 Stride */
+#define DA1470X_LCDC_LAYER0_RESXY_OFFSET 0x0044    /* Layer0 Res XY */
+#define DA1470X_LCDC_LAYER1_MODE_OFFSET 0x0050     /* Layer1 Mode */
+#define DA1470X_LCDC_LAYER1_STARTXY_OFFSET 0x0054  /* Layer0 Start XY */
+#define DA1470X_LCDC_LAYER1_SIZEXY_OFFSET 0x0058   /* Layer1 Size XY */
+#define DA1470X_LCDC_LAYER1_BASEADDR_OFFSET 0x005c /* Layer1 Base Addr */
+#define DA1470X_LCDC_LAYER1_STRIDE_OFFSET 0x0060   /* Layer1 Stride */
+#define DA1470X_LCDC_LAYER1_RESXY_OFFSET 0x0064    /* Layer1 Res XY */
+#define DA1470X_LCDC_DBIB_CMD_OFFSET 0x00e8        /* MIPI DBIB Command Register */
+#define DA1470X_LCDC_DBIB_RDAT_OFFSET 0x00ec       /* Data read by DBI Type-B/SPI interface */
+#define DA1470X_LCDC_CONF_OFFSET 0x00f0            /* Supported config */
+#define DA1470X_LCDC_IDREG_OFFSET 0x00f4           /* Identification Register */
+#define DA1470X_LCDC_INTERRUPT_OFFSET 0x00f8       /* Interrupt Register */
+#define DA1470X_LCDC_STATUS_OFFSET 0x00fc          /* Status Register */
+#define DA1470X_LCDC_COLMOD_OFFSET 0x0100          /* Color mode status register */
+#define DA1470X_LCDC_CRC_OFFSET 0x0184             /* CRC check */
+#define DA1470X_LCDC_FMTCTRL_OFFSET 0x01a0         /* DBI and JDI format control */
+#define DA1470X_LCDC_FMTCTRL_2_OFFSET 0x01a4       /* DBI and JDI format control */
+#define DA1470X_LCDC_CLKCTRL_CG_OFFSET 0x01a8      /* Controls the CLock Gaters and the routin */
+#define DA1470X_LCDC_FMTCTRL_3_OFFSET 0x01ac       /* JDI format control */
+#define DA1470X_LCDC_PALETTE_BASE_OFFSET 0x0400    /* Global palette/gamma correction */
+#define DA1470X_LCDC_PALETTE_255_OFFSET 0x07fc     /* Global palette/gamma correction */
+
+/* Register Addresses *******************************************************/
+
+#define DA1470X_LCDC_MODE (DA1470X_LCDC_BASE + DA1470X_LCDC_MODE_OFFSET)
+#define DA1470X_LCDC_CLKCTRL (DA1470X_LCDC_BASE + DA1470X_LCDC_CLKCTRL_OFFSET)
+#define DA1470X_LCDC_BGCOLOR (DA1470X_LCDC_BASE + DA1470X_LCDC_BGCOLOR_OFFSET)
+#define DA1470X_LCDC_RESXY (DA1470X_LCDC_BASE + DA1470X_LCDC_RESXY_OFFSET)
+#define DA1470X_LCDC_FRONTPORCHXY (DA1470X_LCDC_BASE + DA1470X_LCDC_FRONTPORCHXY_OFFSET)
+#define DA1470X_LCDC_BLANKINGXY (DA1470X_LCDC_BASE + DA1470X_LCDC_BLANKINGXY_OFFSET)
+#define DA1470X_LCDC_BACKPORCHXY (DA1470X_LCDC_BASE + DA1470X_LCDC_BACKPORCHXY_OFFSET)
+#define DA1470X_LCDC_STARTXY (DA1470X_LCDC_BASE + DA1470X_LCDC_STARTXY_OFFSET)
+#define DA1470X_LCDC_DBIB_CFG (DA1470X_LCDC_BASE + DA1470X_LCDC_DBIB_CFG_OFFSET)
+#define DA1470X_LCDC_GPIO (DA1470X_LCDC_BASE + DA1470X_LCDC_GPIO_OFFSET)
+#define DA1470X_LCDC_LAYER0_MODE (DA1470X_LCDC_BASE + DA1470X_LCDC_LAYER0_MODE_OFFSET)
+#define DA1470X_LCDC_LAYER0_STARTXY (DA1470X_LCDC_BASE + DA1470X_LCDC_LAYER0_STARTXY_OFFSET)
+#define DA1470X_LCDC_LAYER0_SIZEXY (DA1470X_LCDC_BASE + DA1470X_LCDC_LAYER0_SIZEXY_OFFSET)
+#define DA1470X_LCDC_LAYER0_BASEADDR (DA1470X_LCDC_BASE + DA1470X_LCDC_LAYER0_BASEADDR_OFFSET)
+#define DA1470X_LCDC_LAYER0_STRIDE (DA1470X_LCDC_BASE + DA1470X_LCDC_LAYER0_STRIDE_OFFSET)
+#define DA1470X_LCDC_LAYER0_RESXY (DA1470X_LCDC_BASE + DA1470X_LCDC_LAYER0_RESXY_OFFSET)
+#define DA1470X_LCDC_LAYER1_MODE (DA1470X_LCDC_BASE + DA1470X_LCDC_LAYER1_MODE_OFFSET)
+#define DA1470X_LCDC_LAYER1_STARTXY (DA1470X_LCDC_BASE + DA1470X_LCDC_LAYER1_STARTXY_OFFSET)
+#define DA1470X_LCDC_LAYER1_SIZEXY (DA1470X_LCDC_BASE + DA1470X_LCDC_LAYER1_SIZEXY_OFFSET)
+#define DA1470X_LCDC_LAYER1_BASEADDR (DA1470X_LCDC_BASE + DA1470X_LCDC_LAYER1_BASEADDR_OFFSET)
+#define DA1470X_LCDC_LAYER1_STRIDE (DA1470X_LCDC_BASE + DA1470X_LCDC_LAYER1_STRIDE_OFFSET)
+#define DA1470X_LCDC_LAYER1_RESXY (DA1470X_LCDC_BASE + DA1470X_LCDC_LAYER1_RESXY_OFFSET)
+#define DA1470X_LCDC_DBIB_CMD (DA1470X_LCDC_BASE + DA1470X_LCDC_DBIB_CMD_OFFSET)
+#define DA1470X_LCDC_DBIB_RDAT (DA1470X_LCDC_BASE + DA1470X_LCDC_DBIB_RDAT_OFFSET)
+#define DA1470X_LCDC_CONF (DA1470X_LCDC_BASE + DA1470X_LCDC_CONF_OFFSET)
+#define DA1470X_LCDC_IDREG (DA1470X_LCDC_BASE + DA1470X_LCDC_IDREG_OFFSET)
+#define DA1470X_LCDC_INTERRUPT (DA1470X_LCDC_BASE + DA1470X_LCDC_INTERRUPT_OFFSET)
+#define DA1470X_LCDC_STATUS (DA1470X_LCDC_BASE + DA1470X_LCDC_STATUS_OFFSET)
+#define DA1470X_LCDC_COLMOD (DA1470X_LCDC_BASE + DA1470X_LCDC_COLMOD_OFFSET)
+#define DA1470X_LCDC_CRC (DA1470X_LCDC_BASE + DA1470X_LCDC_CRC_OFFSET)
+#define DA1470X_LCDC_FMTCTRL (DA1470X_LCDC_BASE + DA1470X_LCDC_FMTCTRL_OFFSET)
+#define DA1470X_LCDC_FMTCTRL_2 (DA1470X_LCDC_BASE + DA1470X_LCDC_FMTCTRL_2_OFFSET)
+#define DA1470X_LCDC_CLKCTRL_CG (DA1470X_LCDC_BASE + DA1470X_LCDC_CLKCTRL_CG_OFFSET)
+#define DA1470X_LCDC_FMTCTRL_3 (DA1470X_LCDC_BASE + DA1470X_LCDC_FMTCTRL_3_OFFSET)
+#define DA1470X_LCDC_PALETTE_BASE (DA1470X_LCDC_BASE + DA1470X_LCDC_PALETTE_BASE_OFFSET)
+#define DA1470X_LCDC_PALETTE_255 (DA1470X_LCDC_BASE + DA1470X_LCDC_PALETTE_255_OFFSET)
+
+/* Register Bit-field Definitions *******************************************/
+
+/* MODE register */
+
+#define LCDC_MODE_TMODE (1 << 0)                   /* Bit 0 */
+#define LCDC_MODE_DSCAN (1 << 1)                   /* Bit 1 */
+#define LCDC_MODE_FORM_OFF (1 << 3)                /* Bit 3 */
+#define LCDC_MODE_DBIB_OFF (1 << 4)                /* Bit 4 */
+#define LCDC_MODE_OUT_MODE_SHIFT (5)               /* Bits 5-8 */
+#define LCDC_MODE_OUT_MODE_MASK (0xf << LCDC_MODE_OUT_MODE_SHIFT)
+#  define LCDC_MODE_OUT_MODE(n) ((uint32_t)(n) << LCDC_MODE_OUT_MODE_SHIFT)
+#  define LCDC_MODE_OUT_MODE_PRGB   LCDC_MODE_OUT_MODE(0)
+#  define LCDC_MODE_OUT_MODE_JDIMIP LCDC_MODE_OUT_MODE(8)
+#define LCDC_MODE_PIXCLKOUT_SEL (1 << 11)          /* Bit 11 */
+#define LCDC_MODE_DPI2_CONFIG_SHIFT (12)           /* Bits 12-14 */
+#define LCDC_MODE_DPI2_CONFIG_MASK (0x7 << LCDC_MODE_DPI2_CONFIG_SHIFT)
+#  define LCDC_MODE_DPI2_CONFIG(n) ((uint32_t)(n) << LCDC_MODE_DPI2_CONFIG_SHIFT)
+#define LCDC_MODE_SFRAME_UPD (1 << 17)             /* Bit 17 */
+#define LCDC_MODE_UNDERRUN_PREVENTION_EN (1 << 18) /* Bit 18 */
+#define LCDC_MODE_FORCE_BLANK (1 << 19)            /* Bit 19 */
+#define LCDC_MODE_GLOBAL_GAMMA_EN (1 << 20)        /* Bit 20 */
+#define LCDC_MODE_PIXCLKOUT_POL (1 << 22)          /* Bit 22 */
+#define LCDC_MODE_VSYNC_SCPL (1 << 23)             /* Bit 23 */
+#define LCDC_MODE_DITH_MODE_SHIFT (24)             /* Bits 24-25 */
+#define LCDC_MODE_DITH_MODE_MASK (0x3 << LCDC_MODE_DITH_MODE_SHIFT)
+#  define LCDC_MODE_DITH_MODE(n) ((uint32_t)(n) << LCDC_MODE_DITH_MODE_SHIFT)
+#define LCDC_MODE_DE_POL (1 << 26)                 /* Bit 26 */
+#define LCDC_MODE_HSYNC_POL (1 << 27)              /* Bit 27 */
+#define LCDC_MODE_VSYNC_POL (1 << 28)              /* Bit 28 */
+#define LCDC_MODE_MODE_EN (1 << 31)                /* Bit 31 */
+
+/* CLKCTRL register */
+
+#define LCDC_CLKCTRL_CLK_DIV_SHIFT (0)      /* Bits 0-5 */
+#define LCDC_CLKCTRL_CLK_DIV_MASK (0x3f << LCDC_CLKCTRL_CLK_DIV_SHIFT)
+#  define LCDC_CLKCTRL_CLK_DIV(n) ((uint32_t)(n) << LCDC_CLKCTRL_CLK_DIV_SHIFT)
+#define LCDC_CLKCTRL_DMA_HOLD_SHIFT (8)     /* Bits 8-13 */
+#define LCDC_CLKCTRL_DMA_HOLD_MASK (0x3f << LCDC_CLKCTRL_DMA_HOLD_SHIFT)
+#  define LCDC_CLKCTRL_DMA_HOLD(n) ((uint32_t)(n) << LCDC_CLKCTRL_DMA_HOLD_SHIFT)
+#define LCDC_CLKCTRL_SEC_CLK_DIV_SHIFT (27) /* Bits 27-31 */
+#define LCDC_CLKCTRL_SEC_CLK_DIV_MASK (0x1f << LCDC_CLKCTRL_SEC_CLK_DIV_SHIFT)
+#  define LCDC_CLKCTRL_SEC_CLK_DIV(n) ((uint32_t)(n) << LCDC_CLKCTRL_SEC_CLK_DIV_SHIFT)
+
+/* BGCOLOR register */
+
+#define LCDC_BGCOLOR_BG_ALPHA_SHIFT (0)  /* Bits 0-7 */
+#define LCDC_BGCOLOR_BG_ALPHA_MASK (0xff << LCDC_BGCOLOR_BG_ALPHA_SHIFT)
+#  define LCDC_BGCOLOR_BG_ALPHA(n) ((uint32_t)(n) << LCDC_BGCOLOR_BG_ALPHA_SHIFT)
+#define LCDC_BGCOLOR_BG_BLUE_SHIFT (8)   /* Bits 8-15 */
+#define LCDC_BGCOLOR_BG_BLUE_MASK (0xff << LCDC_BGCOLOR_BG_BLUE_SHIFT)
+#  define LCDC_BGCOLOR_BG_BLUE(n) ((uint32_t)(n) << LCDC_BGCOLOR_BG_BLUE_SHIFT)
+#define LCDC_BGCOLOR_BG_GREEN_SHIFT (16) /* Bits 16-23 */
+#define LCDC_BGCOLOR_BG_GREEN_MASK (0xff << LCDC_BGCOLOR_BG_GREEN_SHIFT)
+#  define LCDC_BGCOLOR_BG_GREEN(n) ((uint32_t)(n) << LCDC_BGCOLOR_BG_GREEN_SHIFT)
+#define LCDC_BGCOLOR_BG_RED_SHIFT (24)   /* Bits 24-31 */
+#define LCDC_BGCOLOR_BG_RED_MASK (0xff << LCDC_BGCOLOR_BG_RED_SHIFT)
+#  define LCDC_BGCOLOR_BG_RED(n) ((uint32_t)(n) << LCDC_BGCOLOR_BG_RED_SHIFT)
+
+/* RESXY register */
+
+#define LCDC_RESXY_RES_Y_SHIFT (0)  /* Bits 0-15 */
+#define LCDC_RESXY_RES_Y_MASK (0xffff << LCDC_RESXY_RES_Y_SHIFT)
+#  define LCDC_RESXY_RES_Y(n) ((uint32_t)(n) << LCDC_RESXY_RES_Y_SHIFT)
+#define LCDC_RESXY_RES_X_SHIFT (16) /* Bits 16-31 */
+#define LCDC_RESXY_RES_X_MASK (0xffff << LCDC_RESXY_RES_X_SHIFT)
+#  define LCDC_RESXY_RES_X(n) ((uint32_t)(n) << LCDC_RESXY_RES_X_SHIFT)
+
+/* FRONTPORCHXY register */
+
+#define LCDC_FRONTPORCHXY_FPORCH_Y_SHIFT (0)  /* Bits 0-15 */
+#define LCDC_FRONTPORCHXY_FPORCH_Y_MASK (0xffff << LCDC_FRONTPORCHXY_FPORCH_Y_SHIFT)
+#  define LCDC_FRONTPORCHXY_FPORCH_Y(n) ((uint32_t)(n) << LCDC_FRONTPORCHXY_FPORCH_Y_SHIFT)
+#define LCDC_FRONTPORCHXY_FPORCH_X_SHIFT (16) /* Bits 16-31 */
+#define LCDC_FRONTPORCHXY_FPORCH_X_MASK (0xffff << LCDC_FRONTPORCHXY_FPORCH_X_SHIFT)
+#  define LCDC_FRONTPORCHXY_FPORCH_X(n) ((uint32_t)(n) << LCDC_FRONTPORCHXY_FPORCH_X_SHIFT)
+
+/* BLANKINGXY register */
+
+#define LCDC_BLANKINGXY_BLANKING_Y_SHIFT (0)  /* Bits 0-15 */
+#define LCDC_BLANKINGXY_BLANKING_Y_MASK (0xffff << LCDC_BLANKINGXY_BLANKING_Y_SHIFT)
+#  define LCDC_BLANKINGXY_BLANKING_Y(n) ((uint32_t)(n) << LCDC_BLANKINGXY_BLANKING_Y_SHIFT)
+#define LCDC_BLANKINGXY_BLANKING_X_SHIFT (16) /* Bits 16-31 */
+#define LCDC_BLANKINGXY_BLANKING_X_MASK (0xffff << LCDC_BLANKINGXY_BLANKING_X_SHIFT)
+#  define LCDC_BLANKINGXY_BLANKING_X(n) ((uint32_t)(n) << LCDC_BLANKINGXY_BLANKING_X_SHIFT)
+
+/* BACKPORCHXY register */
+
+#define LCDC_BACKPORCHXY_BPORCH_Y_SHIFT (0)  /* Bits 0-15 */
+#define LCDC_BACKPORCHXY_BPORCH_Y_MASK (0xffff << LCDC_BACKPORCHXY_BPORCH_Y_SHIFT)
+#  define LCDC_BACKPORCHXY_BPORCH_Y(n) ((uint32_t)(n) << LCDC_BACKPORCHXY_BPORCH_Y_SHIFT)
+#define LCDC_BACKPORCHXY_BPORCH_X_SHIFT (16) /* Bits 16-31 */
+#define LCDC_BACKPORCHXY_BPORCH_X_MASK (0xffff << LCDC_BACKPORCHXY_BPORCH_X_SHIFT)
+#  define LCDC_BACKPORCHXY_BPORCH_X(n) ((uint32_t)(n) << LCDC_BACKPORCHXY_BPORCH_X_SHIFT)
+
+/* STARTXY register */
+
+#define LCDC_STARTXY_START_Y_SHIFT (0)  /* Bits 0-15 */
+#define LCDC_STARTXY_START_Y_MASK (0xffff << LCDC_STARTXY_START_Y_SHIFT)
+#  define LCDC_STARTXY_START_Y(n) ((uint32_t)(n) << LCDC_STARTXY_START_Y_SHIFT)
+#define LCDC_STARTXY_START_X_SHIFT (16) /* Bits 16-31 */
+#define LCDC_STARTXY_START_X_MASK (0xffff << LCDC_STARTXY_START_X_SHIFT)
+#  define LCDC_STARTXY_START_X(n) ((uint32_t)(n) << LCDC_STARTXY_START_X_SHIFT)
+
+/* DBIB_CFG register */
+
+#define LCDC_DBIB_CFG_DBIB_COLOR_FMT_SHIFT (0)               /* Bits 0-2 */
+#define LCDC_DBIB_CFG_DBIB_COLOR_FMT_MASK (0x7 << LCDC_DBIB_CFG_DBIB_COLOR_FMT_SHIFT)
+#  define LCDC_DBIB_CFG_DBIB_COLOR_FMT(n) ((uint32_t)(n) << LCDC_DBIB_CFG_DBIB_COLOR_FMT_SHIFT)
+#define LCDC_DBIB_CFG_DBIB_DATA_ORDER_SHIFT (3)              /* Bits 3-5 */
+#define LCDC_DBIB_CFG_DBIB_DATA_ORDER_MASK (0x7 << LCDC_DBIB_CFG_DBIB_DATA_ORDER_SHIFT)
+#  define LCDC_DBIB_CFG_DBIB_DATA_ORDER(n) ((uint32_t)(n) << LCDC_DBIB_CFG_DBIB_DATA_ORDER_SHIFT)
+#define LCDC_DBIB_CFG_DBIB_INTERFACE_WIDTH_SHIFT (6)         /* Bits 6-8 */
+#define LCDC_DBIB_CFG_DBIB_INTERFACE_WIDTH_MASK (0x7 << LCDC_DBIB_CFG_DBIB_INTERFACE_WIDTH_SHIFT)
+#  define LCDC_DBIB_CFG_DBIB_INTERFACE_WIDTH(n) ((uint32_t)(n) << LCDC_DBIB_CFG_DBIB_INTERFACE_WIDTH_SHIFT)
+#define LCDC_DBIB_CFG_DUAL_SPI_EN (1 << 9)                   /* Bit 9 */
+#define LCDC_DBIB_CFG_QUAD_SPI_EN (1 << 10)                  /* Bit 10 */
+#define LCDC_DBIB_CFG_DUAL_SPI_SUBPIXEL_EXTRACT_EN (1 << 11) /* Bit 11 */
+#define LCDC_DBIB_CFG_HORIZONTAL_BLANK_EN (1 << 12)          /* Bit 12 */
+#define LCDC_DBIB_CFG_EXT_CTRL_EN (1 << 13)                  /* Bit 13 */
+#define LCDC_DBIB_CFG_PIX_CLK_AT_DBIB_CLK (1 << 14)          /* Bit 14 */
+#define LCDC_DBIB_CFG_SPI_2BYTE_ADDR (1 << 15)               /* Bit 15 */
+#define LCDC_DBIB_CFG_BIT_ORDER_ADDR_INVERT (1 << 16)        /* Bit 16 */
+#define LCDC_DBIB_CFG_CMD_DATA_AS_HEADER (1 << 17)           /* Bit 17 */
+#define LCDC_DBIB_CFG_SPID_JDI (1 << 18)                     /* Bit 18 */
+#define LCDC_DBIB_CFG_SPI_CLK_POLARITY (1 << 19)             /* Bit 19 */
+#define LCDC_DBIB_CFG_SPI_CLK_PHASE (1 << 20)                /* Bit 20 */
+#define LCDC_DBIB_CFG_DBIB_BACK_PRESSURE_EN (1 << 21)        /* Bit 21 */
+#define LCDC_DBIB_CFG_SPI4_EN (1 << 22)                      /* Bit 22 */
+#define LCDC_DBIB_CFG_SPI3_EN (1 << 23)                      /* Bit 23 */
+#define LCDC_DBIB_CFG_SUB_PIXEL_REVERSE (1 << 24)            /* Bit 24 */
+#define LCDC_DBIB_CFG_DBIB_RESX_OUT_EN (1 << 25)             /* Bit 25 */
+#define LCDC_DBIB_CFG_DBIB_FORCE_IDLE (1 << 26)              /* Bit 26 */
+#define LCDC_DBIB_CFG_SPI_DC_AS_SPI_SD1 (1 << 27)            /* Bit 27 */
+#define LCDC_DBIB_CFG_DBIB_TE_DISABLE (1 << 28)              /* Bit 28 */
+#define LCDC_DBIB_CFG_DBIB_CSX_CFG (1 << 29)                 /* Bit 29 */
+#define LCDC_DBIB_CFG_DBIB_CSX_CFG_EN (1 << 30)              /* Bit 30 */
+#define LCDC_DBIB_CFG_DBIB_INTERFACE_EN (1 << 31)            /* Bit 31 */
+
+/* GPIO register */
+
+#define LCDC_GPIO_TE_INV (1 << 1)                /* Bit 1 */
+#define LCDC_GPIO_GPIO_OUTPUT_EN (1 << 2)        /* Bit 2 */
+#define LCDC_GPIO_GPIO_OUTPUT_MODE_SHIFT (3)     /* Bits 3-4 */
+#define LCDC_GPIO_GPIO_OUTPUT_MODE_MASK (0x3 << LCDC_GPIO_GPIO_OUTPUT_MODE_SHIFT)
+#  define LCDC_GPIO_GPIO_OUTPUT_MODE(n) ((uint32_t)(n) << LCDC_GPIO_GPIO_OUTPUT_MODE_SHIFT)
+#define LCDC_GPIO_GPIO_SPI_SI_ON_SD_PAD (1 << 5) /* Bit 5 */
+#define LCDC_GPIO_DPI_SD_ASSERT (1 << 15)        /* Bit 15 */
+#define LCDC_GPIO_DPI_CM_ASSERT (1 << 16)        /* Bit 16 */
+
+/* LAYER0_MODE register */
+
+#define LCDC_LAYER0_MODE_L0_COLOR_MODE_SHIFT (0)       /* Bits 0-4 */
+#define LCDC_LAYER0_MODE_L0_COLOR_MODE_MASK (0x1f << LCDC_LAYER0_MODE_L0_COLOR_MODE_SHIFT)
+#  define LCDC_LAYER0_MODE_L0_COLOR_MODE(n) ((uint32_t)(n) << LCDC_LAYER0_MODE_L0_COLOR_MODE_SHIFT)
+#define LCDC_LAYER0_MODE_L0_SRC_BLEND_SHIFT (8)        /* Bits 8-11 */
+#define LCDC_LAYER0_MODE_L0_SRC_BLEND_MASK (0xf << LCDC_LAYER0_MODE_L0_SRC_BLEND_SHIFT)
+#  define LCDC_LAYER0_MODE_L0_SRC_BLEND(n) ((uint32_t)(n) << LCDC_LAYER0_MODE_L0_SRC_BLEND_SHIFT)
+#define LCDC_LAYER0_MODE_L0_DST_BLEND_SHIFT (12)       /* Bits 12-15 */
+#define LCDC_LAYER0_MODE_L0_DST_BLEND_MASK (0xf << LCDC_LAYER0_MODE_L0_DST_BLEND_SHIFT)
+#  define LCDC_LAYER0_MODE_L0_DST_BLEND(n) ((uint32_t)(n) << LCDC_LAYER0_MODE_L0_DST_BLEND_SHIFT)
+#define LCDC_LAYER0_MODE_L0_ALPHA_SHIFT (16)           /* Bits 16-23 */
+#define LCDC_LAYER0_MODE_L0_ALPHA_MASK (0xff << LCDC_LAYER0_MODE_L0_ALPHA_SHIFT)
+#  define LCDC_LAYER0_MODE_L0_ALPHA(n) ((uint32_t)(n) << LCDC_LAYER0_MODE_L0_ALPHA_SHIFT)
+#define LCDC_LAYER0_MODE_L0_ASSERT_HLOCK_DMA (1 << 27) /* Bit 27 */
+#define LCDC_LAYER0_MODE_L0_PREMUL_IMG_ALPHA (1 << 28) /* Bit 28 */
+#define LCDC_LAYER0_MODE_L0_FORCE_ALPHA (1 << 30)      /* Bit 30 */
+#define LCDC_LAYER0_MODE_L0_EN (1 << 31)               /* Bit 31 */
+
+/* LAYER0_STARTXY register */
+
+#define LCDC_LAYER0_STARTXY_L0_START_Y_SHIFT (0)  /* Bits 0-15 */
+#define LCDC_LAYER0_STARTXY_L0_START_Y_MASK (0xffff << LCDC_LAYER0_STARTXY_L0_START_Y_SHIFT)
+#  define LCDC_LAYER0_STARTXY_L0_START_Y(n) ((uint32_t)(n) << LCDC_LAYER0_STARTXY_L0_START_Y_SHIFT)
+#define LCDC_LAYER0_STARTXY_L0_START_X_SHIFT (16) /* Bits 16-31 */
+#define LCDC_LAYER0_STARTXY_L0_START_X_MASK (0xffff << LCDC_LAYER0_STARTXY_L0_START_X_SHIFT)
+#  define LCDC_LAYER0_STARTXY_L0_START_X(n) ((uint32_t)(n) << LCDC_LAYER0_STARTXY_L0_START_X_SHIFT)
+
+/* LAYER0_SIZEXY register */
+
+#define LCDC_LAYER0_SIZEXY_L0_SIZE_Y_SHIFT (0)  /* Bits 0-15 */
+#define LCDC_LAYER0_SIZEXY_L0_SIZE_Y_MASK (0xffff << LCDC_LAYER0_SIZEXY_L0_SIZE_Y_SHIFT)
+#  define LCDC_LAYER0_SIZEXY_L0_SIZE_Y(n) ((uint32_t)(n) << LCDC_LAYER0_SIZEXY_L0_SIZE_Y_SHIFT)
+#define LCDC_LAYER0_SIZEXY_L0_SIZE_X_SHIFT (16) /* Bits 16-31 */
+#define LCDC_LAYER0_SIZEXY_L0_SIZE_X_MASK (0xffff << LCDC_LAYER0_SIZEXY_L0_SIZE_X_SHIFT)
+#  define LCDC_LAYER0_SIZEXY_L0_SIZE_X(n) ((uint32_t)(n) << LCDC_LAYER0_SIZEXY_L0_SIZE_X_SHIFT)
+
+/* LAYER0_BASEADDR register */
+
+#define LCDC_LAYER0_BASEADDR_L0_BASE_ADDR_SHIFT (0) /* Bits 0-31 */
+#define LCDC_LAYER0_BASEADDR_L0_BASE_ADDR_MASK (0xffffffff << LCDC_LAYER0_BASEADDR_L0_BASE_ADDR_SHIFT)
+#  define LCDC_LAYER0_BASEADDR_L0_BASE_ADDR(n) ((uint32_t)(n) << LCDC_LAYER0_BASEADDR_L0_BASE_ADDR_SHIFT)
+
+/* LAYER0_STRIDE register */
+
+#define LCDC_LAYER0_STRIDE_L0_STRIDE_SHIFT (0)          /* Bits 0-15 */
+#define LCDC_LAYER0_STRIDE_L0_STRIDE_MASK (0xffff << LCDC_LAYER0_STRIDE_L0_STRIDE_SHIFT)
+#  define LCDC_LAYER0_STRIDE_L0_STRIDE(n) ((uint32_t)(n) << LCDC_LAYER0_STRIDE_L0_STRIDE_SHIFT)
+#define LCDC_LAYER0_STRIDE_L0_NO_16BEAT_BURST (1 << 16) /* Bit 16 */
+#define LCDC_LAYER0_STRIDE_L0_FIFO_THR_SHIFT (19)       /* Bits 19-20 */
+#define LCDC_LAYER0_STRIDE_L0_FIFO_THR_MASK (0x3 << LCDC_LAYER0_STRIDE_L0_FIFO_THR_SHIFT)
+#  define LCDC_LAYER0_STRIDE_L0_FIFO_THR(n) ((uint32_t)(n) << LCDC_LAYER0_STRIDE_L0_FIFO_THR_SHIFT)
+#define LCDC_LAYER0_STRIDE_L0_DMA_PREFETCH_SHIFT (25)   /* Bits 25-27 */
+#define LCDC_LAYER0_STRIDE_L0_DMA_PREFETCH_MASK (0x7 << LCDC_LAYER0_STRIDE_L0_DMA_PREFETCH_SHIFT)
+#  define LCDC_LAYER0_STRIDE_L0_DMA_PREFETCH(n) ((uint32_t)(n) << LCDC_LAYER0_STRIDE_L0_DMA_PREFETCH_SHIFT)
+
+/* LAYER0_RESXY register */
+
+#define LCDC_LAYER0_RESXY_L0_RES_Y_SHIFT (0)  /* Bits 0-15 */
+#define LCDC_LAYER0_RESXY_L0_RES_Y_MASK (0xffff << LCDC_LAYER0_RESXY_L0_RES_Y_SHIFT)
+#  define LCDC_LAYER0_RESXY_L0_RES_Y(n) ((uint32_t)(n) << LCDC_LAYER0_RESXY_L0_RES_Y_SHIFT)
+#define LCDC_LAYER0_RESXY_L0_RES_X_SHIFT (16) /* Bits 16-31 */
+#define LCDC_LAYER0_RESXY_L0_RES_X_MASK (0xffff << LCDC_LAYER0_RESXY_L0_RES_X_SHIFT)
+#  define LCDC_LAYER0_RESXY_L0_RES_X(n) ((uint32_t)(n) << LCDC_LAYER0_RESXY_L0_RES_X_SHIFT)
+
+/* LAYER1_MODE register */
+
+#define LCDC_LAYER1_MODE_L1_COLOR_MODE_SHIFT (0)       /* Bits 0-4 */
+#define LCDC_LAYER1_MODE_L1_COLOR_MODE_MASK (0x1f << LCDC_LAYER1_MODE_L1_COLOR_MODE_SHIFT)
+#  define LCDC_LAYER1_MODE_L1_COLOR_MODE(n) ((uint32_t)(n) << LCDC_LAYER1_MODE_L1_COLOR_MODE_SHIFT)
+#define LCDC_LAYER1_MODE_L1_SRC_BLEND_SHIFT (8)        /* Bits 8-11 */
+#define LCDC_LAYER1_MODE_L1_SRC_BLEND_MASK (0xf << LCDC_LAYER1_MODE_L1_SRC_BLEND_SHIFT)
+#  define LCDC_LAYER1_MODE_L1_SRC_BLEND(n) ((uint32_t)(n) << LCDC_LAYER1_MODE_L1_SRC_BLEND_SHIFT)
+#define LCDC_LAYER1_MODE_L1_DST_BLEND_SHIFT (12)       /* Bits 12-15 */
+#define LCDC_LAYER1_MODE_L1_DST_BLEND_MASK (0xf << LCDC_LAYER1_MODE_L1_DST_BLEND_SHIFT)
+#  define LCDC_LAYER1_MODE_L1_DST_BLEND(n) ((uint32_t)(n) << LCDC_LAYER1_MODE_L1_DST_BLEND_SHIFT)
+#define LCDC_LAYER1_MODE_L1_ALPHA_SHIFT (16)           /* Bits 16-23 */
+#define LCDC_LAYER1_MODE_L1_ALPHA_MASK (0xff << LCDC_LAYER1_MODE_L1_ALPHA_SHIFT)
+#  define LCDC_LAYER1_MODE_L1_ALPHA(n) ((uint32_t)(n) << LCDC_LAYER1_MODE_L1_ALPHA_SHIFT)
+#define LCDC_LAYER1_MODE_L1_ASSERT_HLOCK_DMA (1 << 27) /* Bit 27 */
+#define LCDC_LAYER1_MODE_L1_PREMUL_IMG_ALPHA (1 << 28) /* Bit 28 */
+#define LCDC_LAYER1_MODE_L1_FORCE_ALPHA (1 << 30)      /* Bit 30 */
+#define LCDC_LAYER1_MODE_L1_EN (1 << 31)               /* Bit 31 */
+
+/* LAYER1_STARTXY register */
+
+#define LCDC_LAYER1_STARTXY_L1_START_Y_SHIFT (0)  /* Bits 0-15 */
+#define LCDC_LAYER1_STARTXY_L1_START_Y_MASK (0xffff << LCDC_LAYER1_STARTXY_L1_START_Y_SHIFT)
+#  define LCDC_LAYER1_STARTXY_L1_START_Y(n) ((uint32_t)(n) << LCDC_LAYER1_STARTXY_L1_START_Y_SHIFT)
+#define LCDC_LAYER1_STARTXY_L1_START_X_SHIFT (16) /* Bits 16-31 */
+#define LCDC_LAYER1_STARTXY_L1_START_X_MASK (0xffff << LCDC_LAYER1_STARTXY_L1_START_X_SHIFT)
+#  define LCDC_LAYER1_STARTXY_L1_START_X(n) ((uint32_t)(n) << LCDC_LAYER1_STARTXY_L1_START_X_SHIFT)
+
+/* LAYER1_SIZEXY register */
+
+#define LCDC_LAYER1_SIZEXY_L1_SIZE_Y_SHIFT (0)  /* Bits 0-15 */
+#define LCDC_LAYER1_SIZEXY_L1_SIZE_Y_MASK (0xffff << LCDC_LAYER1_SIZEXY_L1_SIZE_Y_SHIFT)
+#  define LCDC_LAYER1_SIZEXY_L1_SIZE_Y(n) ((uint32_t)(n) << LCDC_LAYER1_SIZEXY_L1_SIZE_Y_SHIFT)
+#define LCDC_LAYER1_SIZEXY_L1_SIZE_X_SHIFT (16) /* Bits 16-31 */
+#define LCDC_LAYER1_SIZEXY_L1_SIZE_X_MASK (0xffff << LCDC_LAYER1_SIZEXY_L1_SIZE_X_SHIFT)
+#  define LCDC_LAYER1_SIZEXY_L1_SIZE_X(n) ((uint32_t)(n) << LCDC_LAYER1_SIZEXY_L1_SIZE_X_SHIFT)
+
+/* LAYER1_BASEADDR register */
+
+#define LCDC_LAYER1_BASEADDR_L1_BASE_ADDR_SHIFT (0) /* Bits 0-31 */
+#define LCDC_LAYER1_BASEADDR_L1_BASE_ADDR_MASK (0xffffffff << LCDC_LAYER1_BASEADDR_L1_BASE_ADDR_SHIFT)
+#  define LCDC_LAYER1_BASEADDR_L1_BASE_ADDR(n) ((uint32_t)(n) << LCDC_LAYER1_BASEADDR_L1_BASE_ADDR_SHIFT)
+
+/* LAYER1_STRIDE register */
+
+#define LCDC_LAYER1_STRIDE_L1_STRIDE_SHIFT (0)          /* Bits 0-15 */
+#define LCDC_LAYER1_STRIDE_L1_STRIDE_MASK (0xffff << LCDC_LAYER1_STRIDE_L1_STRIDE_SHIFT)
+#  define LCDC_LAYER1_STRIDE_L1_STRIDE(n) ((uint32_t)(n) << LCDC_LAYER1_STRIDE_L1_STRIDE_SHIFT)
+#define LCDC_LAYER1_STRIDE_L1_NO_16BEAT_BURST (1 << 16) /* Bit 16 */
+#define LCDC_LAYER1_STRIDE_L1_FIFO_THR_SHIFT (19)       /* Bits 19-20 */
+#define LCDC_LAYER1_STRIDE_L1_FIFO_THR_MASK (0x3 << LCDC_LAYER1_STRIDE_L1_FIFO_THR_SHIFT)
+#  define LCDC_LAYER1_STRIDE_L1_FIFO_THR(n) ((uint32_t)(n) << LCDC_LAYER1_STRIDE_L1_FIFO_THR_SHIFT)
+#define LCDC_LAYER1_STRIDE_L1_DMA_PREFETCH_SHIFT (25)   /* Bits 25-27 */
+#define LCDC_LAYER1_STRIDE_L1_DMA_PREFETCH_MASK (0x7 << LCDC_LAYER1_STRIDE_L1_DMA_PREFETCH_SHIFT)
+#  define LCDC_LAYER1_STRIDE_L1_DMA_PREFETCH(n) ((uint32_t)(n) << LCDC_LAYER1_STRIDE_L1_DMA_PREFETCH_SHIFT)
+
+/* LAYER1_RESXY register */
+
+#define LCDC_LAYER1_RESXY_L1_RES_Y_SHIFT (0)  /* Bits 0-15 */
+#define LCDC_LAYER1_RESXY_L1_RES_Y_MASK (0xffff << LCDC_LAYER1_RESXY_L1_RES_Y_SHIFT)
+#  define LCDC_LAYER1_RESXY_L1_RES_Y(n) ((uint32_t)(n) << LCDC_LAYER1_RESXY_L1_RES_Y_SHIFT)
+#define LCDC_LAYER1_RESXY_L1_RES_X_SHIFT (16) /* Bits 16-31 */
+#define LCDC_LAYER1_RESXY_L1_RES_X_MASK (0xffff << LCDC_LAYER1_RESXY_L1_RES_X_SHIFT)
+#  define LCDC_LAYER1_RESXY_L1_RES_X(n) ((uint32_t)(n) << LCDC_LAYER1_RESXY_L1_RES_X_SHIFT)
+
+/* DBIB_CMD register */
+
+#define LCDC_DBIB_CMD_DBIB_CMD_VAL_SHIFT (0)           /* Bits 0-15 */
+#define LCDC_DBIB_CMD_DBIB_CMD_VAL_MASK (0xffff << LCDC_DBIB_CMD_DBIB_CMD_VAL_SHIFT)
+#  define LCDC_DBIB_CMD_DBIB_CMD_VAL(n) ((uint32_t)(n) << LCDC_DBIB_CMD_DBIB_CMD_VAL_SHIFT)
+#define LCDC_DBIB_CMD_ST_INT_CMD_TYPE (1 << 24)        /* Bit 24 */
+#define LCDC_DBIB_CMD_FMTCTRL_EXPOSE_SETTING (1 << 25) /* Bit 25 */
+#define LCDC_DBIB_CMD_RD_MODE_EN (1 << 26)             /* Bit 26 */
+#define LCDC_DBIB_CMD_QSPI_SERIAL_CMD_TRANS (1 << 27)  /* Bit 27 */
+#define LCDC_DBIB_CMD_CMD_WIDTH_SHIFT (28)             /* Bits 28-29 */
+#define LCDC_DBIB_CMD_CMD_WIDTH_MASK (0x3 << LCDC_DBIB_CMD_CMD_WIDTH_SHIFT)
+#  define LCDC_DBIB_CMD_CMD_WIDTH(n) ((uint32_t)(n) << LCDC_DBIB_CMD_CMD_WIDTH_SHIFT)
+#define LCDC_DBIB_CMD_DBIB_CMD_SEND (1 << 30)          /* Bit 30 */
+#define LCDC_DBIB_CMD_PART_UPDATE (1 << 31)            /* Bit 31 */
+
+/* DBIB_RDAT register */
+
+#define LCDC_DBIB_RDAT_DBIB_RDAT_SHIFT (0) /* Bits 0-31 */
+#define LCDC_DBIB_RDAT_DBIB_RDAT_MASK (0xffffffff << LCDC_DBIB_RDAT_DBIB_RDAT_SHIFT)
+#  define LCDC_DBIB_RDAT_DBIB_RDAT(n) ((uint32_t)(n) << LCDC_DBIB_RDAT_DBIB_RDAT_SHIFT)
+
+/* CONF register */
+
+#define LCDC_CONF_CONF_SHIFT (0) /* Bits 0-31 */
+#define LCDC_CONF_CONF_MASK (0xffffffff << LCDC_CONF_CONF_SHIFT)
+#  define LCDC_CONF_CONF(n) ((uint32_t)(n) << LCDC_CONF_CONF_SHIFT)
+
+/* IDREG register */
+
+#define LCDC_IDREG_ID_SHIFT (0) /* Bits 0-31 */
+#define LCDC_IDREG_ID_MASK (0xffffffff << LCDC_IDREG_ID_SHIFT)
+#  define LCDC_IDREG_ID(n) ((uint32_t)(n) << LCDC_IDREG_ID_SHIFT)
+
+/* INTERRUPT register */
+
+#define LCDC_INTERRUPT_VSYNC_IRQ_EN (1 << 0)     /* Bit 0 */
+#define LCDC_INTERRUPT_HSYNC_IRQ_EN (1 << 1)     /* Bit 1 */
+#define LCDC_INTERRUPT_TE_IRQ_EN (1 << 3)        /* Bit 3 */
+#define LCDC_INTERRUPT_FE_IRQ_EN (1 << 4)        /* Bit 4 */
+#define LCDC_INTERRUPT_IRQ_TRIGGER_SEL (1 << 31) /* Bit 31 */
+
+/* STATUS register */
+
+#define LCDC_STATUS_STAT_ACTIVE (1 << 0)             /* Bit 0 */
+#define LCDC_STATUS_STAT_DE (1 << 1)                 /* Bit 1 */
+#define LCDC_STATUS_STAT_HSYNC (1 << 2)              /* Bit 2 */
+#define LCDC_STATUS_STAT_VSYNC (1 << 3)              /* Bit 3 */
+#define LCDC_STATUS_STAT_CSYNC (1 << 4)              /* Bit 4 */
+#define LCDC_STATUS_LAST_ROW (1 << 5)                /* Bit 5 */
+#define LCDC_STATUS_UNDERFLOW (1 << 6)               /* Bit 6 */
+#define LCDC_STATUS_STICKY_UNDERFLOW (1 << 7)        /* Bit 7 */
+#define LCDC_STATUS_DBIB_TE (1 << 8)                 /* Bit 8 */
+#define LCDC_STATUS_DBIB_DATA_PENDING (1 << 10)      /* Bit 10 */
+#define LCDC_STATUS_DBIB_CMD_PENDING (1 << 11)       /* Bit 11 */
+#define LCDC_STATUS_DBIB_OUT_TRANS_PENDING (1 << 12) /* Bit 12 */
+#define LCDC_STATUS_FRAME_END (1 << 13)              /* Bit 13 */
+#define LCDC_STATUS_DBI_SPI_CS (1 << 14)             /* Bit 14 */
+#define LCDC_STATUS_DBIB_CMD_FIFO_FULL (1 << 15)     /* Bit 15 */
+#define LCDC_STATUS_SPI_RD_WR_OP (1 << 16)           /* Bit 16 */
+
+/* COLMOD register */
+
+#define LCDC_COLMOD_COLMODES_SHIFT (0) /* Bits 0-16 */
+#define LCDC_COLMOD_COLMODES_MASK (0x1ffff << LCDC_COLMOD_COLMODES_SHIFT)
+#  define LCDC_COLMOD_COLMODES(n) ((uint32_t)(n) << LCDC_COLMOD_COLMODES_SHIFT)
+
+/* CRC register */
+
+#define LCDC_CRC_CRC_SHIFT (0) /* Bits 0-31 */
+#define LCDC_CRC_CRC_MASK (0xffffffff << LCDC_CRC_CRC_SHIFT)
+#  define LCDC_CRC_CRC(n) ((uint32_t)(n) << LCDC_CRC_CRC_SHIFT)
+
+/* FMTCTRL register */
+
+#define LCDC_FMTCTRL_FMTCTRL_SHIFT (0) /* Bits 0-31 */
+#define LCDC_FMTCTRL_FMTCTRL_MASK (0xffffffff << LCDC_FMTCTRL_FMTCTRL_SHIFT)
+#  define LCDC_FMTCTRL_FMTCTRL(n) ((uint32_t)(n) << LCDC_FMTCTRL_FMTCTRL_SHIFT)
+
+/* FMTCTRL register, JDI parallel interface layout */
+
+#define LCDC_FMTCTRL_JDIP_VST_OFFSET_SHIFT (3)     /* Bits 3-12 */
+#define LCDC_FMTCTRL_JDIP_VST_OFFSET_MASK (0x3ff << LCDC_FMTCTRL_JDIP_VST_OFFSET_SHIFT)
+#  define LCDC_FMTCTRL_JDIP_VST_OFFSET(n) ((uint32_t)(n) << LCDC_FMTCTRL_JDIP_VST_OFFSET_SHIFT)
+#define LCDC_FMTCTRL_JDIP_VST_WIDTH_SHIFT (13)     /* Bits 13-22 */
+#define LCDC_FMTCTRL_JDIP_VST_WIDTH_MASK (0x3ff << LCDC_FMTCTRL_JDIP_VST_WIDTH_SHIFT)
+#  define LCDC_FMTCTRL_JDIP_VST_WIDTH(n) ((uint32_t)(n) << LCDC_FMTCTRL_JDIP_VST_WIDTH_SHIFT)
+#define LCDC_FMTCTRL_JDIP_HST_OFFSET_SHIFT (23)    /* Bits 23-25 */
+#define LCDC_FMTCTRL_JDIP_HST_OFFSET_MASK (0x7 << LCDC_FMTCTRL_JDIP_HST_OFFSET_SHIFT)
+#  define LCDC_FMTCTRL_JDIP_HST_OFFSET(n) ((uint32_t)(n) << LCDC_FMTCTRL_JDIP_HST_OFFSET_SHIFT)
+#define LCDC_FMTCTRL_JDIP_HST_WIDTH_SHIFT (26)     /* Bits 26-28 */
+#define LCDC_FMTCTRL_JDIP_HST_WIDTH_MASK (0x7 << LCDC_FMTCTRL_JDIP_HST_WIDTH_SHIFT)
+#  define LCDC_FMTCTRL_JDIP_HST_WIDTH(n) ((uint32_t)(n) << LCDC_FMTCTRL_JDIP_HST_WIDTH_SHIFT)
+#define LCDC_FMTCTRL_JDIP_DPI_MASK_READY (1 << 30) /* Bit 30 */
+#define LCDC_FMTCTRL_JDIP_DPI_MUTE (1 << 31)       /* Bit 31 */
+
+/* FMTCTRL_2 register */
+
+#define LCDC_FMTCTRL_2_FMTCTRL_2_SHIFT (0) /* Bits 0-31 */
+#define LCDC_FMTCTRL_2_FMTCTRL_2_MASK (0xffffffff << LCDC_FMTCTRL_2_FMTCTRL_2_SHIFT)
+#  define LCDC_FMTCTRL_2_FMTCTRL_2(n) ((uint32_t)(n) << LCDC_FMTCTRL_2_FMTCTRL_2_SHIFT)
+
+/* FMTCTRL_2 register, JDI parallel interface layout */
+
+#define LCDC_FMTCTRL_2_JDIP_ENB_OFFSET_SHIFT (0)   /* Bits 0-9 */
+#define LCDC_FMTCTRL_2_JDIP_ENB_OFFSET_MASK (0x3ff << LCDC_FMTCTRL_2_JDIP_ENB_OFFSET_SHIFT)
+#  define LCDC_FMTCTRL_2_JDIP_ENB_OFFSET(n) ((uint32_t)(n) << LCDC_FMTCTRL_2_JDIP_ENB_OFFSET_SHIFT)
+#define LCDC_FMTCTRL_2_JDIP_ENB_WIDTH_SHIFT (10)   /* Bits 10-19 */
+#define LCDC_FMTCTRL_2_JDIP_ENB_WIDTH_MASK (0x3ff << LCDC_FMTCTRL_2_JDIP_ENB_WIDTH_SHIFT)
+#  define LCDC_FMTCTRL_2_JDIP_ENB_WIDTH(n) ((uint32_t)(n) << LCDC_FMTCTRL_2_JDIP_ENB_WIDTH_SHIFT)
+#define LCDC_FMTCTRL_2_JDIP_XRST_OFFSET_SHIFT (20) /* Bits 20-29 */
+#define LCDC_FMTCTRL_2_JDIP_XRST_OFFSET_MASK (0x3ff << LCDC_FMTCTRL_2_JDIP_XRST_OFFSET_SHIFT)
+#  define LCDC_FMTCTRL_2_JDIP_XRST_OFFSET(n) ((uint32_t)(n) << LCDC_FMTCTRL_2_JDIP_XRST_OFFSET_SHIFT)
+
+/* CLKCTRL_CG register */
+
+#define LCDC_CLKCTRL_CG_INV_CLK_POLARITY (1 << 1)    /* Bit 1 */
+#define LCDC_CLKCTRL_CG_SWAP_PIX_FORMAT_CLK (1 << 2) /* Bit 2 */
+
+/* FMTCTRL_3 register */
+
+#define LCDC_FMTCTRL_3_XRST_HIGH_STATE_SHIFT (0) /* Bits 0-9 */
+#define LCDC_FMTCTRL_3_XRST_HIGH_STATE_MASK (0x3ff << LCDC_FMTCTRL_3_XRST_HIGH_STATE_SHIFT)
+#  define LCDC_FMTCTRL_3_XRST_HIGH_STATE(n) ((uint32_t)(n) << LCDC_FMTCTRL_3_XRST_HIGH_STATE_SHIFT)
+
+/* PALETTE_BASE register */
+
+#define LCDC_PALETTE_BASE_PALLETE_B_SHIFT (0)  /* Bits 0-7 */
+#define LCDC_PALETTE_BASE_PALLETE_B_MASK (0xff << LCDC_PALETTE_BASE_PALLETE_B_SHIFT)
+#  define LCDC_PALETTE_BASE_PALLETE_B(n) ((uint32_t)(n) << LCDC_PALETTE_BASE_PALLETE_B_SHIFT)
+#define LCDC_PALETTE_BASE_PALLETE_G_SHIFT (8)  /* Bits 8-15 */
+#define LCDC_PALETTE_BASE_PALLETE_G_MASK (0xff << LCDC_PALETTE_BASE_PALLETE_G_SHIFT)
+#  define LCDC_PALETTE_BASE_PALLETE_G(n) ((uint32_t)(n) << LCDC_PALETTE_BASE_PALLETE_G_SHIFT)
+#define LCDC_PALETTE_BASE_PALLETE_R_SHIFT (16) /* Bits 16-23 */
+#define LCDC_PALETTE_BASE_PALLETE_R_MASK (0xff << LCDC_PALETTE_BASE_PALLETE_R_SHIFT)
+#  define LCDC_PALETTE_BASE_PALLETE_R(n) ((uint32_t)(n) << LCDC_PALETTE_BASE_PALLETE_R_SHIFT)
+
+/* PALETTE_255 register */
+
+#define LCDC_PALETTE_255_PALLETE_B_SHIFT (0)  /* Bits 0-7 */
+#define LCDC_PALETTE_255_PALLETE_B_MASK (0xff << LCDC_PALETTE_255_PALLETE_B_SHIFT)
+#  define LCDC_PALETTE_255_PALLETE_B(n) ((uint32_t)(n) << LCDC_PALETTE_255_PALLETE_B_SHIFT)
+#define LCDC_PALETTE_255_PALLETE_G_SHIFT (8)  /* Bits 8-15 */
+#define LCDC_PALETTE_255_PALLETE_G_MASK (0xff << LCDC_PALETTE_255_PALLETE_G_SHIFT)
+#  define LCDC_PALETTE_255_PALLETE_G(n) ((uint32_t)(n) << LCDC_PALETTE_255_PALLETE_G_SHIFT)
+#define LCDC_PALETTE_255_PALLETE_R_SHIFT (16) /* Bits 16-23 */
+#define LCDC_PALETTE_255_PALLETE_R_MASK (0xff << LCDC_PALETTE_255_PALLETE_R_SHIFT)
+#  define LCDC_PALETTE_255_PALLETE_R(n) ((uint32_t)(n) << LCDC_PALETTE_255_PALLETE_R_SHIFT)
+
+/* Helpers ******************************************************************/
+
+#define DA1470X_LCDC_IDREG_MAGIC 0x87452365
+#define LCDC_XY_PACK(x, y) ((((uint32_t)(x)) << 16) | ((uint32_t)(y) & 0xffff))
+#define LCDC_DBIB_CFG_INTERFACE_WIDTH_QSPI (5 << LCDC_DBIB_CFG_DBIB_INTERFACE_WIDTH_SHIFT)
+#define LCDC_DBIB_CMD_CMD_WIDTH_8 (0 << LCDC_DBIB_CMD_CMD_WIDTH_SHIFT)
+#define LCDC_DBIB_CMD_CMD_WIDTH_16 (1 << LCDC_DBIB_CMD_CMD_WIDTH_SHIFT)
+#define LCDC_DBIB_CMD_CMD_WIDTH_24 (2 << LCDC_DBIB_CMD_CMD_WIDTH_SHIFT)
+#define LCDC_GPIO_OUTPUT_MODE_JDI (0 << LCDC_GPIO_GPIO_OUTPUT_MODE_SHIFT)
+#define LCDC_GPIO_OUTPUT_MODE_DPI (1 << LCDC_GPIO_GPIO_OUTPUT_MODE_SHIFT)
+#define LCDC_GPIO_OUTPUT_MODE_DBIB (2 << LCDC_GPIO_GPIO_OUTPUT_MODE_SHIFT)
+#define LCDC_GPIO_OUTPUT_MODE_SPI (3 << LCDC_GPIO_GPIO_OUTPUT_MODE_SHIFT)
+#define LCDC_OCM_8RGB565 0x05  /* Output color mode RGB565 */
+#define LCDC_OCM_8RGB888 0x07  /* Output color mode RGB888 */
+#define LCDC_LCM_RGB332 0x04   /* Layer color mode RGB332 */
+#define LCDC_LCM_RGB565 0x05   /* Layer color mode RGB565 */
+
+/* Layer blend factors (L0_SRC_BLEND / L0_DST_BLEND fields) */
+
+#define LCDC_BF_ZERO 0x0        /* Factor 0 */
+#define LCDC_BF_ONE 0x1         /* Factor 1 */
+#define LCDC_BF_SRCALPHA 0x2    /* Source alpha */
+#define LCDC_BF_INVSRCALPHA 0x5 /* 1 - source alpha */
+
+/* DBIB_CFG output colour modes (DBIB_COLOR_FMT field) */
+
+#define LCDC_OCM_RGB222  0x00  /* JDI parallel: two bits per colour */
+#define LCDC_OCM_8RGB565 0x05  /* R[4:0]G[5:3] - G[2:0]B[4:0] */
+#define LCDC_OCM_8RGB666 0x06  /* R[5:0]00 - G[5:0]00 - B[5:0]00 */
+#define LCDC_OCM_8RGB888 0x07  /* R - G - B */
+#define LCDC_LCM_RGBA8888 0x0d /* Layer color mode RGBA8888 */
+
+#endif /* __ARCH_ARM_SRC_DA1470X_HARDWARE_DA1470X_LCDC_H */

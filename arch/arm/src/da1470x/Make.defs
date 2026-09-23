@@ -1,0 +1,162 @@
+############################################################################
+# arch/arm/src/da1470x/Make.defs
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.  The
+# ASF licenses this file to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance with the
+# License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+############################################################################
+
+include armv8-m/Make.defs
+
+CHIP_ASRCS  =
+ifeq ($(CONFIG_DA1470X_PM_EXTENDED_SLEEP),y)
+CHIP_ASRCS += da1470x_deepsleep.S
+endif
+CHIP_CSRCS  = da1470x_allocateheap.c da1470x_clockconfig.c da1470x_gpio.c
+CHIP_CSRCS += da1470x_irq.c da1470x_lowputc.c da1470x_start.c
+CHIP_CSRCS += da1470x_pmu.c
+
+ifeq ($(CONFIG_DA1470X_TICKLESS),y)
+CHIP_CSRCS += da1470x_tickless.c
+else
+CHIP_CSRCS += da1470x_systick.c
+endif
+
+ifneq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
+CHIP_CSRCS += da1470x_idle.c
+endif
+
+ifeq ($(CONFIG_DA1470X_UART),y)
+CHIP_CSRCS += da1470x_serial.c
+endif
+
+ifeq ($(CONFIG_DA1470X_DMA),y)
+CHIP_CSRCS += da1470x_dma.c
+endif
+
+ifeq ($(CONFIG_DA1470X_SPI),y)
+CHIP_CSRCS += da1470x_spi.c
+endif
+
+ifeq ($(CONFIG_DA1470X_I2C),y)
+CHIP_CSRCS += da1470x_i2c.c
+endif
+
+ifeq ($(CONFIG_DA1470X_RTC),y)
+CHIP_CSRCS += da1470x_rtc.c da1470x_rtc_lowerhalf.c
+endif
+
+ifeq ($(CONFIG_DA1470X_PDC),y)
+CHIP_CSRCS += da1470x_pdc.c
+endif
+
+ifeq ($(CONFIG_PM),y)
+CHIP_CSRCS += da1470x_pm.c da1470x_pminitialize.c
+endif
+
+ifeq ($(CONFIG_DA1470X_OQSPI_MTD),y)
+CHIP_CSRCS += da1470x_oqspi.c
+endif
+
+ifeq ($(CONFIG_DA1470X_LCDC),y)
+CHIP_CSRCS += da1470x_lcdc.c
+ifeq ($(CONFIG_DA1470X_LCDC_AOD),y)
+CHIP_CSRCS += da1470x_aodface.c
+endif
+endif
+
+ifeq ($(CONFIG_DA1470X_GPU),y)
+CHIP_CSRCS += da1470x_gpu.c
+endif
+
+ifeq ($(CONFIG_DA1470X_TCS),y)
+CHIP_CSRCS += da1470x_otp.c da1470x_tcs.c
+endif
+
+ifeq ($(CONFIG_DA1470X_AUDIO),y)
+CHIP_CSRCS += da1470x_audio.c
+endif
+
+ifeq ($(CONFIG_DA1470X_VAD),y)
+CHIP_CSRCS += da1470x_vad.c
+endif
+
+ifeq ($(CONFIG_DA1470X_CHARGER),y)
+CHIP_CSRCS += da1470x_charger.c
+endif
+
+ifeq ($(CONFIG_DA1470X_GPADC),y)
+CHIP_CSRCS += da1470x_gpadc.c
+endif
+
+ifeq ($(CONFIG_DA1470X_PWM),y)
+CHIP_CSRCS += da1470x_pwm.c
+endif
+
+ifeq ($(CONFIG_DA1470X_PSRAM),y)
+CHIP_CSRCS += da1470x_psram.c
+endif
+
+ifeq ($(CONFIG_DA1470X_WDT),y)
+CHIP_CSRCS += da1470x_wdt.c
+endif
+
+ifeq ($(CONFIG_DA1470X_SNC),y)
+CHIP_CSRCS += da1470x_snc.c
+CHIP_ASRCS += da1470x_snc_image.S
+
+# The sensor node controller's firmware is a separate Cortex-M0+ program,
+# built here from snc/ and embedded in the image by da1470x_snc_image.S.
+
+SNC_DIR    = $(TOPDIR)$(DELIM)arch$(DELIM)arm$(DELIM)src$(DELIM)da1470x$(DELIM)snc
+SNC_BIN    = $(SNC_DIR)$(DELIM)snc_fw.bin
+SNC_ELF    = $(SNC_DIR)$(DELIM)snc_fw.elf
+
+ifeq ($(CONFIG_DA1470X_SNC_FW_DEMO),y)
+SNC_APP    = app_demo.c
+else ifeq ($(CONFIG_DA1470X_SNC_FW_INPUT),y)
+SNC_APP    = app_input.c
+endif
+
+SNC_SRCS   = $(SNC_DIR)$(DELIM)snc_start.S $(SNC_DIR)$(DELIM)snc_rt.c
+SNC_SRCS  += $(SNC_DIR)$(DELIM)$(SNC_APP)
+SNC_DEPS   = $(SNC_SRCS) $(SNC_DIR)$(DELIM)snc.ld $(SNC_DIR)$(DELIM)snc_rt.h
+SNC_DEPS  += $(SNC_DIR)$(DELIM)..$(DELIM)da1470x_snc_ipc.h
+SNC_DEPS  += $(TOPDIR)$(DELIM)include$(DELIM)arch$(DELIM)chip$(DELIM)snc.h
+SNC_DEPS  += $(TOPDIR)$(DELIM)include$(DELIM)nuttx$(DELIM)config.h
+
+SNC_CFLAGS  = -mcpu=cortex-m0plus -mthumb -Os -g -std=gnu11
+SNC_CFLAGS += -ffreestanding -fno-builtin -nostdlib
+SNC_CFLAGS += -ffunction-sections -fdata-sections -Wall -Wextra
+SNC_CFLAGS += -Wno-unused-parameter
+SNC_CFLAGS += -idirafter $(TOPDIR)$(DELIM)include
+SNC_CFLAGS += -I$(SNC_DIR)$(DELIM)..
+
+$(SNC_BIN): $(SNC_DEPS)
+	$(ECHO_BEGIN)"SNC: $(notdir $(SNC_BIN)) "
+	$(Q) $(CC) $(SNC_CFLAGS) -T $(SNC_DIR)$(DELIM)snc.ld \
+	  -Wl,--gc-sections -Wl,--no-warn-rwx-segments \
+	  $(SNC_SRCS) -lgcc -o $(SNC_ELF)
+	$(Q) $(OBJCOPY) -O binary $(SNC_ELF) $(SNC_BIN)
+	$(ECHO_END)
+
+da1470x_snc_image$(OBJEXT): $(SNC_BIN)
+
+AFLAGS += -DDA1470X_SNC_IMAGE=\"$(SNC_BIN)\"
+endif
+
+ifeq ($(CONFIG_DA1470X_PWMLED),y)
+CHIP_CSRCS += da1470x_pwmled.c
+endif
