@@ -49,7 +49,7 @@
  ****************************************************************************/
 
 #define SNC_IPC_MAGIC           0x31434e53u   /* 'S','N','C','1' */
-#define SNC_IPC_VERSION         1
+#define SNC_IPC_VERSION         2
 
 /* RAM8 in the two address views */
 
@@ -104,6 +104,10 @@ struct snc_shared_s
   volatile uint32_t fault_lr;
   volatile uint32_t dropped;    /* Messages it could not queue */
   uint32_t lpclk_hz;            /* Low power clock, set by the M33 */
+  volatile uint32_t deep_sleep; /* Allowed to sleep with PD_SNC down */
+  volatile uint32_t sleeps;     /* Deep sleeps entered */
+  volatile uint32_t resumes;    /* Of which ended in a power loss */
+  uint32_t reserved;
   struct snc_ring_s to_snc;     /* Commands */
   struct snc_ring_s to_m33;     /* Events */
 };

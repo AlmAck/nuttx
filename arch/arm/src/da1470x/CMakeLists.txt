@@ -132,6 +132,8 @@ if(CONFIG_DA1470X_SNC)
 
   if(CONFIG_DA1470X_SNC_FW_DEMO)
     set(SNC_APP ${SNC_DIR}/app_demo.c)
+  elseif(CONFIG_DA1470X_SNC_FW_INPUT)
+    set(SNC_APP ${SNC_DIR}/app_input.c)
   endif()
 
   set(SNC_SRCS ${SNC_DIR}/snc_start.S ${SNC_DIR}/snc_rt.c ${SNC_APP})

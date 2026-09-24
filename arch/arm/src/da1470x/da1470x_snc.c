@@ -49,11 +49,13 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <debug.h>
+#include <syslog.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/mutex.h>
+#include <nuttx/sched.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/wqueue.h>
 
@@ -63,6 +65,9 @@
 #include "hardware/da1470x_crg_top.h"
 #include "hardware/da1470x_crg_xtal.h"
 #include "hardware/da1470x_gpreg.h"
+#include "hardware/da1470x_crg_snc.h"
+#include "hardware/da1470x_uart.h"
+#include "da1470x_lowputc.h"
 #include "da1470x_clockconfig.h"
 #include "da1470x_pmu.h"
 #include "da1470x_snc.h"
@@ -127,6 +132,8 @@ static int     snc_ioctl(FAR struct file *filep, int cmd,
                          unsigned long arg);
 static int     snc_poll(FAR struct file *filep, FAR struct pollfd *fds,
                         bool setup);
+static int     snc_set_sleep_policy(bool deep);
+static int     snc_pdtest(FAR struct snc_pdtest_s *t);
 
 /****************************************************************************
  * Private Data
@@ -426,6 +433,9 @@ static int snc_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       case SNCIOC_START:
         return da1470x_snc_start();
 
+      case SNCIOC_PDTEST:
+        return snc_pdtest((FAR struct snc_pdtest_s *)((uintptr_t)arg));
+
       default:
         return -ENOTTY;
     }
@@ -512,7 +522,8 @@ int da1470x_snc_start(void)
       hdr->ipc_version != SNC_IPC_VERSION ||
       hdr->size > len || hdr->size > DA1470X_SNC_CODE_SIZE)
     {
-      snerr("SNC image rejected (%zu bytes)\n", len);
+      syslog(LOG_ERR, "SNC image rejected: %zu bytes, header size %" PRIu32
+             "\n", len, hdr->size);
       return -ENOEXEC;
     }
 
@@ -651,6 +662,131 @@ void da1470x_snc_getstatus(FAR struct snc_status_s *status)
   status->dropped_to_m33 = g_shared->dropped;
   status->dropped_to_snc = priv->dropped_to_snc;
   status->hwstatus       = getreg32(DA1470X_SNC_STATUS);
+  status->deep_sleep     = g_shared->deep_sleep;
+  status->sleeps         = g_shared->sleeps;
+  status->resumes        = g_shared->resumes;
+}
+
+/****************************************************************************
+ * Name: snc_set_sleep_policy
+ ****************************************************************************/
+
+static int snc_set_sleep_policy(bool deep)
+{
+  uint32_t v = deep;
+  int ret;
+  int i;
+
+  ret = da1470x_snc_send(SNC_MSG_SLEEP_POLICY, &v, sizeof(v));
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  for (i = 0; i < 100 && g_shared->deep_sleep != v; i++)
+    {
+      nxsched_usleep(1000);
+    }
+
+  return g_shared->deep_sleep == v ? OK : -ETIMEDOUT;
+}
+
+/****************************************************************************
+ * Name: snc_pdtest
+ *
+ * Description:
+ *   Let the controller deep-sleep, switch PD_SNC off for a while and see
+ *   whether it kept working: its timer and doorbell wake it through the
+ *   power domain controller, which powers the domain for it, and it must
+ *   come back from each power loss with its state.  A test only: the
+ *   M33's own PD_SNC peripherals -- the console among them -- are gone
+ *   meanwhile, and only the console UART is set up again.
+ *
+ ****************************************************************************/
+
+static int snc_pdtest(FAR struct snc_pdtest_s *t)
+{
+  static const uintptr_t uarts[3] =
+    {
+      DA1470X_UART0_BASE, DA1470X_UART1_BASE, DA1470X_UART2_BASE
+    };
+
+  uint32_t ier[3];
+  uint32_t clk;
+  uint32_t hb;
+  uint32_t sleeps;
+  uint32_t resumes;
+  int ret;
+  int i;
+
+  if (t == NULL || t->ms == 0 || t->ms > 60000)
+    {
+      return -EINVAL;
+    }
+
+  ret = snc_set_sleep_policy(true);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  /* Let the console drain before its domain goes */
+
+  for (i = 0; i < 100; i++)
+    {
+      if (getreg32(DA1470X_UART0_BASE + DA1470X_UART_LSR_OFFSET) &
+          UART_LSR_TEMT)
+        {
+          break;
+        }
+
+      nxsched_usleep(1000);
+    }
+
+  nxsched_usleep(20000);
+
+  for (i = 0; i < 3; i++)
+    {
+      ier[i] = getreg32(uarts[i] + DA1470X_UART_IER_DLH_OFFSET);
+    }
+
+  clk     = getreg32(DA1470X_CRG_SNC_BASE + DA1470X_CRG_SNC_CLK_SNC_OFFSET);
+  hb      = g_shared->heartbeat;
+  sleeps  = g_shared->sleeps;
+  resumes = g_shared->resumes;
+
+  da1470x_pd_disable(DA1470X_PD_SNC);
+
+  t->went_down = 0;
+  for (i = 0; i < 100; i++)
+    {
+      if (getreg32(DA1470X_CRG_TOP_SYS_STAT) &
+          CRG_TOP_SYS_STAT_SNC_IS_DOWN)
+        {
+          t->went_down = 1;
+          break;
+        }
+
+      up_udelay(100);
+    }
+
+  nxsched_usleep(t->ms * 1000);
+
+  /* Back up, and the console with it */
+
+  da1470x_pd_enable(DA1470X_PD_SNC);
+  putreg32(clk, DA1470X_CRG_SNC_BASE + DA1470X_CRG_SNC_CLK_SNC_OFFSET);
+  da1470x_lowsetup();
+  for (i = 0; i < 3; i++)
+    {
+      putreg32(ier[i], uarts[i] + DA1470X_UART_IER_DLH_OFFSET);
+    }
+
+  t->heartbeat = g_shared->heartbeat - hb;
+  t->sleeps    = g_shared->sleeps - sleeps;
+  t->resumes   = g_shared->resumes - resumes;
+
+  return snc_set_sleep_policy(false);
 }
 
 /****************************************************************************
@@ -757,6 +893,12 @@ int da1470x_snc_initialize(FAR const char *devpath)
 {
   int ret;
 
+  /* RAM8 survives a reset: clear what a previous firmware left there, so
+   * that a controller that never starts is not reported as running.
+   */
+
+  memset(g_shared, 0, sizeof(*g_shared));
+
   irq_attach(DA1470X_IRQ_SNC2SYS, snc_interrupt, &g_snc);
   up_enable_irq(DA1470X_IRQ_SNC2SYS);
 
@@ -765,6 +907,17 @@ int da1470x_snc_initialize(FAR const char *devpath)
 
   da1470x_pdc_add(DA1470X_PDC_TRIG_PERIPHERAL, DA1470X_PDC_PERIPH_SNC2SYS,
                   DA1470X_PDC_MASTER_CM33, DA1470X_PDC_FLAG_EN_XTAL);
+
+  /* And its timer and the M33's doorbell wake the controller, powering
+   * PD_SNC for it if the domain is down.
+   */
+
+  da1470x_pdc_add(DA1470X_PDC_TRIG_PERIPHERAL, DA1470X_PDC_PERIPH_TIMER6,
+                  DA1470X_PDC_MASTER_SNC,
+                  DA1470X_PDC_FLAG_EN_XTAL | DA1470X_PDC_FLAG_EN_SNC);
+  da1470x_pdc_add(DA1470X_PDC_TRIG_PERIPHERAL, DA1470X_PDC_PERIPH_SYS2SNC,
+                  DA1470X_PDC_MASTER_SNC,
+                  DA1470X_PDC_FLAG_EN_XTAL | DA1470X_PDC_FLAG_EN_SNC);
 #endif
 
   ret = da1470x_snc_start();

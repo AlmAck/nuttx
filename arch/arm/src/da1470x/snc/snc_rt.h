@@ -83,6 +83,12 @@ int snc_send(uint16_t type, const void *payload, uint16_t len);
 
 int snc_recv(uint16_t *type, void *payload, uint16_t size);
 
+/* Answer the framework's own messages (PING).  Returns true when the
+ * message was one of them.  Applications call it for every command.
+ */
+
+bool snc_rt_system_message(uint16_t type, const void *payload, int len);
+
 /* Sleep until an interrupt has something for the application: a command,
  * or a timer tick.  Returns at once if one is already pending.
  */

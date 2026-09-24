@@ -24,7 +24,9 @@
 
 #include <nuttx/config.h>
 
+#include "hardware/da1470x_crg_top.h"
 #include "hardware/da1470x_crg_xtal.h"
+#include "hardware/da1470x_pdc.h"
 #include "hardware/da1470x_timer.h"
 
 #include "snc_rt.h"
@@ -38,6 +40,10 @@
 #define NVIC_ISER         0xe000e100
 #define NVIC_ICER         0xe000e180
 #define NVIC_ICPR         0xe000e280
+#define NVIC_IPR(n)       (0xe000e400 + 4 * (n))
+#define NVIC_NIPR         8           /* 32 interrupts, 4 per register */
+#define SCB_SCR           0xe000ed10
+#define SCB_SCR_SLEEPDEEP (1 << 2)
 
 #define SNC_TIMER_BASE    DA1470X_TIMER6_BASE
 #define SNC_TIMER_CTRL    (SNC_TIMER_BASE + DA1470X_TIMER_CTRL_OFFSET)
@@ -53,6 +59,26 @@
 
 volatile bool g_snc_cmd_pending;
 volatile uint32_t g_snc_timer_ticks;
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+/* What deep sleep has to put back if PD_SNC went down meanwhile: the
+ * callee-saved registers of snc_deepsleep() and the NVIC.  RAM1 and RAM2
+ * are not in PD_SNC and keep their contents.
+ */
+
+static uint32_t g_ctx[10];
+static uint32_t g_nvic_iser;
+static uint32_t g_nvic_ipr[NVIC_NIPR];
+
+/****************************************************************************
+ * Assembly Functions
+ ****************************************************************************/
+
+int  snc_ctx_save(uint32_t *ctx);
+void snc_ctx_restore(uint32_t *ctx);
 
 /****************************************************************************
  * Private Functions
@@ -79,6 +105,97 @@ static void snc_timer_wait_busy(void)
           return;
         }
     }
+}
+
+/* Acknowledge the power domain controller entries that woke the
+ * controller, or they keep it awake and PD_SNC up.
+ */
+
+static void snc_ack_pdc(void)
+{
+  uint32_t pending = getreg32(DA1470X_PDC_PENDING_SNC);
+  int i;
+
+  for (i = 0; pending != 0; i++, pending >>= 1)
+    {
+      if (pending & 1)
+        {
+          putreg32(i, DA1470X_PDC_ACKNOWLEDGE);
+        }
+    }
+}
+
+/****************************************************************************
+ * Name: snc_deepsleep
+ *
+ * Description:
+ *   Sleep with SLEEPDEEP set, allowing PD_SNC to power down.  If it does
+ *   not -- the M33 keeps the domain up while it needs its console and
+ *   serial interfaces -- this is an ordinary sleep and WFI returns.  If
+ *   it does, the next wake-up from the power domain controller starts
+ *   the controller from reset; snc_reset() sees SNC_STATE_RETAINED and
+ *   snc_resume() returns here through snc_ctx_restore().  Interrupts are
+ *   masked on entry.
+ *
+ ****************************************************************************/
+
+static void snc_deepsleep(void)
+{
+  int i;
+
+  g_nvic_iser = getreg32(NVIC_ISER);
+  for (i = 0; i < NVIC_NIPR; i++)
+    {
+      g_nvic_ipr[i] = getreg32(NVIC_IPR(i));
+    }
+
+  g_snc_shared->sleeps++;
+
+  if (snc_ctx_save(g_ctx) == 0)
+    {
+      snc_ack_pdc();
+      putreg32(getreg32(DA1470X_CRG_TOP_CLK_SNC_CTRL) |
+               CRG_TOP_CLK_SNC_CTRL_SNC_STATE_RETAINED,
+               DA1470X_CRG_TOP_CLK_SNC_CTRL);
+      putreg32(getreg32(SCB_SCR) | SCB_SCR_SLEEPDEEP, SCB_SCR);
+      __asm__ __volatile__ ("dsb\n\twfi" : : : "memory");
+
+      /* Still powered: nothing was lost */
+
+      putreg32(getreg32(SCB_SCR) & ~SCB_SCR_SLEEPDEEP, SCB_SCR);
+      putreg32(getreg32(DA1470X_CRG_TOP_CLK_SNC_CTRL) &
+               ~CRG_TOP_CLK_SNC_CTRL_SNC_STATE_RETAINED,
+               DA1470X_CRG_TOP_CLK_SNC_CTRL);
+    }
+}
+
+/****************************************************************************
+ * Name: snc_resume
+ *
+ * Description:
+ *   Called by snc_reset() on its own stack, interrupts masked, when the
+ *   controller comes back from a power loss in deep sleep.  Puts the
+ *   interrupt controller back and continues in snc_deepsleep().
+ *
+ ****************************************************************************/
+
+void snc_resume(void)
+{
+  int i;
+
+  putreg32(getreg32(DA1470X_CRG_TOP_CLK_SNC_CTRL) &
+           ~CRG_TOP_CLK_SNC_CTRL_SNC_STATE_RETAINED,
+           DA1470X_CRG_TOP_CLK_SNC_CTRL);
+
+  for (i = 0; i < NVIC_NIPR; i++)
+    {
+      putreg32(g_nvic_ipr[i], NVIC_IPR(i));
+    }
+
+  putreg32(g_nvic_iser, NVIC_ISER);
+
+  g_snc_shared->resumes++;
+  snc_ctx_restore(g_ctx);
 }
 
 /****************************************************************************
@@ -154,6 +271,29 @@ int snc_send(uint16_t type, const void *payload, uint16_t len)
   return 0;
 }
 
+bool snc_rt_system_message(uint16_t type, const void *payload, int len)
+{
+  switch (type)
+    {
+      case SNC_MSG_PING:
+        snc_send(SNC_MSG_PONG, payload, len);
+        return true;
+
+      case SNC_MSG_SLEEP_POLICY:
+        if (len >= 4)
+          {
+            const uint8_t *p = payload;
+
+            g_snc_shared->deep_sleep = p[0] != 0;
+          }
+
+        return true;
+
+      default:
+        return false;
+    }
+}
+
 int snc_recv(uint16_t *type, void *payload, uint16_t size)
 {
   return snc_ring_get(&g_snc_shared->to_snc, type, payload, size);
@@ -173,7 +313,14 @@ void snc_rt_wait(void)
   __asm__ __volatile__ ("cpsid i" : : : "memory");
   if (!g_snc_cmd_pending && g_snc_timer_ticks == seen)
     {
-      __asm__ __volatile__ ("wfi" : : : "memory");
+      if (g_snc_shared->deep_sleep)
+        {
+          snc_deepsleep();
+        }
+      else
+        {
+          __asm__ __volatile__ ("wfi" : : : "memory");
+        }
     }
 
   __asm__ __volatile__ ("cpsie i" : : : "memory");

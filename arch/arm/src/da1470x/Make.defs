@@ -130,6 +130,8 @@ SNC_ELF    = $(SNC_DIR)$(DELIM)snc_fw.elf
 
 ifeq ($(CONFIG_DA1470X_SNC_FW_DEMO),y)
 SNC_APP    = app_demo.c
+else ifeq ($(CONFIG_DA1470X_SNC_FW_INPUT),y)
+SNC_APP    = app_input.c
 endif
 
 SNC_SRCS   = $(SNC_DIR)$(DELIM)snc_start.S $(SNC_DIR)$(DELIM)snc_rt.c

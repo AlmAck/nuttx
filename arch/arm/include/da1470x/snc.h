@@ -57,6 +57,7 @@
 #define SNC_MSG_PING            0x0001  /* M33 -> SNC: any payload */
 #define SNC_MSG_PONG            0x0002  /* SNC -> M33: the same payload */
 #define SNC_MSG_LOG             0x0003  /* SNC -> M33: text */
+#define SNC_MSG_SLEEP_POLICY    0x0004  /* M33 -> SNC: uint32_t, 1 deep */
 
 #define SNC_MSG_APP             0x0100
 
@@ -67,6 +68,17 @@
 #define SNC_DEMO_WATCH          0x0102  /* M33 -> SNC: snc_demo_watch_s */
 #define SNC_DEMO_EDGE           0x0103  /* SNC -> M33: snc_demo_edge_s */
 #define SNC_DEMO_FAULT          0x0104  /* M33 -> SNC: fault on purpose */
+
+/* The input firmware (CONFIG_DA1470X_SNC_FW_INPUT): the controller watches
+ * pins -- buttons, a touch controller's interrupt line -- and tells the
+ * M33 only when one has settled in a new state, so the M33 neither polls
+ * them nor takes an interrupt for every bounce.
+ */
+
+#define SNC_INPUT_CONFIG        0x0200  /* M33 -> SNC: snc_input_config_s */
+#define SNC_INPUT_EVENT         0x0201  /* SNC -> M33: snc_input_event_s */
+
+#define SNC_INPUT_NPORTS        3
 
 /* Controller states */
 
@@ -85,6 +97,7 @@
 #define SNCIOC_STATUS           _SNCIOC(1)  /* Arg: struct snc_status_s * */
 #define SNCIOC_STOP             _SNCIOC(2)  /* Arg: none */
 #define SNCIOC_START            _SNCIOC(3)  /* Arg: none; reload and run */
+#define SNCIOC_PDTEST           _SNCIOC(4)  /* Arg: struct snc_pdtest_s * */
 
 #endif
 
@@ -110,6 +123,25 @@ struct snc_status_s
   uint32_t dropped_to_m33;      /* Events the controller could not queue */
   uint32_t dropped_to_snc;      /* Commands the M33 could not queue */
   uint32_t hwstatus;            /* SNC_STATUS_REG: idle, locked, watchdog */
+  uint32_t deep_sleep;          /* Allowed to sleep with PD_SNC down */
+  uint32_t sleeps;              /* Deep sleeps entered */
+  uint32_t resumes;             /* Of which ended in a power loss */
+};
+
+/* SNCIOC_PDTEST: switch PD_SNC off for ms milliseconds, with the
+ * controller in deep sleep, and report what it did meanwhile.  A test of
+ * the controller's state retention: the M33's console and the other
+ * PD_SNC peripherals are unusable while it runs, and only the console
+ * UART is set up again afterwards.
+ */
+
+struct snc_pdtest_s
+{
+  uint32_t ms;                  /* In: how long */
+  uint32_t went_down;           /* PD_SNC reported down */
+  uint32_t heartbeat;           /* Heartbeat advance meanwhile */
+  uint32_t sleeps;              /* Deep sleeps entered meanwhile */
+  uint32_t resumes;             /* Of which ended in a power loss */
 };
 
 struct snc_demo_tick_s
@@ -132,6 +164,29 @@ struct snc_demo_edge_s
   uint8_t  level;
   uint8_t  reserved;
   uint32_t count;
+};
+
+/* Watch these pins of one port.  A change counts once the pins have held
+ * their new levels for debounce_ms.  An empty mask stops watching the port.
+ */
+
+struct snc_input_config_s
+{
+  uint8_t  port;                /* 0..2 */
+  uint8_t  reserved;
+  uint16_t debounce_ms;         /* 0 selects the default, 20 ms */
+  uint32_t pins;                /* Bit n: Px.n */
+};
+
+/* The settled levels of a port's watched pins, and which of them changed */
+
+struct snc_input_event_s
+{
+  uint8_t  port;
+  uint8_t  reserved[3];
+  uint32_t levels;
+  uint32_t changed;
+  uint32_t count;               /* Events sent so far */
 };
 
 /****************************************************************************

@@ -113,9 +113,11 @@ drop counters; ``SNCIOC_STOP`` and ``SNCIOC_START`` stop and reload it.
 The demo firmware
 =================
 
-``CONFIG_DA1470X_SNC_FW_DEMO`` answers ``PING`` with ``PONG``, sends a
+The runtime answers ``PING`` with ``PONG`` for every firmware.
+``CONFIG_DA1470X_SNC_FW_DEMO`` also sends a
 ``TICK`` every period it is given and reports the edges of a GPIO it is
-told to watch, sampled every 10 ms.  Measured on the kit:
+told to watch, sampled every 10 ms, and faults on purpose on ``FAULT``.
+Measured on the kit:
 
 * 1000 round trips of 16 bytes: 0.70-1.28 ms each; of 256 bytes,
   1.77-2.20 ms.  All echoes correct.
@@ -125,20 +127,63 @@ told to watch, sampled every 10 ms.  Measured on the kit:
   delivered on time, and the M33 in its sleep state for 16 of the 20
   seconds instead of none.
 
-Power
-=====
+The input firmware
+==================
+
+``CONFIG_DA1470X_SNC_FW_INPUT`` watches the pins the M33 configures with
+``SNC_INPUT_CONFIG`` (a port, a pin mask, a debounce time), samples them
+every 5 ms from TIMER6 while anything is watched, and sends
+``SNC_INPUT_EVENT`` -- the settled levels and which changed -- only once
+a change has held for the debounce time, 20 ms by default.  It also
+reports the levels when a port is first configured.
+
+On the devkit the board uses it for K1 and K2: ``board_button_irq()``
+has the controller watch both pins and calls the button upper half's
+handler for every settled press and release, from the low priority work
+queue.  ``/dev/buttons`` then wakes a reader that sleeps in ``poll()``,
+without the M33 polling the buttons or taking an interrupt per bounce.
+Without the input firmware the board arms no button interrupt (see
+``da1470x_buttons.c`` for why).
+
+Checked on the kit with LED1 (P0.31), which the M33 can drive: every
+transition arrived as exactly one event, and a write that did not change
+the pin produced none.
+
+Power and deep sleep
+====================
 
 The controller's power domain, PD_SNC, also holds the serial interfaces
-and the GPADC, the M33's console included, and is kept up.  Stopping the
-controller holds it in reset without its clock but leaves the domain on.
+and the GPADC, the M33's console included.  Stopping the controller
+holds it in reset without its clock but leaves the domain on.
+
+``SNC_MSG_SLEEP_POLICY`` lets the controller sleep with ``SLEEPDEEP``.
+Before it does, the runtime saves the callee-saved registers and the
+NVIC, acknowledges its PDC entries and sets
+``CLK_SNC_CTRL_REG[SNC_STATE_RETAINED]``.  While the M33 keeps PD_SNC up
+this is an ordinary sleep.  When the domain does go down, the next PDC
+wake-up -- TIMER6 or the M33's doorbell, both entries with the controller
+as master -- powers it and starts the controller from reset;
+``snc_reset()`` sees the retained flag and resumes where it slept, on a
+stack of its own.  RAM1, RAM2 and RAM8 are in PD_MEM and keep their
+contents.
+
+``SNCIOC_PDTEST`` exercises this: it lets the controller deep-sleep,
+switches PD_SNC off for a while and counts what happened.  With the input
+firmware watching a pin, 2 s with PD_SNC off gave 401 wake-ups, every one
+a resume from a power loss, and the watched pin's configuration and event
+count were intact afterwards.  It is a test: the M33's own PD_SNC
+peripherals are unpowered meanwhile and only the console UART is set up
+again afterwards.
+
+In normal operation the M33 keeps PD_SNC up.  Letting it go down while
+the M33 sleeps needs the M33's drivers in that domain -- the console
+UART, I2C, SPI, DMA -- to be restored on the way back, which is part of
+the work towards the part's extended sleep.
 
 Not done yet
 ============
 
-* **Deep sleep of the controller.** It sleeps in WFI with PD_SNC up.
-  Saving its state, setting ``CLK_SNC_CTRL_REG[SNC_STATE_RETAINED]`` and
-  letting PD_SNC go down, with PDC entries to wake it, would let the whole
-  part reach its extended sleep while the controller keeps time.
+* **PD_SNC down in normal operation**, as above.
 * **Its own clock.** It runs from the system clock branch; it measured
   around 10 MHz of effective instruction rate against the M33 on the bus.
 * **Peripheral ownership.** Nothing stops the M33's drivers and a firmware

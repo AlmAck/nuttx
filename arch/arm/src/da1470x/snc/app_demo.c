@@ -85,12 +85,13 @@ static void update_timer(void)
 
 static void handle_command(uint16_t type, int len)
 {
+  if (snc_rt_system_message(type, g_buf, len))
+    {
+      return;
+    }
+
   switch (type)
     {
-      case SNC_MSG_PING:
-        snc_send(SNC_MSG_PONG, g_buf, len);
-        break;
-
       case SNC_DEMO_PERIOD:
         if (len >= 4)
           {

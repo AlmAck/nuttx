@@ -560,6 +560,16 @@ config DA1470X_SNC_FW_DEMO
 		the framework: messages both ways, the controller's own timer,
 		peripheral access, and waking the M33.
 
+config DA1470X_SNC_FW_INPUT
+	bool "Input"
+	---help---
+		Watches the pins the M33 configures -- buttons, a touch
+		controller's interrupt line -- samples them every 5 ms from its
+		own timer, and sends an event only when a change has settled.
+		On the devkit the board uses it for K1 and K2: /dev/buttons
+		then reports presses as events, and a reader can sleep in
+		poll() instead of scanning the buttons.
+
 endchoice
 
 config DA1470X_SNC_RXQUEUE
