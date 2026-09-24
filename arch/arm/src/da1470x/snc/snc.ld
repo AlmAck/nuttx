@@ -41,6 +41,12 @@ SECTIONS
     KEEP(*(.snc_header))
     *(.text .text.*)
     *(.rodata .rodata.*)
+
+    /* Padding inside the section, so that the binary objcopy makes holds
+     * every byte up to _snc_image_end even when .data is empty.
+     */
+
+    . = ALIGN(4);
   } > snc
 
   .data :
