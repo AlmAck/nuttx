@@ -10,6 +10,74 @@ bridge, three LEDs, two push buttons, a charger for a Li-ion cell and an
 8 MiB QSPI PSRAM, with a daughterboard carrying a 390x390 AMOLED display
 (E120A390QSR, RM69091 controller) and a capacitive touch controller.
 
+How It Fits Together
+====================
+
+The board's parts reach NuttX through the chip's blocks as follows (see
+the chip page's system overview for the blocks themselves).
+
+Buttons K1 and K2
+-----------------
+
+Two separate things happen with a press:
+
+* **Waking the chip.**  Bring-up arms a falling-edge interrupt on both
+  pins with a handler that does nothing.  Arming it adds a PDC entry for
+  the pin, so a press wakes the M33 from its sleep states.
+* **Reporting the press.**  ``/dev/buttons`` (``CONFIG_INPUT_BUTTONS_LOWER``)
+  reads the pins through ``board_buttons()``.  With the SNC's input
+  firmware (``CONFIG_DA1470X_SNC_FW_INPUT``) the controller watches both
+  pins, samples them every 5 ms, and sends an event for each press and
+  release that has held for 20 ms; the board hands those to the button
+  driver, which wakes readers blocked in ``poll()``.  Without it no
+  button interrupt is armed for the driver -- one has been seen to wedge
+  the system on the first press -- and readers have to poll.
+
+::
+
+   K1/K2 --> GPIO --> PDC entry ---------------------> wakes the M33
+            |
+            +--> SNC samples, debounces --> SNC_INPUT_EVENT --> SNC2SYS
+                 --> LPWORK --> board_button_irq() handler
+                 --> button upper half --> poll() on /dev/buttons returns
+
+Touch
+-----
+
+The ZT2628's INT line (P1.03) raises an M33 GPIO interrupt only while a
+finger is on the glass.  The driver disables it, reads the report over
+I2C0 from the low priority work queue, clears and re-enables it, and
+wakes readers of ``/dev/input0``.  An idle touch panel therefore costs the
+M33 nothing; a reader should block in ``poll()`` without a timeout while
+no finger is down.
+
+Display
+-------
+
+The LCDC sends frames from the frame buffer to the AMOLED over quad SPI.
+While the panel is lit the driver holds the system at PM_NORMAL; the
+application dims it with ``da1470x_lcdc_set_brightness()`` and switches it
+off with ``FBIOSET_POWER`` 0, which releases the hold.  In always-on mode
+the panel keeps showing its own memory in idle mode, the hold is
+released, and the driver redraws the clock digits once a minute from a
+work item.  The GPU draws into the same frame buffers.
+
+Battery and supplies
+--------------------
+
+The charger (``/dev/charger0``) and the ADC (``/dev/adc0``) are M33
+drivers.  Watching them with thresholds and waking the M33 only on a
+change -- plugged in, unplugged, low battery -- is the kind of job the SNC
+is meant for; it is not done yet.
+
+The SNC
+-------
+
+At boot the board starts the SNC firmware chosen in Kconfig and registers
+``/dev/snc0``.  The firmware runs from RAM1..RAM2, talks to the M33
+through RAM8 and the two doorbells, uses TIMER6, and can wake the M33 at
+any time; the M33 can wake it the same way.  See :doc:`../../snc`.
+
 Serial Console
 ==============
 

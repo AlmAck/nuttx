@@ -13,6 +13,119 @@ boot flash.  The CMAC core runs the Renesas controller firmware and is used
 as a Bluetooth HCI controller.  The SNC runs a firmware built from source
 with NuttX and exchanges messages with it; see :doc:`snc`.
 
+System Overview
+===============
+
+Three processors share the part.  NuttX owns the M33 and supervises the
+other two, each through a mailbox in shared RAM and a pair of doorbell
+interrupts::
+
+      +-----------------------------+          +------------------------+
+      | CPUAPP  Cortex-M33 (NuttX)  |  RAM8    | SNC  Cortex-M0+        |
+      |                             |<-------->| firmware from          |
+      |  drivers, PM, LCDC, GPU,    | SYS2SNC  | arch/.../snc/          |
+      |  file systems, apps         | SNC2SYS  | TIMER6, pins, buses    |
+      +-------------+---------------+          +-----------+------------+
+                    |  CMAC RAM mailbox                     |
+                    |  SYS2CMAC / CMAC2SYS                  |
+      +-------------+---------------+                       |
+      | CMAC  Cortex-M0+            |                       |
+      | Renesas BLE controller      |                       |
+      +-----------------------------+                       |
+                    |                                       |
+      +-------------+---------------------------------------+------------+
+      | PDC (power domain controller): wakes a master (CM33, CMAC, SNC)  |
+      | on a trigger -- a GPIO, a timer, the RTC, a doorbell -- and      |
+      | powers what it needs first (crystal, timers, PD_SNC)             |
+      +------------------------------------------------------------------+
+
+Power domains
+-------------
+
+Each block lives in a power domain that can be switched on its own;
+drivers bring up the domain they need with ``da1470x_pd_enable()``.  SPI
+is numbered from 0 here and from 1 in the datasheet, whose SPI3 -- the
+port's SPI2 -- is in PD_SYS.
+
+=========  ===========================================================
+Domain     What is in it
+=========  ===========================================================
+PD_SYS     The M33 and its local buses
+PD_SNC     The SNC, UART0..2, I2C0..2, SPI0..1, DMA, GPADC; the console
+PD_TIM     General-purpose timers and the PWM LED sinks
+PD_CTRL    QSPIC2 (the PSRAM controller)
+PD_GPU     LCDC and GPU
+PD_AUD     Audio unit and voice activity detector
+PD_RAD     CMAC and the radio
+PD_MEM     System RAM; kept when any other domain goes down
+=========  ===========================================================
+
+The console's UART is in PD_SNC, so the M33 keeps that domain up; the
+SNC's deep sleep nevertheless survives PD_SNC going down, which is tested
+with ``SNCIOC_PDTEST`` (see :doc:`snc`).
+
+Wake-up sources
+---------------
+
+The PDC holds a table of entries, each naming a trigger and the master it
+wakes.  The port adds these:
+
+=========================  ======  ==========================================
+Trigger                    Wakes   Added by
+=========================  ======  ==========================================
+Tickless timer (TIMER2)    M33     PM, so timed sleeps end on time
+RTC alarm                  M33     board bring-up
+GPIO pins (K1, K2, ...)    M33     arming a pin interrupt
+COMBO (debugger, VBUS)     M33     PM
+A wake GPIO (optional)     M33     PM, ``CONFIG_DA1470X_PM_WAKE_GPIO``
+SNC2SYS doorbell           M33     SNC driver
+Voice activity detector    M33     VAD driver, while armed
+TIMER6                     SNC     SNC driver, for its own timer
+SYS2SNC doorbell           SNC     SNC driver
+MAC timer                  CMAC    BLE driver
+=========================  ======  ==========================================
+
+An entry that woke a master stays pending until that master acknowledges
+it; the M33's are acknowledged on the way into sleep, the SNC's by its
+runtime before it deep-sleeps.
+
+Who owns what
+-------------
+
+=========================  ===============================================
+Resource                   Owner
+=========================  ===============================================
+TIMER2                     Tickless system time
+TIMER3..TIMER5             PWM (``da1470x_pwm_initialize()``)
+TIMER6                     The SNC; refused to PWM while the SNC is on
+RAM1..RAM2                 SNC firmware
+RAM8                       SNC mailbox and shared area
+RAM9..RAM10                CMAC, with Bluetooth
+PD_SNC peripherals         M33 drivers, unless an SNC firmware claims one
+=========================  ===============================================
+
+Nothing arbitrates a peripheral between the M33's drivers and an SNC
+firmware: a firmware that uses a bus needs the board to leave it alone.
+
+Where the time goes
+-------------------
+
+Most of what keeps the part awake is periodic work, and each wake of the
+M33 costs about 39 uC.  The port's structure is aimed at letting the M33
+sleep between real events:
+
+* **Tickless time** (TIMER2): no periodic tick; the M33 wakes only when a
+  timer is due.
+* **Power management**: the M33 lowers its clock and deep-sleeps whenever
+  nothing holds it.  The lit display holds it (the interface clock comes
+  from the system clock); switching the panel off or parking it in
+  always-on mode releases it.
+* **Always-on display**: the LCDC redraws a clock once a minute from a
+  work item while the panel shows it from its own memory.
+* **The SNC**: frequent small work -- watching pins, sampling sensors --
+  runs there, and the M33 is woken by the SNC2SYS doorbell only when
+  there is something to act on.
+
 Memory Map
 ==========
 
