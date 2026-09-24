@@ -4,10 +4,11 @@ DA14706-00HZDEVKT-P
 
 .. tags:: chip:da1470x, chip:da14706
 
-The DA14706-00HZDEVKT-P is the Renesas development kit for the DA14706 with
-a 390x390 AMOLED display (E120A390QSR, RM69091 controller), three LEDs, two
-push buttons, an on-board J-Link debugger and an FT2232 USB-to-serial
-bridge.
+The DA14706-00HZDEVKT-P is the Renesas development kit for the DA14706: a
+motherboard with an on-board J-Link debugger, an FT2232 USB-to-serial
+bridge, three LEDs, two push buttons, a charger for a Li-ion cell and an
+8 MiB QSPI PSRAM, with a daughterboard carrying a 390x390 AMOLED display
+(E120A390QSR, RM69091 controller) and a capacitive touch controller.
 
 Serial Console
 ==============
@@ -24,14 +25,14 @@ UART0-RX  P2.01
 
 UART1 is available on the header with flow control:
 
-========  =====
-Signal    PIN
-========  =====
-UART1-RX  P1.08
-UART1-TX  P1.09
-UART1-RTS P1.10
-UART1-CTS P1.11
-========  =====
+=========  =====
+Signal     PIN
+=========  =====
+UART1-RX   P1.08
+UART1-TX   P1.09
+UART1-RTS  P1.10
+UART1-CTS  P1.11
+=========  =====
 
 LEDs and Buttons
 ================
@@ -44,7 +45,8 @@ LED2  P1.01
 LED3  P1.02
 ====  =====
 
-LED1 is also exposed as ``/dev/gpio0``.
+LED1 is also exposed as ``/dev/gpio0``, and the three LEDs as
+``/dev/userleds``.
 
 =======  =====
 BUTTON   MCU
@@ -53,8 +55,16 @@ K1       P1.22
 K2       P1.23
 =======  =====
 
-K1 is exposed as the interrupt pin ``/dev/gpio1`` and wakes the chip from
-standby through the PDC.
+K1 is exposed as the interrupt pin ``/dev/gpio1``.  Both buttons are
+active low and wake the chip from its sleep states through the PDC.
+
+With ``CONFIG_INPUT_BUTTONS_LOWER`` they are ``/dev/buttons``.  A reader
+is woken by a press only when the sensor node controller runs its input
+firmware (``CONFIG_DA1470X_SNC_FW_INPUT``): the controller watches both
+pins, debounces them and reports each settled press and release, and
+the board passes those to the button driver.  Without it no button
+interrupt is armed, because arming one on K1/K2 has been seen to wedge
+the system on the first press, and readers have to poll.
 
 Buses
 =====
@@ -66,6 +76,28 @@ SPI0    SCLK P0.28, MOSI P0.29, MISO P0.30, CS P0.27 (``/dev/spi0``)
 I2C0    SCL P0.24, SDA P0.25, open drain (``/dev/i2c0``)
 ======  ================================
 
+PSRAM
+=====
+
+The motherboard carries an APS6404L 8 MiB QSPI PSRAM (U2) on the chip's
+second quad-SPI controller: D0 P1.15, D1 P1.14, D2 P1.13, D3 P1.20, CLK
+P1.19, CS P1.24.  Its supply and its connection to the chip are both
+switched by RAM_PWRON, which with jumper J12 in its default position is
+P1.00; the board raises it before initialising the PSRAM.  P1.13 and
+P1.14 are also SPI0's pins on the header, so ``CONFIG_DA1470X_SPI0`` and
+``CONFIG_DA1470X_PSRAM`` cannot be enabled together.
+
+Battery and supplies
+====================
+
+``CONFIG_DA1470X_CHARGER`` registers the charger as ``/dev/charger0``.  It
+is registered disabled and only charges once enabled.  The devkit's
+battery connector has no thermistor, so ``CONFIG_DA1470X_CHARGER_NTC``
+must stay off unless one is fitted.  ``CONFIG_DA1470X_GPADC`` registers
+``/dev/adc0`` with four channels, in millivolts: the battery, the system
+supply, the USB supply and pin P0.5.  The driver itself can also read the
+internal rails.
+
 Display and touch
 =================
 
@@ -76,7 +108,12 @@ P1.07 and the interface mode straps on P0.24/P1.00.
 driver transfers only the updated rectangle, can hold two frame buffers
 (``CONFIG_DA1470X_LCDC_NBUFFERS``) selected through ``FBIOPAN_DISPLAY``,
 and synchronises transfers to the tearing-effect line
-(``CONFIG_DA1470X_LCDC_TE``).
+(``CONFIG_DA1470X_LCDC_TE``).  Brightness is set with
+``da1470x_lcdc_set_brightness()``, and ``CONFIG_DA1470X_LCDC_AOD`` adds
+the always-on mode, in which the panel shows a clock from its idle mode
+while the system sleeps.  Do not fade the AMOLED to brightness 0: it
+goes black and, after a while, shows artefacts and update bands; use a
+low non-zero level, the always-on mode, or ``FBIOSET_POWER`` 0.
 
 The display board carries a Zinitix ZT2628 capacitive touch controller
 on I2C0 (SCL P1.12, SDA P1.11), interrupt on P1.03, reset on P1.01 and a
@@ -100,7 +137,19 @@ separately and then resets the board through the reset pin under the
 debugger.  A plain reset request is not enough after programming: the
 programmer leaves the flash controller out of its memory-mapped mode,
 and a reset request keeps the previous firmware's clock tree, which the
-boot ROM cannot start from when that was the PLL.  Always use the script for images above 510 KB.
+boot ROM cannot start from when that was the PLL.  Always use the script
+for images above 510 KB.
+
+If programming fails with ``Download failed with code: @38000000``, or the
+script hangs, erase the chip first and program again::
+
+  ezFlashCLI -j <jlink serial> erase_flash
+  tools/da1470x_flash.sh <jlink serial> nuttx.bin
+
+When nothing answers at all, power-cycle the board, erase, power-cycle
+again and then program.  The reset cause of an unexpected restart is in
+``RESET_STAT_REG`` (0x500000BC), whose bits are sticky: clear it over
+SWD before a test so that what it shows afterwards belongs to that test.
 
 JDI parallel panel
 ------------------
@@ -199,9 +248,11 @@ Configurations
 nsh_cpuapp
 ----------
 
-NSH on UART0 with GPIO, SPI0, I2C0, RTC, PDC, power management, the OQSPI
-flash partition mounted on ``/mnt/flash`` (NXFFS), the framebuffer, the
-GPU, the PWM LED driver and Bluetooth LE (``bt`` tool) enabled.
+NSH on UART0 with GPIO, SPI0, I2C0, RTC, the watchdog, PDC, power
+management with the tickless time base on the 32 kHz crystal, the charger,
+the OQSPI flash partition mounted on ``/mnt/flash`` (NXFFS), the
+framebuffer, the GPU, the PWM LED driver and Bluetooth LE (``bt`` tool)
+enabled.
 
 lvgl
 ----

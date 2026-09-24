@@ -6,30 +6,35 @@ The DA1470x family (DA14701, DA14705, DA14706, DA14708) from Renesas (formerly
 Dialog Semiconductor) integrates an Arm Cortex-M33 application processor
 (CPUAPP), a Cortex-M0+ Bluetooth Low Energy controller (CMAC), a Cortex-M0+
 sensor node controller (SNC), a 2.5D GPU (D/AVE 2D), a display controller,
-power management and a rich set of peripherals.
+power management with a battery charger, and a rich set of peripherals.
 
 NuttX runs on the CPUAPP core and executes in place (XiP) from the OQSPI
 boot flash.  The CMAC core runs the Renesas controller firmware and is used
-as a Bluetooth HCI controller; the SNC is not used.
+as a Bluetooth HCI controller.  The SNC runs a firmware built from source
+with NuttX and exchanges messages with it; see :doc:`snc`.
 
 Memory Map
 ==========
 
-DA14706 as seen by the CPUAPP.  RAM3..RAM7 are used by NuttX, RAM8/RAM9 are
-added to the heap unless Bluetooth is enabled, and RAM10 is reserved for the
-CMAC firmware.
+DA14706 as seen by the CPUAPP.  RAM3..RAM7 are used by NuttX.  With
+``CONFIG_MM_REGIONS`` above 1, RAM8 and RAM9 are added to the heap unless
+Bluetooth or the SNC claims them.  RAM10 is reserved for the CMAC firmware.
 
-============ ============= ====== ==============================
+============ ============= ====== =========================================
 Block Name   Start Address Length Notes
-============ ============= ====== ==============================
+============ ============= ====== =========================================
 OQSPI flash  0x00000000    8 MiB  XiP window, remapped at 0
-SYSRAM       0x20000000    64 KiB RAM0..RAM2, ROM booter / retention
-SYSRAM       0x20010000    1 MiB  RAM3..RAM7, NuttX text copy, data, heap
-RAM8         0x20110000    128 K  Shared, heap without BLE
-RAM9         0x20130000    128 K  CMAC data with BLE, heap otherwise
+SYSRAM       0x20000000    64 KiB RAM1..RAM2, SNC firmware (code and data)
+SYSRAM       0x20010000    1 MiB  RAM3..RAM7, NuttX data and heap
+RAM8         0x20110000    128 K  Shared with the SNC when it is enabled
+RAM9         0x20130000    128 K  CMAC data with BLE
 RAM10        0x20150000    192 K  CMAC firmware
 CMAC regs    0x40000000           Controller register window
-============ ============= ====== ==============================
+PSRAM        0x28000000    8 MiB  QSPIC2 window, optional external PSRAM
+============ ============= ====== =========================================
+
+System RAM is in its own power domain (PD_MEM): switching a peripheral
+domain off, PD_SNC included, does not clear it.
 
 Clock Configuration
 ===================
@@ -53,7 +58,19 @@ debugger use ``rsettype 2`` before ``r`` (J-Link), or write ``0x1`` to
 (0x50000000) and ``0xE8A0`` to ``PLL_SYS_CTRL1_REG`` (0x50050460) while
 the core is halted at the reset vector.
 
-The system tick is the Cortex-M SysTick fed by the system clock.
+System time comes from the Cortex-M SysTick or, with
+``CONFIG_DA1470X_TICKLESS``, from TIMER2 clocked by the low-power clock,
+which keeps counting while the core sleeps and wraps every 512 s.  A write
+of its compare value takes a couple of low-power clock cycles to reach the
+counter and a second write inside that window is dropped, so the driver
+waits for the timer's busy flag around each write and raises the interrupt
+itself if the counter has already passed the target; without that, a
+missed compare stalls the system until the next wrap.
+
+In a tickless kernel ``CLOCK_MONOTONIC`` is the scheduler tick count, which
+advances only when a timer expires somewhere in the system: it is as fresh
+as the last expiry, and stands still across a busy loop with no timer due.
+``CLOCK_BOOTTIME`` reads the timer itself; use it to time short intervals.
 
 Peripheral Support
 ==================
@@ -66,20 +83,23 @@ UART        Yes     UART0..UART2, interrupt driven, RTS/CTS on UART1/2
 SPI         Yes     SPI0..SPI2 masters, polled FIFO exchange
 I2C         Yes     I2C0..I2C2 masters, interrupt driven, 7/10-bit
 DMA         Yes     Arch-private channel API, used by peripherals
-TIMER       No
+TIMER       Yes     Tickless time base (TIMER2), PWM (TIMER3..5), SNC (TIMER6)
 RTC         Yes     Calendar, alarm, ``/dev/rtc0``
-PDC         Yes     Wake-up LUT, master entries for CM33 and CMAC
-PM          Yes     CONFIG_PM lower half, standby with XTAL32M and WFI
+WDT         Yes     System watchdog as ``/dev/watchdog0``
+PDC         Yes     Wake-up LUT, entries for CM33, CMAC and SNC
+PM          Yes     CONFIG_PM lower half, clock lowering and deep sleep
 OQSPI       Yes     Boot flash as MTD, XiP-safe program/erase from RAM
-LCDC        Yes     Framebuffer driver, QSPI panels, tearing-effect sync
-GPU         Yes     Register-level D/AVE 2D fill and blit, ``/dev/gpu0``
+QSPIC2      Yes     QSPI PSRAM at 0x28000000, optional heap of its own
+LCDC        Yes     Framebuffer, QSPI and JDI panels, brightness, always-on
+GPU         Yes     Register-level D/AVE 2D fill, blit, texture mapping
 PWMLED      Yes     Three LED sinks as a PWM lower half
+GPADC       Yes     Supply channels and four pins, in millivolts
+Charger     Yes     Battery charger lower half, ``/dev/charger0``
+Audio       Yes     Microphone capture and voice activity detector
+OTP/TCS     Yes     Factory trim values, applied at boot and for the radio
 BLE         Yes     CMAC firmware loader and HCI transport over mailbox
-SNC         No
+SNC         Yes     Firmware built from source, mailbox, deep sleep
 USB         No
-GPADC       No
-Audio       No
-Charger     No
 ==========  ======= ========================================================
 
 Flash Controller (OQSPI)
@@ -98,10 +118,12 @@ Power Management
 
 ``CONFIG_DA1470X_PM`` registers a CONFIG_PM lower half.  IDLE is a plain
 WFI.  STANDBY switches the system clock to XTAL32M, stops the PLL and the
-RC oscillator and enters Cortex-M deep sleep; any NVIC interrupt (RTC alarm, GPIO wake-up,
-UART) wakes the core.  SLEEP behaves as STANDBY unless
-``CONFIG_DA1470X_PM_EXTENDED_SLEEP`` is set, which is reserved for a full
-PD_SYS power-off with context restore and is not yet implemented.
+RC oscillator and enters Cortex-M deep sleep; any NVIC interrupt (RTC
+alarm, GPIO wake-up, UART, the SNC's doorbell) wakes the core, and the
+clock is restored when the system returns to NORMAL.  SLEEP behaves as
+STANDBY unless ``CONFIG_DA1470X_PM_EXTENDED_SLEEP`` is set, which lets the
+PMU switch PD_SYS off with the core context saved in retained RAM; that
+is experimental, see :doc:`extended_sleep`.
 
 The PDC driver (``CONFIG_DA1470X_PDC``) manages the wake-up look-up table;
 the board adds entries for the RTC alarm and the push buttons.
@@ -119,7 +141,9 @@ and point ``CONFIG_DA1470X_CMAC_FW_PATH`` (relative to the NuttX directory)
 at the result.  The host/controller protocol (boot handshake, two 504-byte
 rings, H4 framing) was recovered from the SDK objects for firmware
 "CMAC v1.0.0" of SDK 10.2.6.49; other SDK releases move the table addresses
-in ``da1470x_cmac.c``.  Radio trim values from OTP are not applied yet.
+in ``da1470x_cmac.c``.  The factory radio trim values from the OTP
+configuration script (``CONFIG_DA1470X_TCS``) are handed to the
+controller.
 
 Display controller
 ------------------
@@ -149,6 +173,45 @@ transfer and the tearing-effect wait.  Updates of the same buffer stay
 synchronous.  LVGL's refresh timer sleeps in system ticks: with the
 default 10 ms tick its 16 ms period becomes 30 ms, so the ``lvgl``
 configuration uses a 1 ms tick.
+
+While the panel is lit the driver holds the system at PM_NORMAL, because
+the interface clock derives from the system clock; ``FBIOSET_POWER`` 0
+releases it.  The interface clock divider is chosen again for each frame,
+so frames stay within the panel's limit when the power manager has
+lowered or restored the system clock.
+
+Brightness
+~~~~~~~~~~
+
+Panels with a brightness control (the devkit's AMOLED, through DCS
+``WRDISBV``) are driven with ``da1470x_lcdc_set_brightness(level)``
+(``<arch/chip/lcdc.h>``).  The call waits for a frame in flight to finish,
+since a command sent in the middle of one would land in the pixel stream.
+The level is kept across power cycles: a level set while the panel is off
+is applied when it comes back on.  Level 0 does not switch an AMOLED off
+and should not be used to blank it; ``FBIOSET_POWER`` or the always-on
+mode below are the ways to rest the panel.
+
+Always-on display
+~~~~~~~~~~~~~~~~~
+
+``CONFIG_DA1470X_LCDC_AOD`` lets the driver keep a clock on the panel
+while everything above it sleeps.  On ``DA1470X_FBIOC_AOD_IDLE`` it draws
+a face for the given time on the whole screen, puts the panel in its DCS
+idle mode and releases the PM_NORMAL hold; a low priority work item then
+redraws, just after each minute boundary, only the rows the digits occupy.
+Any frame from the client, ``DA1470X_FBIOC_AOD_RESUME``, or switching the
+panel off leaves the mode again.
+
+A face is a recipe rather than a picture: an AODF v1 record of 1-bit
+glyph masks, RGB222 colours and up to 16 items, generated by the
+stm32_stream_bridge project's ``tools/aod_face_gen.py`` and validated in
+full, with a CRC, before use.  One is compiled in
+(``CONFIG_DA1470X_LCDC_AOD_BUILTIN_FACE``); others are uploaded with the
+``DA1470X_FBIOC_AOD_FACE_*`` ioctls and kept in RAM.  v1 faces are
+240 x 240, drawn centred on larger panels.  On the devkit, parked for
+three minutes across midnight, the face was redrawn every minute and the
+system spent about 93% of the time in its sleep state.
 
 GPU
 ---
@@ -187,6 +250,32 @@ a set of rotated, scaled and translucent images, from RAM and from flash,
 with both renderers into a memory display and compares them pixel by
 pixel; it also prints the time each took.
 
+External PSRAM
+--------------
+
+``CONFIG_DA1470X_PSRAM`` brings up an AP Memory APS6404 QSPI PSRAM on the
+second quad-SPI controller (QSPIC2), in PD_CTRL, and maps it at
+0x28000000.  The part is identified and its data and address lines are
+tested before use; ``CONFIG_DA1470X_PSRAM_HEAP`` gives it a heap of its
+own (``da1470x_psram_malloc()``), kept apart from the system heap.  The
+window is cacheable: anything a DMA engine reads from it has to be
+cleaned from the cache first.
+
+Sensor node controller
+----------------------
+
+``CONFIG_DA1470X_SNC`` runs a firmware on the Cortex-M0+ -- built from
+``arch/arm/src/da1470x/snc/`` with the same toolchain and embedded in the
+image -- and carries messages both ways through RAM8 (``/dev/snc0`` and
+``<arch/chip/snc.h>``).  It keeps running while the M33 sleeps and wakes it
+only when something has happened; its deep sleep survives PD_SNC being
+switched off.  See :doc:`snc`.
+
+.. toctree::
+   :maxdepth: 1
+
+   snc
+
 Work in progress
 ================
 
@@ -194,7 +283,6 @@ Work in progress
    :maxdepth: 1
 
    extended_sleep
-   snc
 
 Supported Boards
 ================
