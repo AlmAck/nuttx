@@ -119,6 +119,44 @@ endif
 
 ifeq ($(CONFIG_DA1470X_SNC),y)
 CHIP_CSRCS += da1470x_snc.c
+CHIP_ASRCS += da1470x_snc_image.S
+
+# The sensor node controller's firmware is a separate Cortex-M0+ program,
+# built here from snc/ and embedded in the image by da1470x_snc_image.S.
+
+SNC_DIR    = $(TOPDIR)$(DELIM)arch$(DELIM)arm$(DELIM)src$(DELIM)da1470x$(DELIM)snc
+SNC_BIN    = $(SNC_DIR)$(DELIM)snc_fw.bin
+SNC_ELF    = $(SNC_DIR)$(DELIM)snc_fw.elf
+
+ifeq ($(CONFIG_DA1470X_SNC_FW_DEMO),y)
+SNC_APP    = app_demo.c
+endif
+
+SNC_SRCS   = $(SNC_DIR)$(DELIM)snc_start.S $(SNC_DIR)$(DELIM)snc_rt.c
+SNC_SRCS  += $(SNC_DIR)$(DELIM)$(SNC_APP)
+SNC_DEPS   = $(SNC_SRCS) $(SNC_DIR)$(DELIM)snc.ld $(SNC_DIR)$(DELIM)snc_rt.h
+SNC_DEPS  += $(SNC_DIR)$(DELIM)..$(DELIM)da1470x_snc_ipc.h
+SNC_DEPS  += $(TOPDIR)$(DELIM)include$(DELIM)arch$(DELIM)chip$(DELIM)snc.h
+SNC_DEPS  += $(TOPDIR)$(DELIM)include$(DELIM)nuttx$(DELIM)config.h
+
+SNC_CFLAGS  = -mcpu=cortex-m0plus -mthumb -Os -g -std=gnu11
+SNC_CFLAGS += -ffreestanding -fno-builtin -nostdlib
+SNC_CFLAGS += -ffunction-sections -fdata-sections -Wall -Wextra
+SNC_CFLAGS += -Wno-unused-parameter
+SNC_CFLAGS += -idirafter $(TOPDIR)$(DELIM)include
+SNC_CFLAGS += -I$(SNC_DIR)$(DELIM)..
+
+$(SNC_BIN): $(SNC_DEPS)
+	$(ECHO_BEGIN)"SNC: $(notdir $(SNC_BIN)) "
+	$(Q) $(CC) $(SNC_CFLAGS) -T $(SNC_DIR)$(DELIM)snc.ld \
+	  -Wl,--gc-sections -Wl,--no-warn-rwx-segments \
+	  $(SNC_SRCS) -lgcc -o $(SNC_ELF)
+	$(Q) $(OBJCOPY) -O binary $(SNC_ELF) $(SNC_BIN)
+	$(ECHO_END)
+
+da1470x_snc_image$(OBJEXT): $(SNC_BIN)
+
+AFLAGS += -DDA1470X_SNC_IMAGE=\"$(SNC_BIN)\"
 endif
 
 ifeq ($(CONFIG_DA1470X_PWMLED),y)

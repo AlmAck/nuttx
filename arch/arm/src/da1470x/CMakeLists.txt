@@ -121,7 +121,45 @@ if(CONFIG_DA1470X_WDT)
 endif()
 
 if(CONFIG_DA1470X_SNC)
-  list(APPEND SRCS da1470x_snc.c)
+  list(APPEND SRCS da1470x_snc.c da1470x_snc_image.S)
+
+  # The sensor node controller's firmware is a separate Cortex-M0+ program,
+  # built from snc/ and embedded in the image by da1470x_snc_image.S.
+
+  set(SNC_DIR ${CMAKE_CURRENT_LIST_DIR}/snc)
+  set(SNC_ELF ${CMAKE_CURRENT_BINARY_DIR}/snc_fw.elf)
+  set(SNC_BIN ${CMAKE_CURRENT_BINARY_DIR}/snc_fw.bin)
+
+  if(CONFIG_DA1470X_SNC_FW_DEMO)
+    set(SNC_APP ${SNC_DIR}/app_demo.c)
+  endif()
+
+  set(SNC_SRCS ${SNC_DIR}/snc_start.S ${SNC_DIR}/snc_rt.c ${SNC_APP})
+
+  add_custom_command(
+    OUTPUT ${SNC_BIN}
+    COMMAND
+      ${CMAKE_C_COMPILER} -mcpu=cortex-m0plus -mthumb -Os -g -std=gnu11
+      -ffreestanding -fno-builtin -nostdlib -ffunction-sections -fdata-sections
+      -Wall -Wextra -Wno-unused-parameter -idirafter ${CMAKE_BINARY_DIR}/include
+      -idirafter ${NUTTX_DIR}/include -I${CMAKE_CURRENT_LIST_DIR} -T
+      ${SNC_DIR}/snc.ld -Wl,--gc-sections -Wl,--no-warn-rwx-segments ${SNC_SRCS}
+      -lgcc -o ${SNC_ELF}
+    COMMAND ${CMAKE_OBJCOPY} -O binary ${SNC_ELF} ${SNC_BIN}
+    DEPENDS ${SNC_SRCS} ${SNC_DIR}/snc.ld ${SNC_DIR}/snc_rt.h
+            ${CMAKE_CURRENT_LIST_DIR}/da1470x_snc_ipc.h
+    COMMENT "SNC firmware")
+
+  add_custom_target(da1470x_snc_fw DEPENDS ${SNC_BIN})
+  add_dependencies(arch da1470x_snc_fw)
+
+  # The arch target is defined in another directory, and source properties are
+  # directory-scoped, so they have to be set in the target's directory.
+
+  set_source_files_properties(
+    ${CMAKE_CURRENT_LIST_DIR}/da1470x_snc_image.S TARGET_DIRECTORY arch
+    PROPERTIES COMPILE_DEFINITIONS "DA1470X_SNC_IMAGE=\"${SNC_BIN}\""
+               OBJECT_DEPENDS ${SNC_BIN})
 endif()
 
 if(CONFIG_DA1470X_PWMLED)

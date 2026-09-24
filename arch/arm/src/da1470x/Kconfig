@@ -524,11 +524,12 @@ config DA1470X_GPADC
 config DA1470X_SNC
 	bool "Sensor node controller (second Cortex-M0+)"
 	default n
+	select SCHED_LPWORK
 	---help---
-		Load firmware into the sensor node controller and run it.  It is
-		a Cortex-M0+ with the PD_SNC peripherals wired to it -- the
-		UARTs, SPI and I2C controllers, the DMA -- and two RAM cells of
-		its own, and it keeps running while the rest of the system
+		Run firmware on the sensor node controller and exchange
+		messages with it through /dev/snc0 and a kernel interface
+		(<arch/chip/snc.h>).  The controller is a Cortex-M0+ that
+		reaches every peripheral and keeps running while the M33
 		sleeps.
 
 		What it is for is the work that would otherwise wake the
@@ -538,18 +539,39 @@ config DA1470X_SNC
 		poll here costs a fraction of it, and the M33 is told only when
 		something has happened.
 
-		The 64 KiB the controller uses is already kept out of NuttX's
-		way by the board's linker script.
+		The firmware is built from arch/arm/src/da1470x/snc/ with the
+		same toolchain and embedded in the NuttX image.  The 64 KiB the
+		controller runs from is kept out of NuttX's way by the board's
+		linker script, and RAM8, which the two processors share, is
+		kept out of the heap.  The controller's timer is TIMER6, which
+		nothing else may use.
 
-config DA1470X_SNC_SMOKETEST
-	bool "Prove the controller runs at bring-up"
-	default n
-	depends on DA1470X_SNC
+if DA1470X_SNC
+
+choice
+	prompt "Controller firmware"
+	default DA1470X_SNC_FW_DEMO
+
+config DA1470X_SNC_FW_DEMO
+	bool "Demo"
 	---help---
-		Start a firmware that signs its own RAM and then counts, and
-		report whether the signature arrived and the count moved.  Worth
-		having the first time the second processor is brought up on a
-		board, and not worth the 36 bytes afterwards.
+		Answers pings, sends a tick at a period it is given, and
+		reports the edges of a GPIO it is told to watch.  Exercises
+		the framework: messages both ways, the controller's own timer,
+		peripheral access, and waking the M33.
+
+endchoice
+
+config DA1470X_SNC_RXQUEUE
+	int "Messages queued for /dev/snc0"
+	default 8
+	range 1 64
+	---help---
+		Messages from the controller that no kernel handler claims
+		wait here for a reader.  When it is full, further ones are
+		dropped and counted.
+
+endif # DA1470X_SNC
 
 config DA1470X_OQSPI_MTD
 	bool "OQSPI flash controller MTD driver"

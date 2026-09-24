@@ -358,11 +358,15 @@ int da1470x_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_DA1470X_SNC_SMOKETEST
-  ret = da1470x_snc_smoketest();
+#ifdef CONFIG_DA1470X_SNC
+  /* Its firmware and /dev/snc0.  After the PDC is set up, so that the
+   * controller's doorbell can be made a wake-up source.
+   */
+
+  ret = da1470x_snc_initialize("/dev/snc0");
   if (ret < 0)
     {
-      syslog(LOG_ERR, "The sensor node controller did not start: %d\n", ret);
+      syslog(LOG_ERR, "Sensor node controller did not start: %d\n", ret);
     }
 #endif
 

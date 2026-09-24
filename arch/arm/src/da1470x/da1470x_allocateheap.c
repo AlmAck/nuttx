@@ -185,7 +185,14 @@ void up_allocate_kheap(void **heap_start, size_t *heap_size)
 #if CONFIG_MM_REGIONS > 1
 void arm_addregion(void)
 {
-#ifndef CONFIG_DA1470X_BLE
+#if !defined(CONFIG_DA1470X_BLE) && defined(CONFIG_DA1470X_SNC)
+  /* RAM8 is the area shared with the sensor node controller; RAM9 is free
+   * when the radio is not in use.
+   */
+
+  kmm_addregion((void *)DA1470X_SRAM9_BASE,
+                DA1470X_SRAM10_BASE - DA1470X_SRAM9_BASE);
+#elif !defined(CONFIG_DA1470X_BLE)
   /* RAM8 (shared) and RAM9 are free when the radio is not in use */
 
   kmm_addregion((void *)DA1470X_SRAM8_BASE,
