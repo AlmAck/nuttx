@@ -26,6 +26,7 @@
  *               waking the M33 on its own initiative)
  *   WATCH    -> an EDGE whenever a GPIO changes, sampled every 10 ms
  *               (peripheral access from the controller)
+ *   FAULT    -> a fault on purpose, which the M33 must report with the PC
  */
 
 /****************************************************************************
@@ -112,6 +113,15 @@ static void handle_command(uint16_t type, int len)
 
             update_timer();
           }
+        break;
+
+      case SNC_DEMO_FAULT:
+
+        /* Proves that a fault reaches the M33 with its PC: a load from
+         * an address nothing answers to.
+         */
+
+        (void)getreg32(0xfffffff0);
         break;
 
       default:

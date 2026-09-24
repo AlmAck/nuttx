@@ -342,6 +342,16 @@ struct pwm_lowerhalf_s *da1470x_pwm_initialize(int timer,
       return NULL;
     }
 
+#ifdef CONFIG_DA1470X_SNC
+  /* TIMER6 is the sensor node controller's own timer */
+
+  if (timer == DA1470X_PWM_TIMER6)
+    {
+      pwmerr("TIMER6 belongs to the sensor node controller\n");
+      return NULL;
+    }
+#endif
+
   priv = &g_pwm[timer - DA1470X_PWM_TIMER3];
   priv->pinset = pinset;
 

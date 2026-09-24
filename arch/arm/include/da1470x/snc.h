@@ -66,6 +66,7 @@
 #define SNC_DEMO_TICK           0x0101  /* SNC -> M33: snc_demo_tick_s */
 #define SNC_DEMO_WATCH          0x0102  /* M33 -> SNC: snc_demo_watch_s */
 #define SNC_DEMO_EDGE           0x0103  /* SNC -> M33: snc_demo_edge_s */
+#define SNC_DEMO_FAULT          0x0104  /* M33 -> SNC: fault on purpose */
 
 /* Controller states */
 
@@ -145,8 +146,8 @@ extern "C"
 #endif
 
 /* Queue a message for the controller and ring its doorbell.  Returns OK,
- * -EAGAIN when its command ring is full, or -ENODEV when it is not
- * running.
+ * -EAGAIN when its command ring is full, -ENODEV when it is not running,
+ * or -EIO when it has faulted.
  */
 
 int da1470x_snc_send(uint16_t type, const void *payload, uint16_t len);

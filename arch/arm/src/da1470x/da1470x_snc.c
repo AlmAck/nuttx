@@ -677,6 +677,12 @@ int da1470x_snc_send(uint16_t type, FAR const void *payload, uint16_t len)
     {
       ret = -ENODEV;
     }
+  else if (g_shared->state != SNC_STATE_READY)
+    {
+      /* It faulted: nothing will read the ring until it is restarted */
+
+      ret = -EIO;
+    }
   else if (snc_ring_put(&g_shared->to_snc, type, payload, len) < 0)
     {
       priv->dropped_to_snc++;
