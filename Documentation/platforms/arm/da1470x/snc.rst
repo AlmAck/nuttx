@@ -180,6 +180,89 @@ the M33 sleeps needs the M33's drivers in that domain -- the console
 UART, I2C, SPI, DMA -- to be restored on the way back, which is part of
 the work towards the part's extended sleep.
 
+Using it well
+=============
+
+The controller is a gatekeeper: it does the frequent, small work that
+would otherwise wake the M33, and wakes the M33 only when there is a
+result worth acting on.  Each wake of the M33 costs about 39 uC, so the
+aim is to turn "the M33 wakes 25-100 times a second" into "a few times a
+minute".  A rule of thumb: anything that would wake the M33 more than
+about once a second belongs here.
+
+What fits
+---------
+
+* High-rate sensor sampling (an accelerometer at 25-100 Hz), batched.
+* Event detection on a stream -- steps, wrist-raise, tap, "no motion for
+  five minutes", heart-rate peaks -- sending the conclusion, not the
+  samples.
+* Pin watching: buttons, a charger's status pins (the input firmware).
+* Slow housekeeping with thresholds: battery, temperature, pressure
+  trends, reported only when a threshold is crossed.
+
+What does not: the UI and the display, Bluetooth, the file system and
+flash writes, heavy arithmetic (a Cortex-M0+ without FPU, around 10 MHz
+of effective instruction rate, 64 KiB of RAM), and anything that happens
+only occasionally -- once a minute on the M33 costs about as little and
+is simpler.
+
+Where an M33 driver is already interrupt driven and wakes only on a real
+event, moving its interrupt line here gains nothing.  The devkit's touch
+controller is such a case: its INT line raises an M33 interrupt only
+while a finger is on the glass, and ``poll()`` on ``/dev/input0`` sleeps
+until then.  The controller helps with touch only by taking the whole
+job -- reading the touch controller over a bus of its own and
+recognising gestures -- so that the M33 wakes once per gesture rather
+than once per report while a finger moves.
+
+How to build on it
+------------------
+
+1. **One firmware, several small jobs.**  Only one firmware runs, so the
+   product firmware is one application combining jobs (input watching, a
+   sensor hub, battery monitoring), each switched on by a configuration
+   message.  Every application has the loop of the demo and input
+   firmwares: ``snc_rt_wait()``, take commands while a reply is sure to
+   fit, pass the framework's own to ``snc_rt_system_message()``, run the
+   jobs whose timer ticked.
+
+2. **Configure from the M33.**  Which pins, what rate, what threshold
+   arrive as messages such as ``SNC_INPUT_CONFIG``: the M33 keeps the
+   policy, one firmware serves every use, and with nothing configured the
+   timer stops and the controller sleeps.
+
+3. **Send conclusions, or batches.**  One message per event; where the
+   M33 really needs samples, a batch of them in one message (up to 256
+   bytes) a few times a second.  RAM8 has room for larger blocks handed
+   over by offset.
+
+4. **Make it look like ordinary devices on the M33.**  A small kernel
+   driver registers the usual device -- a uORB topic such as
+   ``/dev/uorb/sensor_accel0``, or ``/dev/buttons`` as the board already
+   does -- and turns its handler (``da1470x_snc_register_handler()``) and
+   its controls (activate, interval) into messages.  Nothing above the
+   kernel needs to know the controller exists; ``/dev/snc0`` is for tests
+   and tools.
+
+5. **Give it peripherals of its own.**  The M33's drivers and a firmware
+   must not share a peripheral; nothing arbitrates between them.  Put the
+   controller's devices on a bus the M33 does not register (I2C1 or SPI1,
+   say).  TIMER6 is reserved this way already.
+
+Power
+-----
+
+* The timer runs only while a job needs it.
+* Sample no faster than the job needs, and prefer a sensor's own FIFO
+  and interrupt pin: one burst read per batch instead of one wake per
+  sample.
+* Enable deep sleep (``SNC_MSG_SLEEP_POLICY``) once the part as a whole
+  goes into its deepest sleep; the controller then survives PD_SNC going
+  down.
+* Measure with the debugger detached, and with a current meter whose
+  limit allows the panel's inrush when it lights.
+
 Not done yet
 ============
 
