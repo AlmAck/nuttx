@@ -823,16 +823,19 @@ lcdc_aod_face(struct da1470x_lcdc_s *priv)
  *
  * Description:
  *   The caller hands over wall clock time the way the MIP bridge takes it,
- *   and the driver counts on from there with the monotonic clock, so it
- *   needs neither a time zone nor an RTC.  lcdc_aod_now() returns the
- *   millisecond of the day.
+ *   and the driver counts on from there, so it needs neither a time zone
+ *   nor an RTC.  lcdc_aod_now() returns the millisecond of the day.
+ *
+ *   CLOCK_BOOTTIME, not CLOCK_MONOTONIC: in a tickless kernel the latter
+ *   counts scheduler ticks, which only advance at timer events, while the
+ *   former reads the hardware timer.
  *
  ****************************************************************************/
 
 static void lcdc_aod_seed(struct da1470x_lcdc_s *priv,
                           FAR const struct da1470x_lcdc_aod_time_s *t)
 {
-  clock_gettime(CLOCK_MONOTONIC, &priv->aodbase);
+  clock_gettime(CLOCK_BOOTTIME, &priv->aodbase);
   priv->aodbase_sec = (t->hh % 24) * 3600 + (t->mm % 60) * 60 +
                       (t->ss % 60);
 }
@@ -842,7 +845,7 @@ static uint32_t lcdc_aod_now(struct da1470x_lcdc_s *priv)
   struct timespec now;
   int64_t ms;
 
-  clock_gettime(CLOCK_MONOTONIC, &now);
+  clock_gettime(CLOCK_BOOTTIME, &now);
 
   ms = (int64_t)(now.tv_sec - priv->aodbase.tv_sec) * 1000 +
        (now.tv_nsec - priv->aodbase.tv_nsec) / 1000000 +
