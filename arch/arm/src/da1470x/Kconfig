@@ -185,7 +185,6 @@ config DA1470X_GPIO_IRQ
 config DA1470X_RTC
 	bool "RTC"
 	default n
-	depends on !RTC_ARCH
 	select RTC
 	select RTC_DATETIME
 	select RTC_ALARM
@@ -199,9 +198,8 @@ config DA1470X_RTC
 		this one does.  Enabling both defines g_rtc_enabled twice, in
 		da1470x_rtc.c and in drivers/timers/arch_rtc.c, and the build
 		fails at the link with a duplicate symbol under -fno-common --
-		a long way from the option that caused it, and in a file
-		nobody merging a defconfig from another chip would think to
-		look at.
+		a long way from the option that caused it, so the driver
+		refuses to build with RTC_ARCH set instead.
 
 config DA1470X_PDC
 	bool "Power Domain Controller (PDC)"

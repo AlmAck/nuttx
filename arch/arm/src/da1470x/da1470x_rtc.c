@@ -52,6 +52,14 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+/* The arch RTC interface is implemented here; RTC_ARCH would build a
+ * second one on top of the driver interface and clash at link time.
+ */
+
+#ifdef CONFIG_RTC_ARCH
+#  error "CONFIG_DA1470X_RTC cannot be combined with CONFIG_RTC_ARCH"
+#endif
+
 /* Alarm compare mask: everything except hundredths */
 
 #define RTC_ALARM_MASK  (RTC_ALARM_ENABLE_ALARM_SEC_EN  | \
@@ -446,7 +454,8 @@ int da1470x_rtc_cancelalarm(void)
 
   flags = enter_critical_section();
   putreg32(0, DA1470X_RTC_ALARM_ENABLE);
-  putreg32(RTC_INTERRUPT_DISABLE_ALRM_INT_DIS, DA1470X_RTC_INTERRUPT_DISABLE);
+  putreg32(RTC_INTERRUPT_DISABLE_ALRM_INT_DIS,
+           DA1470X_RTC_INTERRUPT_DISABLE);
   g_alarmcb = NULL;
   leave_critical_section(flags);
   return OK;
