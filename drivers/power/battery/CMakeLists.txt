@@ -72,6 +72,10 @@ if(CONFIG_BATTERY_GAUGE)
     list(APPEND SRCS battery_soc.c)
   endif()
 
+  if(CONFIG_BATTERY_NPM1300)
+    list(APPEND SRCS npm1300.c)
+  endif()
+
   # Add the bq27426 I2C-based battery gauge driver
 
   if(CONFIG_BQ27426)

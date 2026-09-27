@@ -164,6 +164,133 @@ endchoice
 
 endif # BATTERY_SOC_ESTIMATOR
 
+config BATTERY_NPM1300
+	bool "Nordic nPM1300 PMIC (charger + battery gauge)"
+	default n
+	select I2C
+	select BATTERY_SOC_ESTIMATOR
+	depends on BATTERY_GAUGE
+	---help---
+		Nordic nPM1300 PMIC at the fixed I2C address 0x6b: configures the
+		Li-ion charger and registers a battery_gauge device.
+
+		The part has no fuel gauge in hardware (Nordic's coulomb counter
+		ships as a library with nRF Connect SDK), so BATIOC_CAPACITY is
+		answered from the voltage curve in battery_soc.c, compensated with
+		the measured battery current. It is an estimate, not a gauge.
+
+if BATTERY_NPM1300
+
+config NPM1300_I2C_FREQUENCY
+	int "nPM1300 I2C frequency"
+	default 400000
+
+config NPM1300_VTERM_MV
+	int "Charge termination voltage in mV"
+	default 4200
+	---help---
+		Representable values are 3500-3650 and 4000-4450 in 50 mV steps.
+		The range between 3650 and 4000 mV cannot be encoded.
+
+config NPM1300_ICHG_MA
+	int "Charge current in mA"
+	default 100
+	---help---
+		32 to 800 mA in 2 mA steps.
+
+config NPM1300_HAVE_NTC
+	bool "Board has a battery NTC thermistor"
+	default y
+	---help---
+		Say n when no thermistor is fitted. The charger reads the missing
+		NTC as out of range and refuses to charge unless it is disabled.
+
+config NPM1300_ESR_MOHM
+	int "Cell internal resistance in mOhm (0 = default)"
+	default 0
+	---help---
+		Used to back out the IR drop before the voltage is looked up on the
+		discharge curve. 0 uses BATTERY_SOC_DEFAULT_ESR_MOHM.
+
+config NPM1300_BUCK1_MV
+	int "BUCK1 output voltage in mV (0 = leave alone)"
+	default 0
+	---help---
+		1000 to 3300 in 100 mV steps, or 0 to leave the rail exactly as
+		it is.
+
+		Out of reset a buck follows its external VSET1 resistor pins and
+		ignores the voltage register entirely. A non-zero value here
+		takes the rail over in software, programs it and enables it.
+
+		0 is the default on purpose: these rails usually power the host
+		that is doing the programming, so changing one is a decision
+		about the board, not a tuning knob. Check what the rail feeds
+		before setting it.
+
+config NPM1300_BUCK2_MV
+	int "BUCK2 output voltage in mV (0 = leave alone)"
+	default 0
+	---help---
+		As NPM1300_BUCK1_MV, for the second rail.
+
+config NPM1300_WATCHDOG
+	bool "Register the PMIC watchdog"
+	default n
+	depends on WATCHDOG
+	---help---
+		Expose the PMIC's system timer in watchdog mode as a NuttX
+		watchdog device.
+
+		This is a second watchdog, independent of the SoC's own: it
+		lives across the I2C bus, so it still fires when the CPU and its
+		on-die watchdog are wedged together, and in reset mode it cycles
+		the rails rather than just the core.
+
+		Registering does not start it. Nothing feeds a watchdog until
+		something opens the device and issues WDIOC_START, which is
+		deliberate - see the mode option below.
+
+if NPM1300_WATCHDOG
+
+config NPM1300_WATCHDOG_DEVPATH
+	string "Watchdog device path"
+	default "/dev/watchdog1"
+	---help---
+		Keep this off /dev/watchdog0 if the SoC watchdog is also
+		registered, which is the normal arrangement.
+
+config NPM1300_WATCHDOG_TIMEOUT_MS
+	int "Default watchdog window in ms"
+	default 60000
+	---help---
+		16 ms resolution, up to about 74 hours. WDIOC_SETTIMEOUT
+		overrides it at runtime.
+
+choice
+	prompt "Watchdog expiry action"
+	default NPM1300_WATCHDOG_MODE_WARN
+
+config NPM1300_WATCHDOG_MODE_WARN
+	bool "Warn (pulse the interrupt line)"
+	---help---
+		Safe default: expiry is reported and nothing else happens. Use
+		this until the feeding path is known to work.
+
+config NPM1300_WATCHDOG_MODE_RESET
+	bool "Reset (power-cycle the system)"
+	---help---
+		Expiry cycles the PMIC rails, taking the whole board down and
+		back up. Only choose this once something reliably feeds the
+		watchdog, or the board will power-cycle on its own every
+		NPM1300_WATCHDOG_TIMEOUT_MS.
+
+endchoice
+
+endif # NPM1300_WATCHDOG
+
+endif # BATTERY_NPM1300
+
 config I2C_MAX1704X
 	bool
 
