@@ -603,6 +603,32 @@ config INPUT_CYPRESS_MBR3108_NPOLLWAITERS
 
 endif # INPUT_CYPRESS_MBR3108
 
+config INPUT_ZT2628
+	bool "Zinitix ZT2628 capacitive touch controller"
+	default n
+	select INPUT_TOUCHSCREEN
+	select SCHED_LPWORK
+	---help---
+		Enable support for the Zinitix ZT2628 capacitive touch panel
+		controller: I2C, a single touch point, interrupt driven.  The
+		board supplies the interrupt, supply and reset lines through
+		struct zt2628_config_s (<nuttx/input/zt2628.h>) and registers
+		the controller as a touchscreen device with zt2628_register().
+		The interrupt only fires while a finger is on the panel, and
+		each report is read from the low priority work queue.
+
+if INPUT_ZT2628
+
+config INPUT_ZT2628_NBUFFER
+	int "Number of touch samples buffered per reader"
+	default 8
+	---help---
+		Each open of the device buffers this many touch samples.  When
+		a reader falls behind, the oldest sample is overwritten, so too
+		small a buffer can lose the DOWN or UP of a fast gesture.
+
+endif # INPUT_ZT2628
+
 config INPUT_GT9XX
 	bool "Goodix GT9xx Driver"
 	default n
