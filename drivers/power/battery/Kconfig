@@ -116,6 +116,114 @@ config MAX1704X
 		The MAX17040 is configured to operate with a single lithium cell and the
 		MAX17041 is configured for a dual-cell 2S pack.
 
+config BATTERY_MAX20303
+	bool "MAX20303 wearable PMIC (fuel gauge + charger + haptic)"
+	default n
+	select I2C
+	depends on BATTERY_GAUGE
+	---help---
+		Maxim MAX20303 wearable PMIC: registers the integrated
+		ModelGauge fuel gauge as a battery_gauge device, configures and
+		enables the Li+ charger, and exposes the haptic motor driver as
+		a character device (write max20303_haptic_sample_s arrays).
+		Power rails (LDO/buck) are not touched unless
+		MAX20303_LDO1_MV is set.
+
+if BATTERY_MAX20303
+
+config MAX20303_I2C_FREQUENCY
+	int "MAX20303 I2C frequency"
+	default 400000
+
+config MAX20303_LDO1_MV
+	int "LDO1 output voltage in mV (0 = leave rail untouched)"
+	default 0
+	range 0 1950
+	---help---
+		If nonzero, program LDO1 to this output voltage (500-1950 mV,
+		25 mV steps) and enable it during registration. Needed on boards
+		that power a sensor rail from LDO1: the MAX20303B OTP default
+		leaves it disabled. Leave at 0 on boards where the
+		rail must not be touched.
+
+config MAX20303_LDO2_MV
+	int "LDO2 output voltage in mV (0 = leave rail untouched)"
+	default 0
+	range 0 4000
+	---help---
+		If nonzero, program LDO2 to this output voltage (900-4000 mV,
+		100 mV steps) and enable it during registration. The MAX20303B
+		OTP default leaves it disabled. Leave at 0 on boards where the
+		rail must not be touched.
+
+config MAX20303_HAPTIC_LRA
+	bool "Haptic motor is an LRA (linear resonant actuator)"
+	default n
+	---help---
+		Configure the haptic driver for an LRA with back-EMF resonance
+		tracking. Default is a plain ERM voltage drive.
+
+if MAX20303_HAPTIC_LRA
+
+config MAX20303_HAPTIC_LRA_HZ
+	int "LRA resonant frequency (Hz)"
+	default 240
+	range 120 305
+	---help---
+		Nominal resonant frequency of the fitted motor, used as the
+		back-EMF tracker's initial guess. The tracker converges from
+		here, so a bad guess costs convergence time -- which matters
+		because a short alert tap can be OVER before the tracker locks,
+		giving a weak or wrong-feeling buzz with no error reported
+		anywhere.
+
+		The default of 240 Hz is only a starting point and is likely
+		wrong for any given motor (common coin LRAs sit at 175 or
+		205 Hz). Check the motor's datasheet.
+
+		If you do not know it, boot once and read the "resonance"
+		line the driver logs at registration -- the chip measures the
+		motor as actually mounted, which beats the datasheet anyway.
+
+config MAX20303_HAPTIC_PROBE_RESONANCE
+	bool "Measure and log LRA resonance at registration"
+	default n
+	---help---
+		At registration, drive the motor briefly and log the resonant
+		frequency the chip's back-EMF tracker measured, alongside the
+		configured guess.
+
+		This BUZZES THE MOTOR ON EVERY BOOT (~200 ms) and costs that
+		long in registration, so it is a bring-up aid, not something to
+		leave enabled in a product.
+
+		Turn it on when bringing up a new board or a new motor: it is
+		the only feedback that the back-EMF tracker locked at all, and
+		it reports the measured frequency to put in
+		MAX20303_HAPTIC_LRA_HZ. Note the measurement spreads a few
+		percent run to run, so a value anywhere in the observed band is
+		equivalent -- do not chase an exact figure.
+
+endif # MAX20303_HAPTIC_LRA
+
+config MAX20303_HAPTIC_VFS_MV
+	int "Haptic full-scale voltage in mV (0 = leave at OTP default)"
+	default 0
+	range 0 5500
+	---help---
+		Full-scale voltage (VFS) that every haptic amplitude is a
+		percentage of. The driver's effective full scale is
+		min(VFS, VSYS).
+
+		Leaving this at 0 means amplitudes are relative to whatever the
+		OTP default happens to be, so "35%" is not a defined physical
+		drive level and may overdrive the motor. Set it to the motor's
+		rated voltage.
+
+		Quantised to 21.57 mV steps by the hardware.
+
+endif # BATTERY_MAX20303
+
 config I2C_MAX1704X
 	bool
 
