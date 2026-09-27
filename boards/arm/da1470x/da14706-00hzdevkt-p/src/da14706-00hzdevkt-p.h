@@ -37,12 +37,18 @@
 /* LED definitions **********************************************************/
 
 /* LED2 (P1.1) is also the reset line of the display board's touch
- * controller.
+ * controller.  With the touch driver enabled the LED set shrinks to the
+ * other two, LED1 and LED3 (as BOARD_LED1 and BOARD_LED2), so that the
+ * kernel's status LEDs cannot hold the controller in reset.
  */
 
 #define GPIO_LED1  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT0 | GPIO_PIN(31))
-#define GPIO_LED2  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(1))
-#define GPIO_LED3  (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(2))
+#ifdef CONFIG_DA14706_TOUCH_ZT2628
+#  define GPIO_LED2 (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(2))
+#else
+#  define GPIO_LED2 (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(1))
+#  define GPIO_LED3 (GPIO_OUTPUT | GPIO_VALUE_ONE | GPIO_PORT1 | GPIO_PIN(2))
+#endif
 
 /* Button definitions *******************************************************/
 
@@ -168,6 +174,18 @@ int da1470x_audio_setup(void);
 #ifdef CONFIG_DA1470X_VAD
 int da1470x_vad_setup(void);
 #endif
+#endif
+
+/****************************************************************************
+ * Name: da1470x_zt2628_initialize
+ *
+ * Description:
+ *   Register the display board's touch controller as /dev/input0.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_DA14706_TOUCH_ZT2628
+int da1470x_zt2628_initialize(void);
 #endif
 
 #endif /* __ASSEMBLY__ */

@@ -44,8 +44,12 @@ Two separate things happen with a press:
 Touch
 -----
 
-The display board's ZT2628 touch controller has no driver in this port
-yet.
+The ZT2628's INT line (P1.03) raises an M33 GPIO interrupt only while a
+finger is on the glass.  The driver disables it, reads the report over
+I2C0 from the low priority work queue, clears and re-enables it, and
+wakes readers of ``/dev/input0``.  An idle touch panel therefore costs the
+M33 nothing; a reader should block in ``poll()`` without a timeout while
+no finger is down.
 
 Display
 -------
@@ -165,8 +169,14 @@ and synchronises transfers to the tearing-effect line
 0: it goes black and, after a while, shows artefacts and update bands;
 use a low non-zero level or ``FBIOSET_POWER`` 0.
 
-The display board also carries a Zinitix ZT2628 touch controller; a
-driver for it is not part of this port yet.
+The display board also carries a Zinitix ZT2628 touch controller on I2C0
+(SCL P1.12, SDA P1.11, address 0x20), with its interrupt on P1.03, reset
+on P1.01 and its supply, which also feeds the I2C pull-ups, on P0.28.
+``CONFIG_DA14706_TOUCH_ZT2628`` (with ``CONFIG_DA1470X_I2C0`` and
+``CONFIG_DA1470X_GPIO_IRQ``) registers it as ``/dev/input0`` through the
+generic ``drivers/input/zt2628.c``: a single touch point, reported as
+``struct touch_sample_s``.  P1.01 is also LED2, so with the touch driver
+enabled only LED1 and LED3 are available.
 
 ``CONFIG_DA14706_LCD_LPM012M134B`` (instead of the AMOLED) registers a JDI
 LPM012M134B 240x240 memory-in-pixel panel on the JDI parallel interface.

@@ -50,6 +50,10 @@ if(CONFIG_DA14706_LCD_LPM012M134B)
   list(APPEND SRCS da1470x_lpm012m134b.c)
 endif()
 
+if(CONFIG_DA14706_TOUCH_ZT2628)
+  list(APPEND SRCS da1470x_zt2628.c)
+endif()
+
 if(CONFIG_ARCH_BUTTONS)
   list(APPEND SRCS da1470x_buttons.c)
 endif()

@@ -52,7 +52,11 @@
 #define BOARD_LED1                  0
 #define BOARD_LED2                  1
 #define BOARD_LED3                  2
-#define BOARD_NLEDS                 3
+#ifdef CONFIG_DA14706_TOUCH_ZT2628
+#  define BOARD_NLEDS               2  /* P1.1 is the touch reset line */
+#else
+#  define BOARD_NLEDS               3
+#endif
 
 /* LED bits for use with board_userled_all() */
 

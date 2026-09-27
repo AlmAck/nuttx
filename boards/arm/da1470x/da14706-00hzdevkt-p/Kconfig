@@ -23,6 +23,17 @@ config DA14706_LCD_LPM012M134B
 		devkit does not carry this panel: the JDI pads are the chip's
 		fixed ones, the enable pin is BOARD_JDI_PEN_PIN.
 
+config DA14706_TOUCH_ZT2628
+	bool "ZT2628 touch controller of the E120A390QSR board"
+	default n
+	depends on DA1470X_I2C0 && DA1470X_GPIO_IRQ
+	select INPUT
+	select INPUT_ZT2628
+	---help---
+		Register the display board's touch controller as /dev/input0.
+		Its reset line is P1.1, which is also LED2, so LED2 is not
+		available while this is enabled.
+
 config DA14706_OQSPI_MOUNTPOINT
 	string "Mount point of the flash data partition"
 	default "/mnt/flash"
