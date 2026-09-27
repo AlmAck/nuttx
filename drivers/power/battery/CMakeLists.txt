@@ -68,6 +68,10 @@ if(CONFIG_BATTERY_GAUGE)
     list(APPEND SRCS max1704x.c)
   endif()
 
+  if(CONFIG_BATTERY_SOC_ESTIMATOR)
+    list(APPEND SRCS battery_soc.c)
+  endif()
+
   # Add the bq27426 I2C-based battery gauge driver
 
   if(CONFIG_BQ27426)

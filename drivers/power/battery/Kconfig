@@ -116,6 +116,54 @@ config MAX1704X
 		The MAX17040 is configured to operate with a single lithium cell and the
 		MAX17041 is configured for a dual-cell 2S pack.
 
+config BATTERY_SOC_ESTIMATOR
+	bool "Voltage-based state-of-charge estimator"
+	default n
+	---help---
+		A piecewise-linear discharge curve with optional IR-drop
+		compensation, for PMICs that measure battery voltage but have no
+		coulomb-counting fuel gauge (nPM1300), and as a fallback for
+		gauges that report nonsense until they converge.
+
+if BATTERY_SOC_ESTIMATOR
+
+choice
+	prompt "Cell model"
+	default BATTERY_SOC_MODEL_LIPO_42
+	---help---
+		Which open-circuit-voltage curve the estimate is looked up on.
+		This must match the cell chemistry: a 4.35 V cell read against
+		the 4.2 V curve sits at 100% for the first third of its
+		discharge, and a LiFePO4 cell read against either reads
+		permanently flat.
+
+		Drivers that know their own cell can override this per device
+		with battery_soc_from_loaded_model().
+
+config BATTERY_SOC_MODEL_LIPO_42
+	bool "LiPo / LiCoO2, 4.2 V full"
+	---help---
+		The usual single-cell wearable battery.
+
+config BATTERY_SOC_MODEL_LIPO_HV
+	bool "High-voltage LiPo, 4.35 V full"
+	---help---
+		Same chemistry with the top of the curve stretched. Pair this
+		with a charger termination voltage above 4.2 V or most of the
+		extra range is never reached.
+
+config BATTERY_SOC_MODEL_LIFEPO4
+	bool "LiFePO4, 3.65 V full"
+	---help---
+		Very flat: roughly 80% of the capacity sits inside a 60 mV
+		band, so a voltage-only estimate means little except near the
+		two ends. Selected because the alternative - reading it against
+		a LiCoO2 curve - is worse, not because it is good.
+
+endchoice
+
+endif # BATTERY_SOC_ESTIMATOR
+
 config I2C_MAX1704X
 	bool
 
