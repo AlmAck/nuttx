@@ -130,8 +130,11 @@ Memory Map
 ==========
 
 DA14706 as seen by the CPUAPP.  RAM3..RAM7 are used by NuttX.  With
-``CONFIG_MM_REGIONS`` above 1, RAM8 and RAM9 are added to the heap unless
-Bluetooth or the SNC claims them.  RAM10 is reserved for the CMAC firmware.
+``CONFIG_MM_REGIONS`` above 1, RAM8 is added to the heap unless Bluetooth
+or the SNC uses it.  RAM9 and RAM10 are the CMAC's cells: they run from
+its clock and the M33 reaches them through a bridge in that clock domain,
+so with the radio idle they ignore writes and cannot be heap.  RAM10 holds
+the CMAC firmware with Bluetooth.
 
 ============ ============= ====== =========================================
 Block Name   Start Address Length Notes

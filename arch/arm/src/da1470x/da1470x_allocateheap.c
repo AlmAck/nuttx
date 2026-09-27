@@ -185,18 +185,15 @@ void up_allocate_kheap(void **heap_start, size_t *heap_size)
 #if CONFIG_MM_REGIONS > 1
 void arm_addregion(void)
 {
-#if !defined(CONFIG_DA1470X_BLE) && defined(CONFIG_DA1470X_SNC)
-  /* RAM8 is the area shared with the sensor node controller; RAM9 is free
-   * when the radio is not in use.
+  /* RAM9 and RAM10 run from the radio controller's clock, and the M33
+   * reaches them only through a bridge in that clock domain: with the
+   * radio idle they ignore writes, so they cannot be heap.  RAM8 is free
+   * unless the sensor node controller or the radio uses it.
    */
 
-  kmm_addregion((void *)DA1470X_SRAM9_BASE,
-                DA1470X_SRAM10_BASE - DA1470X_SRAM9_BASE);
-#elif !defined(CONFIG_DA1470X_BLE)
-  /* RAM8 (shared) and RAM9 are free when the radio is not in use */
-
+#if !defined(CONFIG_DA1470X_BLE) && !defined(CONFIG_DA1470X_SNC)
   kmm_addregion((void *)DA1470X_SRAM8_BASE,
-                DA1470X_SRAM10_BASE - DA1470X_SRAM8_BASE);
+                DA1470X_SRAM9_BASE - DA1470X_SRAM8_BASE);
 #endif
 }
 #endif
